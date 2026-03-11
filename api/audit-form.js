@@ -170,7 +170,7 @@ async function sendAutoReply(body, apiKey) {
 
 // --- Handler ---
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const cors = getCorsHeaders(req)
   Object.entries(cors).forEach(([key, value]) => res.setHeader(key, value))
 
