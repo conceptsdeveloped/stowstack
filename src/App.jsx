@@ -5,8 +5,9 @@ import MetaAdsGuide from './views/MetaAdsGuide'
 import Library from './views/Library'
 import ClientLogin from './views/ClientLogin'
 import ClientPortal from './views/ClientPortal'
+import FacilityDiagnostic from './views/FacilityDiagnostic'
 import Chatbot from './components/Chatbot'
-import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn } from 'lucide-react'
+import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck } from 'lucide-react'
 
 export default function App() {
   const [view, setView] = useState('website')
@@ -31,6 +32,15 @@ export default function App() {
     return (
       <>
         <Library onBack={() => setView('website')} />
+        <Chatbot />
+      </>
+    )
+  }
+
+  if (view === 'diagnostic') {
+    return (
+      <>
+        <FacilityDiagnostic onBack={() => setView('website')} />
         <Chatbot />
       </>
     )
@@ -69,6 +79,7 @@ export default function App() {
           { id: 'library', label: 'Library', icon: BookOpen },
           { id: 'guide', label: 'Guide', icon: BookOpen },
           { id: 'login', label: 'Login', icon: LogIn },
+          { id: 'diagnostic', label: 'Audit', icon: ClipboardCheck },
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         ].map((v) => (
           <button
