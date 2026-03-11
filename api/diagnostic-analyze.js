@@ -193,9 +193,6 @@ Produce the full audit JSON as specified. Be thorough, specific, and reference a
     // Use streaming to avoid Vercel's 10s timeout on Hobby plan.
     // Streaming responses get up to 60s on Hobby.
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-    res.setHeader('Transfer-Encoding', 'chunked')
-
-    let fullText = ''
 
     const stream = client.messages.stream({
       model: 'claude-sonnet-4-20250514',
@@ -204,12 +201,19 @@ Produce the full audit JSON as specified. Be thorough, specific, and reference a
       messages: [{ role: 'user', content: userMessage }],
     })
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta?.text) {
-        fullText += event.delta.text
-        // Send a small keep-alive chunk to prevent timeout
-        res.write(' ')
-      }
+    let fullText = ''
+
+    stream.on('text', (text) => {
+      fullText += text
+      // Write each chunk to keep connection alive
+      res.write(text)
+    })
+
+    const finalMessage = await stream.finalMessage()
+
+    // Collect full text from final message as fallback
+    if (!fullText && finalMessage.content?.[0]?.text) {
+      fullText = finalMessage.content[0].text
     }
 
     // Strip markdown fences if present
@@ -219,22 +223,18 @@ Produce the full audit JSON as specified. Be thorough, specific, and reference a
       .replace(/\s*```$/i, '')
       .trim()
 
-    const result = JSON.parse(cleaned)
-
-    if (!result.overall_score || !result.categories) {
-      throw new Error('Response missing required fields')
+    if (!cleaned) {
+      throw new Error('Empty response from Claude')
     }
 
-    // Send the final JSON result
-    res.end(JSON.stringify(result))
+    // Validate it's parseable JSON before ending
+    JSON.parse(cleaned)
+
+    res.end()
   } catch (err) {
     console.error('Diagnostic analysis failed:', err.message)
-    // If headers already sent (streaming started), end with error
     if (res.headersSent) {
-      res.end(JSON.stringify({
-        error: 'Analysis failed',
-        details: err.message,
-      }))
+      res.end()
     } else {
       res.status(500).json({
         error: 'Analysis failed',

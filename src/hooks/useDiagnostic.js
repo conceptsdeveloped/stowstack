@@ -66,27 +66,32 @@ export function useDiagnostic() {
 
         clearInterval(progressInterval)
 
-        // Response is streamed text ending with JSON
+        // Response is streamed JSON text from Claude
         const text = await response.text()
-        const trimmed = text.trim()
+        const trimmed = text
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim()
 
-        // Try to parse the JSON from the response
-        // The stream sends spaces as keep-alive, then JSON at the end
+        if (!trimmed) {
+          throw new Error('Analysis failed — empty response')
+        }
+
+        // Find the JSON object in the response
         const jsonStart = trimmed.indexOf('{')
         if (jsonStart === -1) {
-          throw new Error(trimmed || 'Analysis failed — empty response')
+          throw new Error('Analysis failed — no data returned')
         }
 
-        const jsonStr = trimmed.slice(jsonStart)
-        let result
-        try {
-          result = JSON.parse(jsonStr)
-        } catch {
-          throw new Error('Analysis failed — invalid response format')
-        }
+        const result = JSON.parse(trimmed.slice(jsonStart))
 
         if (result.error) {
           throw new Error(result.error)
+        }
+
+        if (!result.overall_score || !result.categories) {
+          throw new Error('Analysis failed — incomplete response')
         }
 
         dispatch({ type: 'ANALYZE_SUCCESS', result })
