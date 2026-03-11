@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="40%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f4c2e"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#16a34a"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="60" y="250" width="64" height="64" rx="12" fill="url(#brand)"/>
+  <path d="M80 274h24v22H80z" fill="none" stroke="#fff" stroke-width="2"/>
+  <path d="M80 274l12-6 12 6" fill="none" stroke="#fff" stroke-width="2"/>
+  <text x="140" y="298" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="800" fill="#ffffff">StowStack</text>
+  <text x="62" y="370" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#94a3b8">Meta Ads for Self-Storage Operators</text>
+  <text x="62" y="420" font-family="Inter, system-ui, sans-serif" font-size="18" fill="#64748b">Fill vacant units with targeted campaigns. Live in 48-72 hours.</text>
+  <rect x="62" y="470" width="240" height="48" rx="10" fill="url(#brand)"/>
+  <text x="110" y="500" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="600" fill="#ffffff">Get Your Free Audit</text>
+  <text x="62" y="580" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#475569">stowstack.com</text>
+</svg>
