@@ -189,44 +189,57 @@ ${formData}
 
 Produce the full audit JSON as specified. Be thorough, specific, and reference actual form responses as evidence. Score conservatively — do not inflate scores. Every recommendation should be actionable with specific next steps.`
 
-  let attempt = 0
-  const maxAttempts = 2
+  try {
+    // Use streaming to avoid Vercel's 10s timeout on Hobby plan.
+    // Streaming responses get up to 60s on Hobby.
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Transfer-Encoding', 'chunked')
 
-  while (attempt < maxAttempts) {
-    attempt++
-    try {
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 16000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
+    let fullText = ''
+
+    const stream = client.messages.stream({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 12000,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+    })
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.text) {
+        fullText += event.delta.text
+        // Send a small keep-alive chunk to prevent timeout
+        res.write(' ')
+      }
+    }
+
+    // Strip markdown fences if present
+    const cleaned = fullText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+
+    const result = JSON.parse(cleaned)
+
+    if (!result.overall_score || !result.categories) {
+      throw new Error('Response missing required fields')
+    }
+
+    // Send the final JSON result
+    res.end(JSON.stringify(result))
+  } catch (err) {
+    console.error('Diagnostic analysis failed:', err.message)
+    // If headers already sent (streaming started), end with error
+    if (res.headersSent) {
+      res.end(JSON.stringify({
+        error: 'Analysis failed',
+        details: err.message,
+      }))
+    } else {
+      res.status(500).json({
+        error: 'Analysis failed',
+        details: err.message,
       })
-
-      const text = message.content[0]?.text || ''
-
-      // Strip any markdown fences if present
-      const cleaned = text
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim()
-
-      const result = JSON.parse(cleaned)
-
-      // Basic validation
-      if (!result.overall_score || !result.categories) {
-        throw new Error('Response missing required fields')
-      }
-
-      return res.status(200).json(result)
-    } catch (err) {
-      console.error(`Diagnostic analysis attempt ${attempt} failed:`, err.message)
-      if (attempt >= maxAttempts) {
-        return res.status(500).json({
-          error: 'Analysis failed after retries. Please try again.',
-          details: err.message,
-        })
-      }
     }
   }
 }

@@ -66,12 +66,29 @@ export function useDiagnostic() {
 
         clearInterval(progressInterval)
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({ error: 'Analysis failed' }))
-          throw new Error(err.error || `Server error: ${response.status}`)
+        // Response is streamed text ending with JSON
+        const text = await response.text()
+        const trimmed = text.trim()
+
+        // Try to parse the JSON from the response
+        // The stream sends spaces as keep-alive, then JSON at the end
+        const jsonStart = trimmed.indexOf('{')
+        if (jsonStart === -1) {
+          throw new Error(trimmed || 'Analysis failed — empty response')
         }
 
-        const result = await response.json()
+        const jsonStr = trimmed.slice(jsonStart)
+        let result
+        try {
+          result = JSON.parse(jsonStr)
+        } catch {
+          throw new Error('Analysis failed — invalid response format')
+        }
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
         dispatch({ type: 'ANALYZE_SUCCESS', result })
       } catch (err) {
         clearInterval(progressInterval)
