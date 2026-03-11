@@ -1,0 +1,16 @@
+{
+  "name": "stowstack-audit-form",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "StowStack audit intake form API (Cloudflare Worker)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 execute stowstack-leads --local --file=migrations/0001_create_leads.sql",
+    "migrate:prod": "wrangler d1 execute stowstack-leads --file=migrations/0001_create_leads.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}

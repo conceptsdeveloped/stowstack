@@ -1,0 +1,16 @@
+name = "stowstack-audit-form"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+# RESEND_API_KEY should be set as a secret, not here.
+# Run: npx wrangler secret put RESEND_API_KEY
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stowstack-leads"
+database_id = "" # Fill after running: npx wrangler d1 create stowstack-leads
+
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "" # Fill after running: npx wrangler kv namespace create RATE_LIMITS

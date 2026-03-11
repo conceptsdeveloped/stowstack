@@ -1,0 +1,9 @@
+{
+  "name": "stowstack-app",
+  "private": true,
+  "scripts": {
+    "dev:site": "npm run dev --prefix \"vite +react stowstack v1\"",
+    "dev:worker": "npm run dev --prefix workers/audit-form",
+    "dev": "npm run dev:site & npm run dev:worker & wait"
+  }
+}
