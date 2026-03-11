@@ -84,7 +84,30 @@ export function useDiagnostic() {
           throw new Error('Analysis failed — no data returned')
         }
 
-        const result = JSON.parse(trimmed.slice(jsonStart))
+        let jsonStr = trimmed.slice(jsonStart)
+        let result
+        try {
+          result = JSON.parse(jsonStr)
+        } catch {
+          // Try to repair truncated JSON by closing open braces/brackets
+          let repaired = jsonStr
+          // Remove any trailing incomplete string (unterminated quote)
+          repaired = repaired.replace(/,\s*"[^"]*$/, '')
+          repaired = repaired.replace(/:\s*"[^"]*$/, ': ""')
+          // Count and close open braces/brackets
+          const opens = (repaired.match(/[{[]/g) || []).length
+          const closes = (repaired.match(/[}\]]/g) || []).length
+          for (let i = 0; i < opens - closes; i++) {
+            // Guess whether we need } or ] based on last opener
+            const lastOpen = repaired.lastIndexOf('{') > repaired.lastIndexOf('[') ? '}' : ']'
+            repaired += lastOpen
+          }
+          try {
+            result = JSON.parse(repaired)
+          } catch {
+            throw new Error('Analysis failed — response was cut off. Please try again.')
+          }
+        }
 
         if (result.error) {
           throw new Error(result.error)

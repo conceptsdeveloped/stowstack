@@ -152,7 +152,10 @@ RESPOND WITH VALID JSON ONLY. No markdown fences, no explanatory text. Use this 
   }
 }
 
-IMPORTANT: Every category in "categories" must use the FULL structure shown for occupancy_momentum (score, severity, headline, analysis, red_flags, yellow_flags, green_flags, benchmarks). Do not abbreviate any category.`
+IMPORTANT RULES:
+1. Every category in "categories" must use the FULL structure shown for occupancy_momentum (score, severity, headline, analysis, red_flags, yellow_flags, green_flags, benchmarks). Do not abbreviate any category.
+2. Keep text fields CONCISE — analysis should be 2-3 sentences max, recommendations 1-2 sentences. Limit red_flags and yellow_flags to 2-3 per category. Limit priority_action_plan to 5-7 items. This is critical to stay within token limits.
+3. You MUST complete the entire JSON object. Do not get cut off. If running long, shorten remaining text fields rather than leaving JSON incomplete.`
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || ''
@@ -196,7 +199,7 @@ Produce the full audit JSON as specified. Be thorough, specific, and reference a
 
     const stream = client.messages.stream({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 12000,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     })
