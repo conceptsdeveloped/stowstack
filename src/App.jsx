@@ -7,17 +7,23 @@ import ClientLogin from './views/ClientLogin'
 import ClientPortal from './views/ClientPortal'
 import FacilityDiagnostic from './views/FacilityDiagnostic'
 import SharedAudit from './views/SharedAudit'
+import AdminDashboard from './views/AdminDashboard'
+import PMSUpload from './views/PMSUpload'
 import Chatbot from './components/Chatbot'
-import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck } from 'lucide-react'
+import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck, Shield, Upload } from 'lucide-react'
 
 // Check if the URL is a shared audit link: /audit/:slug
-function getAuditSlug() {
-  const match = window.location.pathname.match(/^\/audit\/([a-z0-9-]+)$/i)
-  return match ? match[1] : null
+// or PMS upload portal: /upload
+function getInitialRoute() {
+  const path = window.location.pathname
+  const auditMatch = path.match(/^\/audit\/([a-z0-9-]+)$/i)
+  if (auditMatch) return { type: 'audit', slug: auditMatch[1] }
+  if (path === '/upload') return { type: 'pms-upload' }
+  return null
 }
 
 export default function App() {
-  const [auditSlug] = useState(getAuditSlug)
+  const [initialRoute] = useState(getInitialRoute)
   const [view, setView] = useState('website')
   const [clientLoggedIn, setClientLoggedIn] = useState(false)
 
@@ -27,8 +33,13 @@ export default function App() {
   }, [])
 
   /* Shared audit link — takes over the entire page */
-  if (auditSlug) {
-    return <SharedAudit slug={auditSlug} />
+  if (initialRoute?.type === 'audit') {
+    return <SharedAudit slug={initialRoute.slug} />
+  }
+
+  /* Direct PMS upload link */
+  if (initialRoute?.type === 'pms-upload') {
+    return <PMSUpload onBack={() => { window.location.href = '/' }} />
   }
 
   /* Full-screen views that manage their own navigation */
@@ -57,6 +68,14 @@ export default function App() {
         <Chatbot />
       </>
     )
+  }
+
+  if (view === 'admin') {
+    return <AdminDashboard onBack={() => setView('website')} />
+  }
+
+  if (view === 'pms-upload') {
+    return <PMSUpload onBack={() => setView('website')} />
   }
 
   if (view === 'login') {
@@ -93,7 +112,9 @@ export default function App() {
           { id: 'guide', label: 'Guide', icon: BookOpen },
           { id: 'login', label: 'Login', icon: LogIn },
           { id: 'diagnostic', label: 'Audit', icon: ClipboardCheck },
+          { id: 'pms-upload', label: 'PMS', icon: Upload },
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'admin', label: 'Admin', icon: Shield },
         ].map((v) => (
           <button
             key={v.id}

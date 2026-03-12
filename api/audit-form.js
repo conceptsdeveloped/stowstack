@@ -1,3 +1,5 @@
+import { Redis } from '@upstash/redis'
+
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
   'https://www.stowstack.co',
@@ -214,8 +216,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Validation failed', fields: errors })
     }
 
-    // TODO: Add database storage — Vercel Postgres or Supabase
-    console.log('New audit lead:', JSON.stringify({
+    // Store lead in Redis for admin pipeline tracking
+    const leadData = {
       name: body.name.trim(),
       email: body.email.trim().toLowerCase(),
       phone: body.phone.trim(),
@@ -225,8 +227,28 @@ export default async function handler(req, res) {
       totalUnits: body.totalUnits,
       biggestIssue: body.biggestIssue,
       notes: body.notes?.trim() || null,
-      submittedAt: new Date().toISOString(),
-    }))
+    }
+
+    console.log('New audit lead:', JSON.stringify({ ...leadData, submittedAt: new Date().toISOString() }))
+
+    try {
+      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        const redis = new Redis({
+          url: process.env.KV_REST_API_URL,
+          token: process.env.KV_REST_API_TOKEN,
+        })
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        await redis.set(`lead:${id}`, JSON.stringify({
+          ...leadData,
+          status: 'form_sent',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          notes: [],
+        }))
+      }
+    } catch (kvErr) {
+      console.error('Failed to store lead in KV:', kvErr.message)
+    }
 
     // Send emails
     const apiKey = process.env.RESEND_API_KEY
