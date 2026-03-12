@@ -154,7 +154,7 @@ async function sendAutoReply(body, apiKey) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: 'Blake at StowStack <blake@stowstack.co>',
+      from: 'Blake at StowStack <noreply@stowstack.co>',
       to: body.email.trim().toLowerCase(),
       reply_to: 'blake@urkovro.resend.app',
       subject: 'Your StowStack Facility Audit Request',
