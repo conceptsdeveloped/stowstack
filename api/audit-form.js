@@ -142,22 +142,29 @@ async function sendAutoReply(body, apiKey) {
   const firstName = esc(body.name.trim().split(' ')[0])
   const html = `
     <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
-      <p>Hey ${firstName} —</p>
-      <p>Thanks for requesting a facility audit for <strong>${esc(body.facilityName)}</strong>. I'm looking forward to digging into this.</p>
-      <p>To put together an accurate, personalized audit, I need a bit more detail from you. I've put together a diagnostic questionnaire that covers everything — occupancy, unit mix, leads, marketing, pricing, operations, and competition.</p>
-      <p>Here's what to expect:</p>
+      <p>Hey ${firstName},</p>
+      <p>Just got your audit request for <strong>${esc(body.facilityName)}</strong>. Really appreciate you reaching out. We are already pulling up your market and taking a look at things on our end.</p>
+      <p>Before we can finish the full audit, we need you to fill out a quick diagnostic form. It covers everything we look at when we review a facility: occupancy, unit mix, leads, marketing, pricing, operations, and competition.</p>
+      <p>A few things about the form:</p>
       <ul style="padding-left: 20px; margin: 12px 0;">
-        <li style="margin-bottom: 6px;"><strong>Takes about 10 minutes</strong> — it's thorough but straightforward</li>
-        <li style="margin-bottom: 6px;"><strong>No reports or data pulls needed</strong> — everything is based on what you already know about your facility</li>
-        <li style="margin-bottom: 6px;"><strong>The questions are actually good</strong> — operators tell us filling it out alone gives them clarity on where they're leaking</li>
+        <li style="margin-bottom: 6px;"><strong>Takes about 10 minutes.</strong> It is thorough but not complicated.</li>
+        <li style="margin-bottom: 6px;"><strong>You do not need to pull any reports.</strong> Everything is based on what you already know about your facility.</li>
+        <li style="margin-bottom: 6px;"><strong>The questions are actually useful.</strong> A lot of operators tell us that just filling it out helps them see where things are slipping.</li>
       </ul>
       <p style="margin: 24px 0;">
-        <a href="https://shorturl.at/EWu5y" style="display: inline-block; padding: 14px 28px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Fill Out the Diagnostic Form &rarr;</a>
+        <a href="https://shorturl.at/EWu5y" style="display: inline-block; padding: 14px 28px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Fill Out the Diagnostic Form</a>
       </p>
-      <p>Once you complete it, I'll run a full AI-powered analysis across every category of your business and send you back a detailed audit report with scores, findings, and a prioritized action plan — completely free.</p>
-      <p>Real operators fill this out. It's how we build audits that actually move the needle.</p>
-      <p style="margin-top: 24px;">Talk soon,<br/><strong>Blake Burkett</strong><br/>StowStack</p>
-      <p style="margin-top: 20px; font-size: 12px; color: #999;">Hit reply if you have any questions — I read every one.</p>
+      <p>Once we get your answers back, we will put together a full audit with category scores, specific findings, and a prioritized action plan for <strong>${esc(body.facilityName)}</strong>. No cost, no strings.</p>
+      <p>After the audit is done, I would love to hop on a quick call to walk you through the results and talk about what is actually going to move the needle for you. <strong>What does your schedule look like this week or next for a 20 minute call?</strong></p>
+      <p>Looking forward to it.</p>
+      <p style="margin-top: 24px;">
+        Blake Burkett<br/>
+        StowStack<br/>
+        <a href="tel:2699298541" style="color: #16a34a; text-decoration: none;">269-929-8541</a><br/>
+        <a href="mailto:blake@storepawpaw.com" style="color: #16a34a; text-decoration: none;">blake@storepawpaw.com</a>
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+      <p style="font-size: 12px; color: #999;">This is a noreply email. Hit reply all if you have any questions. Anna is CC'd on this thread and can help with scheduling, additional reports, or anything else you need.</p>
     </div>`
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -170,8 +177,8 @@ async function sendAutoReply(body, apiKey) {
       from: 'Blake at StowStack <noreply@stowstack.co>',
       to: body.email.trim().toLowerCase(),
       cc: 'anna@storepawpaw.com',
-      reply_to: 'blake@urkovro.resend.app',
-      subject: `Next Step: Your ${esc(body.facilityName)} Facility Audit`,
+      reply_to: ['blake@storepawpaw.com', 'anna@storepawpaw.com'],
+      subject: `We're working on your ${esc(body.facilityName)} audit`,
       html,
     }),
   })
