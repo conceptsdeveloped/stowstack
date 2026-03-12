@@ -125,8 +125,8 @@ async function sendNotificationEmail(body, apiKey) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: 'notifications@stowstack.co',
-      to: 'blake@stowstack.co',
+      from: 'StowStack <onboarding@resend.dev>',
+      to: 'blake@urkovro.resend.app',
       subject: `New Audit Request: ${body.facilityName} — ${body.location}`,
       html,
     }),
@@ -154,9 +154,9 @@ async function sendAutoReply(body, apiKey) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: 'blake@stowstack.co',
+      from: 'Blake at StowStack <onboarding@resend.dev>',
       to: body.email.trim().toLowerCase(),
-      reply_to: 'blake@stowstack.co',
+      reply_to: 'blake@urkovro.resend.app',
       subject: 'Your StowStack Facility Audit Request',
       html,
     }),
