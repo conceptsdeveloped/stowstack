@@ -6,10 +6,18 @@ import Library from './views/Library'
 import ClientLogin from './views/ClientLogin'
 import ClientPortal from './views/ClientPortal'
 import FacilityDiagnostic from './views/FacilityDiagnostic'
+import SharedAudit from './views/SharedAudit'
 import Chatbot from './components/Chatbot'
 import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck } from 'lucide-react'
 
+// Check if the URL is a shared audit link: /audit/:slug
+function getAuditSlug() {
+  const match = window.location.pathname.match(/^\/audit\/([a-z0-9-]+)$/i)
+  return match ? match[1] : null
+}
+
 export default function App() {
+  const [auditSlug] = useState(getAuditSlug)
   const [view, setView] = useState('website')
   const [clientLoggedIn, setClientLoggedIn] = useState(false)
 
@@ -17,6 +25,11 @@ export default function App() {
     const stored = localStorage.getItem('stowstack_client')
     if (stored) setClientLoggedIn(true)
   }, [])
+
+  /* Shared audit link — takes over the entire page */
+  if (auditSlug) {
+    return <SharedAudit slug={auditSlug} />
+  }
 
   /* Full-screen views that manage their own navigation */
   if (view === 'guide') {

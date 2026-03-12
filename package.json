@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@upstash/redis": "^1.37.0",
     "docx": "^9.6.1",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.577.0",

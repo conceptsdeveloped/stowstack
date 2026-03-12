@@ -5,6 +5,7 @@ import {
 } from 'docx'
 import { saveAs } from 'file-saver'
 import { getLetterGrade, CATEGORY_LABELS } from './scoreUtils'
+import { calculateProjections } from './projectionModel'
 
 const BRAND_GREEN = '22C55E'
 const DARK_BG = '0F172A'
@@ -145,6 +146,31 @@ export async function generateReport(audit) {
       sections.push(new Paragraph({ spacing: { before: 100, after: 60 }, children: [new TextRun({ text: 'Key Revenue Levers:', bold: true, size: 22, color: '1E293B' })] }))
       audit.revenue_impact.key_revenue_levers.filter(Boolean).forEach(l => sections.push(bulletItem(l, BRAND_GREEN)))
     }
+  }
+
+  // Revenue decay projections
+  try {
+    const proj = calculateProjections(audit)
+    if (proj) {
+      const fmt = (n) => `$${n.toLocaleString()}`
+      sections.push(
+        new Paragraph({ children: [new PageBreak()] }),
+        heading('What Happens If You Do Nothing'),
+        body('Projected revenue over 12 months across three scenarios based on current facility trends and audit findings.'),
+        new Paragraph({ spacing: { before: 150 } }),
+        bold('Do Nothing (12-month total)', fmt(proj.summary.month12.doNothing)),
+        bold('Quick Wins Only (12-month total)', fmt(proj.summary.month12.quickWins)),
+        bold('Full StowStack Plan (12-month total)', fmt(proj.summary.month12.fullPlan)),
+        new Paragraph({ spacing: { before: 150 } }),
+        new Paragraph({ spacing: { after: 60 }, children: [
+          new TextRun({ text: 'Revenue left on the table by doing nothing over 12 months: ', size: 22, color: '475569' }),
+          new TextRun({ text: fmt(proj.summary.revenueLostDoingNothing12), bold: true, size: 24, color: 'EF4444' }),
+        ]}),
+        body(`Assumptions: Current occupancy at ${proj.meta.currentOccupancy}%, ${proj.meta.totalUnits} total units, monthly trend of ${proj.meta.monthlyDecayRate > 0 ? '+' : ''}${proj.meta.monthlyDecayRate}% occupancy change, targeting ${proj.meta.targetOccupancy}% stabilized occupancy.`),
+      )
+    }
+  } catch (e) {
+    // Projection calculation failed — skip section
   }
 
   // StowStack opportunities

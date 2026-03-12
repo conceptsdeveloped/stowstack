@@ -13,12 +13,14 @@ import RevenueImpactChart from '../components/diagnostic/RevenueImpactChart'
 import CompetitorSnapshot from '../components/diagnostic/CompetitorSnapshot'
 import OperatorAlignment from '../components/diagnostic/OperatorAlignment'
 import StowStackCTA from '../components/diagnostic/StowStackCTA'
+import DecayProjector from '../components/diagnostic/DecayProjector'
 import { generateReport } from '../lib/reportGenerator'
 
 export default function FacilityDiagnostic({ onBack }) {
   const { state, processFile, toggleDarkMode, reset } = useDiagnostic()
   const { phase, auditResult, error, darkMode, csvMeta } = state
   const [expandedCategory, setExpandedCategory] = useState('occupancy_momentum')
+  const [shareUrl, setShareUrl] = useState(null)
   const findingsRef = useRef(null)
 
   function handleExpandCategory(key) {
@@ -32,6 +34,23 @@ export default function FacilityDiagnostic({ onBack }) {
       await generateReport(auditResult)
     } catch (err) {
       console.error('Report generation failed:', err)
+    }
+  }
+
+  async function handleShare() {
+    if (!auditResult) return
+    try {
+      const res = await fetch('/api/audit-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audit: auditResult }),
+      })
+      if (!res.ok) throw new Error('Failed to save audit')
+      const { url } = await res.json()
+      setShareUrl(url)
+      await navigator.clipboard.writeText(url)
+    } catch (err) {
+      console.error('Share failed:', err)
     }
   }
 
@@ -81,6 +100,8 @@ export default function FacilityDiagnostic({ onBack }) {
         onReset={reset}
         onBack={onBack}
         onDownloadReport={handleDownloadReport}
+        onShare={handleShare}
+        shareUrl={shareUrl}
       />
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8">
@@ -134,6 +155,9 @@ export default function FacilityDiagnostic({ onBack }) {
 
         {/* Revenue impact */}
         <RevenueImpactChart revenue={audit.revenue_impact} darkMode={dm} />
+
+        {/* Decay projector — "What happens if you do nothing" */}
+        <DecayProjector audit={audit} darkMode={dm} />
 
         {/* Operator alignment */}
         <OperatorAlignment alignment={audit.operator_alignment} darkMode={dm} />
