@@ -5,7 +5,7 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   StickyNote, KeyRound, Copy, BarChart3, Plus, Trash2,
   DollarSign, Target, Award, ArrowUpRight, ArrowDownRight, Minus,
-  ClipboardList
+  ClipboardList, FileText, Send, AlertTriangle, Bell, Sparkles
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import {
@@ -564,6 +564,9 @@ function PortfolioView({ leads, adminKey, loading }: { leads: Lead[]; adminKey: 
         <PortfolioKpi label="Avg CPL" value={`$${portfolioCpl.toFixed(2)}`} sub="portfolio wide" icon={TrendingUp} />
         <PortfolioKpi label="Cost/Move-In" value={`$${portfolioCostPerMoveIn.toFixed(0)}`} sub="portfolio wide" icon={Award} />
       </div>
+
+      {/* Campaign Health Alerts */}
+      <AlertsBanner adminKey={adminKey} />
 
       {/* Monthly Portfolio Charts */}
       {monthlyData.length >= 2 && (
@@ -1167,6 +1170,16 @@ function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote
               </div>
               <OnboardingSection accessCode={lead.accessCode} adminKey={adminKey} />
               <CampaignManager accessCode={lead.accessCode} adminKey={adminKey} />
+              <AuditReportSection leadId={lead.id} adminKey={adminKey} />
+              <EmailTemplatePicker leadId={lead.id} leadName={lead.name} adminKey={adminKey} />
+            </>
+          )}
+
+          {/* Audit Report + Email Templates (for all leads) */}
+          {!lead.accessCode && (
+            <>
+              <AuditReportSection leadId={lead.id} adminKey={adminKey} />
+              <EmailTemplatePicker leadId={lead.id} leadName={lead.name} adminKey={adminKey} />
             </>
           )}
 
@@ -1479,6 +1492,345 @@ function CampaignManager({ accessCode, adminKey }: { accessCode: string; adminKe
               Cancel
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Audit Report Section (inside lead card) ── */
+
+interface AuditReport {
+  generatedAt: string
+  facility: { name: string; totalUnits: number; occupancy: number; vacantUnits: number }
+  vacancyCost: { monthlyLoss: number; annualLoss: number }
+  marketOpportunity: { score: number; grade: string }
+  projections: {
+    recommendedSpend: number; projectedCpl: number; projectedLeadsPerMonth: number
+    projectedMoveInsPerMonth: number; projectedMonthlyRevenue: number
+    projectedRoas: number; projectedMonthsToFill: number; conversionRate: number
+  }
+  competitiveInsights: string[]
+  recommendations: { title: string; detail: string; priority: string }[]
+}
+
+function AuditReportSection({ leadId, adminKey }: { leadId: string; adminKey: string }) {
+  const [report, setReport] = useState<AuditReport | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [error, setError] = useState('')
+
+  const generate = async (force = false) => {
+    setLoading(true)
+    setError('')
+    try {
+      const url = force ? '/api/audit-report' : `/api/audit-report?id=${leadId}`
+      const opts: RequestInit = {
+        method: force ? 'POST' : 'GET',
+        headers: { 'X-Admin-Key': adminKey, ...(force ? { 'Content-Type': 'application/json' } : {}) },
+        ...(force ? { body: JSON.stringify({ leadId }) } : {}),
+      }
+      const res = await fetch(url, opts)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.report) {
+          setReport(data.report)
+          setExpanded(true)
+        } else {
+          setError('No report data returned')
+        }
+      } else {
+        setError('Failed to generate report')
+      }
+    } catch {
+      setError('Connection error')
+    }
+    setLoading(false)
+  }
+
+  const gradeColor = report ? (
+    report.marketOpportunity.grade === 'Excellent' ? 'text-emerald-600' :
+    report.marketOpportunity.grade === 'Strong' ? 'text-blue-600' :
+    report.marketOpportunity.grade === 'Moderate' ? 'text-amber-600' : 'text-slate-500'
+  ) : ''
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+          <FileText size={12} /> Marketing Audit
+        </h4>
+        <div className="flex items-center gap-2">
+          {report && (
+            <button onClick={() => setExpanded(!expanded)} className="text-xs text-slate-500 hover:text-slate-700">
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
+          <button onClick={() => generate(!report)} disabled={loading}
+            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+            {loading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+            {loading ? 'Generating...' : report ? 'Regenerate' : 'Generate Audit'}
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+
+      {report && expanded && (
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4 text-sm">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-lg p-3 border border-slate-100">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Vacant Units</p>
+              <p className="text-lg font-bold text-red-600">{report.facility.vacantUnits}</p>
+            </div>
+            <div className="bg-white rounded-lg p-3 border border-slate-100">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Annual Loss</p>
+              <p className="text-lg font-bold text-red-600">${report.vacancyCost.annualLoss.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-lg p-3 border border-slate-100">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Opportunity</p>
+              <p className={`text-lg font-bold ${gradeColor}`}>
+                {report.marketOpportunity.grade} ({report.marketOpportunity.score})
+              </p>
+            </div>
+            <div className="bg-white rounded-lg p-3 border border-slate-100">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">Rec. Spend</p>
+              <p className="text-lg font-bold text-emerald-600">${report.projections.recommendedSpend.toLocaleString()}/mo</p>
+            </div>
+          </div>
+
+          {/* Projections */}
+          <div>
+            <h5 className="text-xs font-semibold text-slate-500 mb-2">Projected Performance</h5>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">CPL</span>
+                <span className="font-semibold">${report.projections.projectedCpl}</span>
+              </div>
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">Leads/mo</span>
+                <span className="font-semibold">{report.projections.projectedLeadsPerMonth}</span>
+              </div>
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">Move-ins/mo</span>
+                <span className="font-semibold text-emerald-600">{report.projections.projectedMoveInsPerMonth}</span>
+              </div>
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">ROAS</span>
+                <span className="font-semibold">{report.projections.projectedRoas}x</span>
+              </div>
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">Revenue/mo</span>
+                <span className="font-semibold">${report.projections.projectedMonthlyRevenue.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between bg-white rounded px-2 py-1.5 border border-slate-100">
+                <span className="text-slate-500">Months to fill</span>
+                <span className="font-semibold">{report.projections.projectedMonthsToFill}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          {report.competitiveInsights.length > 0 && (
+            <div>
+              <h5 className="text-xs font-semibold text-slate-500 mb-2">Competitive Insights</h5>
+              <div className="space-y-1.5">
+                {report.competitiveInsights.map((insight, i) => (
+                  <p key={i} className="text-xs text-slate-600 bg-white rounded px-3 py-2 border border-slate-100">
+                    {insight}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations */}
+          <div>
+            <h5 className="text-xs font-semibold text-slate-500 mb-2">Recommendations</h5>
+            <div className="space-y-2">
+              {report.recommendations.map((rec, i) => (
+                <div key={i} className="bg-white rounded-lg px-3 py-2 border border-slate-100">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                      rec.priority === 'high' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                    }`}>{rec.priority}</span>
+                    <span className="text-xs font-semibold">{rec.title}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">{rec.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-400">
+            Generated {new Date(report.generatedAt).toLocaleString()}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Email Template Picker (inside lead card) ── */
+
+const EMAIL_TEMPLATES = [
+  { id: 'follow_up', name: 'Follow Up', icon: '📧', description: 'Warm follow-up after submission' },
+  { id: 'audit_delivery', name: 'Audit', icon: '📊', description: 'Send audit report' },
+  { id: 'proposal', name: 'Proposal', icon: '📋', description: 'Send pricing & next steps' },
+  { id: 'check_in', name: 'Check In', icon: '👋', description: 'Re-engage quiet lead' },
+  { id: 'onboarding_reminder', name: 'Onboarding', icon: '🔔', description: 'Remind to complete setup' },
+  { id: 'campaign_update', name: 'Update', icon: '📈', description: 'Share performance highlights' },
+]
+
+function EmailTemplatePicker({ leadId, leadName, adminKey }: { leadId: string; leadName: string; adminKey: string }) {
+  const [sending, setSending] = useState<string | null>(null)
+  const [sent, setSent] = useState<string[]>([])
+  const [error, setError] = useState('')
+
+  const sendTemplate = async (templateId: string) => {
+    setSending(templateId)
+    setError('')
+    try {
+      const res = await fetch('/api/send-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ templateId, leadId }),
+      })
+      if (res.ok) {
+        setSent(prev => [...prev, templateId])
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to send')
+      }
+    } catch {
+      setError('Connection error')
+    }
+    setSending(null)
+  }
+
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-2">
+        <Send size={12} /> Quick Emails
+      </h4>
+      {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+      <div className="flex flex-wrap gap-1.5">
+        {EMAIL_TEMPLATES.map(t => {
+          const isSent = sent.includes(t.id)
+          const isSending = sending === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => sendTemplate(t.id)}
+              disabled={isSending || isSent}
+              title={`${t.description} — sends to ${leadName}`}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+                isSent
+                  ? 'bg-emerald-50 text-emerald-600'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              } ${isSending ? 'opacity-50' : ''} disabled:cursor-not-allowed`}
+            >
+              {isSending ? <Loader2 size={10} className="animate-spin" /> : isSent ? <CheckCircle2 size={10} /> : null}
+              {t.name}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── Campaign Health Alerts Banner (inside PortfolioView) ── */
+
+interface CampaignAlert {
+  type: string
+  severity: 'critical' | 'warning' | 'info'
+  title: string
+  detail: string
+  accessCode: string
+  facilityName: string
+}
+
+function AlertsBanner({ adminKey }: { adminKey: string }) {
+  const [alerts, setAlerts] = useState<CampaignAlert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch('/api/campaign-alerts', { headers: { 'X-Admin-Key': adminKey } })
+        if (res.ok) {
+          const data = await res.json()
+          setAlerts(data.alerts || [])
+        }
+      } catch { /* silent */ }
+      setLoading(false)
+    }
+    fetchAlerts()
+  }, [adminKey])
+
+  if (loading) return null
+
+  const critical = alerts.filter(a => a.severity === 'critical')
+  const warnings = alerts.filter(a => a.severity === 'warning')
+  const infos = alerts.filter(a => a.severity === 'info')
+
+  if (alerts.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+        <CheckCircle2 size={14} />
+        <span className="font-medium">All campaigns healthy — no alerts</span>
+      </div>
+    )
+  }
+
+  const severityIcon = (s: string) => {
+    if (s === 'critical') return <XCircle size={12} className="text-red-500 shrink-0" />
+    if (s === 'warning') return <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+    return <Sparkles size={12} className="text-blue-500 shrink-0" />
+  }
+  const severityBg = (s: string) => {
+    if (s === 'critical') return 'bg-red-50 border-red-200'
+    if (s === 'warning') return 'bg-amber-50 border-amber-200'
+    return 'bg-blue-50 border-blue-200'
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 transition-colors ${
+          critical.length > 0 ? 'bg-red-50 border-red-200' : warnings.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <Bell size={14} className={critical.length > 0 ? 'text-red-500' : warnings.length > 0 ? 'text-amber-500' : 'text-blue-500'} />
+          <span className="text-xs font-semibold">
+            {alerts.length} Alert{alerts.length !== 1 ? 's' : ''}
+            {critical.length > 0 && <span className="text-red-600 ml-1">({critical.length} critical)</span>}
+            {warnings.length > 0 && <span className="text-amber-600 ml-1">({warnings.length} warning{warnings.length !== 1 ? 's' : ''})</span>}
+            {infos.length > 0 && <span className="text-blue-600 ml-1">({infos.length} info)</span>}
+          </span>
+        </div>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="space-y-1.5">
+          {alerts.map((alert, i) => (
+            <div key={i} className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${severityBg(alert.severity)}`}>
+              {severityIcon(alert.severity)}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold">{alert.title}</span>
+                  <span className="text-[10px] text-slate-400">{alert.facilityName}</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">{alert.detail}</p>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
