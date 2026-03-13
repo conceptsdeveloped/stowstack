@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis'
+import { query } from './_db.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -231,6 +232,33 @@ export default async function handler(req, res) {
 
     console.log('New audit lead:', JSON.stringify({ ...leadData, submittedAt: new Date().toISOString() }))
 
+    // Save to Postgres
+    let facilityId = null
+    try {
+      const rows = await query(
+        `INSERT INTO facilities
+          (name, location, contact_name, contact_email, contact_phone,
+           occupancy_range, total_units, biggest_issue, notes, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'intake')
+         RETURNING id`,
+        [
+          leadData.facilityName,
+          leadData.location,
+          leadData.name,
+          leadData.email,
+          leadData.phone,
+          leadData.occupancyRange,
+          leadData.totalUnits,
+          leadData.biggestIssue,
+          leadData.notes,
+        ]
+      )
+      facilityId = rows[0].id
+      console.log('Facility saved to Postgres:', facilityId)
+    } catch (dbErr) {
+      console.error('Failed to save facility to Postgres:', dbErr.message)
+    }
+
     try {
       if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
         const redis = new Redis({
@@ -267,7 +295,7 @@ export default async function handler(req, res) {
       ),
     ])
 
-    return res.status(200).json({ success: true })
+    return res.status(200).json({ success: true, facilityId })
   } catch (err) {
     console.error('Unhandled error:', err)
     return res.status(500).json({ error: 'Internal server error' })
