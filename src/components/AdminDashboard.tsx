@@ -5,7 +5,8 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   StickyNote, KeyRound, Copy, BarChart3, Plus, Trash2,
   DollarSign, Target, Award, ArrowUpRight, ArrowDownRight, Minus,
-  ClipboardList, FileText, Send, AlertTriangle, Bell, Sparkles
+  ClipboardList, FileText, Send, AlertTriangle, Bell, Sparkles,
+  Download, CalendarClock, CheckSquare, MessageSquare
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import {
@@ -37,6 +38,7 @@ interface Lead {
   notes: LeadNote[]
   pmsUploaded?: boolean
   accessCode?: string
+  followUpDate?: string
 }
 
 /* ── Constants ── */
@@ -195,6 +197,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const [newNote, setNewNote] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
   const [leadScores, setLeadScores] = useState<Record<string, { score: number; grade: string; breakdown: Record<string, number> }>>({})
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [bulkStatus, setBulkStatus] = useState('')
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -231,7 +236,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     fetchScores()
   }, [leads, adminKey])
 
-  const updateLead = async (id: string, updates: { status?: string; note?: string }) => {
+  const updateLead = async (id: string, updates: { status?: string; note?: string; followUpDate?: string }) => {
     setUpdating(id)
     try {
       const res = await fetch('/api/admin-leads', {
@@ -252,20 +257,73 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     }
   }
 
-  /* ── Filtered leads ── */
-  const filtered = leads.filter(l => {
-    if (filterStatus !== 'all' && l.status !== filterStatus) return false
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      return (
-        l.name.toLowerCase().includes(q) ||
-        l.facilityName.toLowerCase().includes(q) ||
-        l.location.toLowerCase().includes(q) ||
-        l.email.toLowerCase().includes(q)
-      )
+  const bulkApply = async () => {
+    if (!bulkStatus || selectedIds.size === 0) return
+    setBulkUpdating(true)
+    for (const id of selectedIds) {
+      try {
+        await fetch('/api/admin-leads', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ id, status: bulkStatus }),
+        })
+      } catch { /* continue */ }
     }
-    return true
-  })
+    setSelectedIds(new Set())
+    setBulkStatus('')
+    setBulkUpdating(false)
+    fetchLeads()
+  }
+
+  const downloadCsv = async () => {
+    try {
+      const res = await fetch('/api/export-leads', { headers: { 'X-Admin-Key': adminKey } })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `stowstack-leads-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { /* silent */ }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  /* ── Filtered leads ── */
+  const now = new Date()
+  const isOverdue = (l: Lead) => l.followUpDate && new Date(l.followUpDate) < now && !['lost', 'client_signed'].includes(l.status)
+  const overdueCount = leads.filter(isOverdue).length
+
+  const filtered = leads
+    .filter(l => {
+      if (filterStatus === 'overdue') return isOverdue(l)
+      if (filterStatus !== 'all' && l.status !== filterStatus) return false
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        return (
+          l.name.toLowerCase().includes(q) ||
+          l.facilityName.toLowerCase().includes(q) ||
+          l.location.toLowerCase().includes(q) ||
+          l.email.toLowerCase().includes(q)
+        )
+      }
+      return true
+    })
+    .sort((a, b) => {
+      // Overdue leads sort to top
+      const aOverdue = isOverdue(a) ? 0 : 1
+      const bOverdue = isOverdue(b) ? 0 : 1
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
 
   /* ── Pipeline counts ── */
   const statusCounts = leads.reduce<Record<string, number>>((acc, l) => {
@@ -296,6 +354,14 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={downloadCsv}
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+              title="Export leads as CSV"
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
             <button
               onClick={() => { setLoading(true); fetchLeads() }}
               className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
@@ -367,6 +433,15 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
                 colorClass={s.color}
               />
             ))}
+            {overdueCount > 0 && (
+              <PipelineChip
+                label="Overdue"
+                count={overdueCount}
+                active={filterStatus === 'overdue'}
+                onClick={() => setFilterStatus('overdue')}
+                colorClass="bg-red-100 text-red-700"
+              />
+            )}
           </div>
         </div>
 
@@ -410,6 +485,37 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           </div>
         )}
 
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-slate-900 text-white rounded-xl px-4 py-3 mb-4 flex items-center gap-3 flex-wrap">
+            <CheckSquare size={16} />
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <select
+              value={bulkStatus}
+              onChange={e => setBulkStatus(e.target.value)}
+              className="text-xs bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-white"
+            >
+              <option value="">Move to...</option>
+              {STATUSES.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={bulkApply}
+              disabled={!bulkStatus || bulkUpdating}
+              className="text-xs px-3 py-1.5 bg-emerald-600 rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {bulkUpdating ? 'Applying...' : 'Apply'}
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-slate-400 hover:text-white ml-auto"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         {/* Lead Cards */}
         {!loading && filtered.length > 0 && (
           <div className="space-y-3">
@@ -421,11 +527,15 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
                 onToggle={() => setExpandedId(expandedId === lead.id ? null : lead.id)}
                 onUpdateStatus={(status) => updateLead(lead.id, { status })}
                 onAddNote={(note) => updateLead(lead.id, { note })}
+                onSetFollowUp={(date) => updateLead(lead.id, { followUpDate: date })}
                 newNote={expandedId === lead.id ? newNote : ''}
                 onNewNoteChange={setNewNote}
                 updating={updating === lead.id}
                 adminKey={adminKey}
                 score={leadScores[lead.id]}
+                selected={selectedIds.has(lead.id)}
+                onSelect={() => toggleSelect(lead.id)}
+                isOverdue={isOverdue(lead)}
               />
             ))}
           </div>
@@ -1057,17 +1167,21 @@ function PipelineChip({ label, count, active, onClick, colorClass }: {
   )
 }
 
-function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote, onNewNoteChange, updating, adminKey, score }: {
+function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, onSetFollowUp, newNote, onNewNoteChange, updating, adminKey, score, selected, onSelect, isOverdue }: {
   lead: Lead
   expanded: boolean
   onToggle: () => void
   onUpdateStatus: (status: string) => void
   onAddNote: (note: string) => void
+  onSetFollowUp: (date: string) => void
   newNote: string
   onNewNoteChange: (v: string) => void
   updating: boolean
   adminKey: string
   score?: { score: number; grade: string; breakdown: Record<string, number> }
+  selected?: boolean
+  onSelect?: () => void
+  isOverdue?: boolean
 }) {
   const statusInfo = STATUS_MAP[lead.status] || { label: lead.status, color: 'bg-slate-100 text-slate-600' }
 
@@ -1084,10 +1198,17 @@ function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote
       expanded ? 'border-emerald-300 shadow-lg shadow-emerald-600/5' : 'border-slate-200 hover:border-slate-300'
     }`}>
       {/* Summary Row */}
-      <button
-        onClick={onToggle}
-        className="w-full px-4 sm:px-5 py-4 flex items-center gap-3 text-left"
-      >
+      <div className="flex items-center px-4 sm:px-5 py-4 gap-3">
+        <input
+          type="checkbox"
+          checked={selected || false}
+          onChange={(e) => { e.stopPropagation(); onSelect?.() }}
+          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 shrink-0 cursor-pointer"
+        />
+        <button
+          onClick={onToggle}
+          className="flex-1 flex items-center gap-3 text-left min-w-0"
+        >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-slate-900 truncate">{lead.name}</span>
@@ -1097,6 +1218,16 @@ function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote
             {score && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${gradeColors[score.grade] || 'bg-slate-100 text-slate-600'}`} title={`Score: ${score.score}/100`}>
                 {score.grade} · {score.score}
+              </span>
+            )}
+            {isOverdue && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 flex items-center gap-0.5">
+                <CalendarClock size={9} /> Overdue
+              </span>
+            )}
+            {lead.followUpDate && !isOverdue && (
+              <span className="text-[10px] text-slate-400" title="Follow-up scheduled">
+                Follow-up: {new Date(lead.followUpDate).toLocaleDateString()}
               </span>
             )}
           </div>
@@ -1116,6 +1247,7 @@ function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote
           {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </div>
       </button>
+      </div>
 
       {/* Expanded Detail */}
       {expanded && (
@@ -1209,6 +1341,34 @@ function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onAddNote, newNote
               ))}
             </div>
           </div>
+
+          {/* Follow-Up Reminder */}
+          <div>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <CalendarClock size={12} /> Follow-Up Reminder
+            </h4>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={lead.followUpDate || ''}
+                onChange={e => onSetFollowUp(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+              />
+              {lead.followUpDate && (
+                <button onClick={() => onSetFollowUp('')} className="text-xs text-slate-400 hover:text-red-500">
+                  Clear
+                </button>
+              )}
+              {isOverdue && (
+                <span className="text-xs text-red-600 font-medium">Overdue since {new Date(lead.followUpDate!).toLocaleDateString()}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Admin Message Thread (for signed clients) */}
+          {lead.accessCode && (
+            <AdminMessageThread accessCode={lead.accessCode} adminKey={adminKey} />
+          )}
 
           {/* Notes */}
           <div>
@@ -1493,6 +1653,144 @@ function CampaignManager({ accessCode, adminKey }: { accessCode: string; adminKe
             </button>
           </div>
         </div>
+      )}
+
+      {/* Monthly Goal Setter */}
+      {loaded && (
+        <GoalSetter accessCode={accessCode} adminKey={adminKey} />
+      )}
+    </div>
+  )
+}
+
+/* ── Goal Setter (inside CampaignManager) ── */
+
+function GoalSetter({ accessCode, adminKey }: { accessCode: string; adminKey: string }) {
+  const [goal, setGoal] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const saveGoal = async () => {
+    if (!goal) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/client-campaigns', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ code: accessCode, monthlyGoal: Number(goal) }),
+      })
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+    } catch { /* ignore */ }
+    setSaving(false)
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+      <Target size={12} className="text-slate-400" />
+      <span className="text-xs text-slate-400">Monthly move-in goal:</span>
+      <input
+        type="number"
+        min="0"
+        max="999"
+        placeholder="e.g. 15"
+        value={goal}
+        onChange={e => setGoal(e.target.value)}
+        className="w-16 px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+      />
+      <button onClick={saveGoal} disabled={!goal || saving}
+        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-40">
+        {saving ? '...' : saved ? 'Saved!' : 'Set'}
+      </button>
+    </div>
+  )
+}
+
+/* ── Admin Message Thread (inside lead card for signed clients) ── */
+
+function AdminMessageThread({ accessCode, adminKey }: { accessCode: string; adminKey: string }) {
+  const [messages, setMessages] = useState<{ id: string; from: string; text: string; timestamp: string }[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const fetchMessages = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/client-messages?code=${accessCode}`, {
+        headers: { 'X-Admin-Key': adminKey },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.messages || [])
+      }
+    } catch { /* ignore */ }
+    setLoading(false)
+    setLoaded(true)
+  }
+
+  const sendMessage = async () => {
+    if (!text.trim()) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/client-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ code: accessCode, text: text.trim(), from: 'admin' }),
+      })
+      if (res.ok) {
+        setText('')
+        fetchMessages()
+      }
+    } catch { /* ignore */ }
+    setSending(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+          <MessageSquare size={12} /> Messages ({messages.length})
+        </h4>
+        {!loaded && (
+          <button onClick={fetchMessages} disabled={loading}
+            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+            {loading ? 'Loading...' : 'Load messages'}
+          </button>
+        )}
+      </div>
+      {loaded && (
+        <>
+          {messages.length > 0 && (
+            <div className="max-h-48 overflow-y-auto space-y-2 mb-2">
+              {messages.map(m => (
+                <div key={m.id} className={`text-sm rounded-lg p-2 border ${
+                  m.from === 'admin' ? 'bg-emerald-50 border-emerald-100 ml-6' : 'bg-slate-50 border-slate-100 mr-6'
+                }`}>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className="text-[10px] font-semibold text-slate-400">{m.from === 'admin' ? 'You' : 'Client'}</span>
+                    <span className="text-[10px] text-slate-300">{new Date(m.timestamp).toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-slate-700">{m.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Reply to client..."
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && text.trim()) sendMessage() }}
+              className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+            />
+            <button onClick={sendMessage} disabled={!text.trim() || sending}
+              className="px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-40">
+              {sending ? '...' : 'Send'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

@@ -4,6 +4,7 @@ import AdminDashboard from '@/components/AdminDashboard'
 import ClientPortal from '@/components/ClientPortal'
 import { PrivacyPolicy, TermsOfService } from '@/components/LegalPages'
 import DemoDashboard from '@/components/DemoDashboard'
+import GuidePage from '@/components/GuidePage'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -302,6 +303,9 @@ function Nav() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <a href="/guide" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Guide
+          </a>
           <a href="/portal" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Client Login
           </a>
@@ -327,6 +331,9 @@ function Nav() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-4">
+            <a href="/guide" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+              Guide
+            </a>
             <a href="/portal" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
               Client Login
             </a>
@@ -1637,6 +1644,7 @@ function Footer() {
               {['Free Audit', 'Case Studies', 'Demand Engine Guide', 'Blog'].map(l => (
                 <a key={l} href="#cta" className="block text-sm text-slate-400 hover:text-white transition-colors">{l}</a>
               ))}
+              <a href="/guide" className="block text-sm text-slate-400 hover:text-white transition-colors">Platform Guide</a>
               <a href="/portal" className="block text-sm text-slate-400 hover:text-white transition-colors">Client Login</a>
             </div>
           </div>
@@ -1726,7 +1734,7 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'demo'
+type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'demo' | 'guide'
 
 function pathToView(pathname: string): View {
   if (pathname === '/admin') return 'admin'
@@ -1734,6 +1742,7 @@ function pathToView(pathname: string): View {
   if (pathname === '/privacy') return 'privacy'
   if (pathname === '/terms') return 'terms'
   if (pathname === '/demo') return 'demo'
+  if (pathname === '/guide') return 'guide'
   return 'website'
 }
 
@@ -1753,6 +1762,7 @@ export default function App() {
   if (view === 'privacy') return <PrivacyPolicy onBack={goHome} />
   if (view === 'terms') return <TermsOfService onBack={goHome} />
   if (view === 'demo') return <DemoDashboard onBack={goHome} />
+  if (view === 'guide') return <GuidePage onBack={goHome} />
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">

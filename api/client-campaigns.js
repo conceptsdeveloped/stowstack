@@ -13,7 +13,7 @@ function getCorsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
   return {
     'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Key',
   }
 }
@@ -122,6 +122,29 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('Delete campaign error:', err)
       return res.status(500).json({ error: 'Failed to delete campaign' })
+    }
+  }
+
+  // PATCH /api/client-campaigns — update client settings (e.g. monthlyGoal)
+  // body: { code, monthlyGoal }
+  if (req.method === 'PATCH') {
+    const { code, monthlyGoal } = req.body || {}
+    if (!code) return res.status(400).json({ error: 'Missing code' })
+
+    try {
+      const raw = await redis.get(`client:${code}`)
+      if (!raw) return res.status(404).json({ error: 'Client not found' })
+      const record = typeof raw === 'string' ? JSON.parse(raw) : raw
+
+      if (monthlyGoal !== undefined) {
+        record.monthlyGoal = Math.max(0, Math.min(999, Number(monthlyGoal) || 0))
+      }
+
+      await redis.set(`client:${code}`, JSON.stringify(record))
+      return res.status(200).json({ success: true, monthlyGoal: record.monthlyGoal })
+    } catch (err) {
+      console.error('Update client settings error:', err)
+      return res.status(500).json({ error: 'Failed to update settings' })
     }
   }
 

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import {
   Building2, TrendingUp, DollarSign, Users, BarChart3,
   Phone, Mail, ArrowLeft, Loader2, LogOut,
-  Target, Eye, MousePointerClick, CheckCircle2, ClipboardList
+  Target, Eye, MousePointerClick, CheckCircle2, ClipboardList,
+  MessageSquare, ArrowUpRight, ArrowDownRight, Send
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import {
@@ -22,6 +23,7 @@ interface ClientData {
   signedAt: string
   accessCode: string
   campaigns: Campaign[]
+  monthlyGoal?: number
 }
 
 interface Campaign {
@@ -134,6 +136,20 @@ function ClientLogin({ onAuth }: { onAuth: (data: ClientData) => void }) {
 function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onLogout: () => void; onBack: () => void }) {
   const [onboardingPct, setOnboardingPct] = useState<number | null>(null)
   const [showWizard, setShowWizard] = useState(false)
+  const [messages, setMessages] = useState<{ id: string; from: string; text: string; timestamp: string }[]>([])
+  const [msgText, setMsgText] = useState('')
+  const [msgSending, setMsgSending] = useState(false)
+
+  const fetchMessages = async () => {
+    try {
+      const params = new URLSearchParams({ code: client.accessCode, email: client.email })
+      const res = await fetch(`/api/client-messages?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.messages || [])
+      }
+    } catch { /* silent */ }
+  }
 
   useEffect(() => {
     const fetchOnboarding = async () => {
@@ -147,7 +163,28 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
       } catch { /* silent */ }
     }
     fetchOnboarding()
+    fetchMessages()
+    // Poll messages every 30s
+    const interval = setInterval(fetchMessages, 30000)
+    return () => clearInterval(interval)
   }, [client.accessCode, client.email])
+
+  const sendMessage = async () => {
+    if (!msgText.trim()) return
+    setMsgSending(true)
+    try {
+      const res = await fetch('/api/client-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: client.accessCode, email: client.email, text: msgText.trim(), from: 'client' }),
+      })
+      if (res.ok) {
+        setMsgText('')
+        fetchMessages()
+      }
+    } catch { /* silent */ }
+    setMsgSending(false)
+  }
 
   const hasCampaigns = client.campaigns && client.campaigns.length > 0
 
@@ -233,6 +270,74 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             onCompletionChange={setOnboardingPct}
           />
         )}
+
+        {/* Campaign Goal Progress */}
+        {hasCampaigns && client.monthlyGoal && client.monthlyGoal > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Target size={14} className="text-emerald-600" />
+                <span className="text-sm font-semibold">Monthly Move-In Target</span>
+              </div>
+              <span className="text-sm font-bold">
+                {client.campaigns[client.campaigns.length - 1].moveIns} / {client.monthlyGoal}
+              </span>
+            </div>
+            {(() => {
+              const current = client.campaigns[client.campaigns.length - 1].moveIns
+              const pct = Math.min(100, Math.round((current / client.monthlyGoal) * 100))
+              return (
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-400'
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* Monthly Digest (compare last 2 months) */}
+        {hasCampaigns && client.campaigns.length >= 2 && (() => {
+          const curr = client.campaigns[client.campaigns.length - 1]
+          const prev = client.campaigns[client.campaigns.length - 2]
+          const pctChange = (c: number, p: number) => p > 0 ? Math.round(((c - p) / p) * 100) : 0
+          const metrics = [
+            { label: 'Leads', curr: curr.leads, prev: prev.leads, better: 'up' as const },
+            { label: 'CPL', curr: curr.cpl, prev: prev.cpl, better: 'down' as const },
+            { label: 'Move-Ins', curr: curr.moveIns, prev: prev.moveIns, better: 'up' as const },
+            { label: 'ROAS', curr: curr.roas, prev: prev.roas, better: 'up' as const },
+          ]
+          return (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+              <h3 className="text-sm font-semibold mb-3">Month-over-Month</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {metrics.map(m => {
+                  const change = pctChange(m.curr, m.prev)
+                  const isPositive = m.better === 'up' ? change > 0 : change < 0
+                  const isNeutral = change === 0
+                  return (
+                    <div key={m.label} className="text-center">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">{m.label}</p>
+                      <p className="text-lg font-bold">
+                        {m.label === 'CPL' ? `$${m.curr.toFixed(0)}` : m.label === 'ROAS' ? `${m.curr}x` : m.curr}
+                      </p>
+                      <div className={`flex items-center justify-center gap-0.5 text-xs font-medium ${
+                        isNeutral ? 'text-slate-400' : isPositive ? 'text-emerald-600' : 'text-red-500'
+                      }`}>
+                        {!isNeutral && (isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />)}
+                        {Math.abs(change)}%
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {hasCampaigns ? (
           <>
@@ -411,6 +516,49 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             </div>
           </div>
         )}
+
+        {/* Message Thread */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+            <MessageSquare size={14} className="text-emerald-600" /> Messages
+          </h3>
+          {messages.length > 0 && (
+            <div className="max-h-60 overflow-y-auto space-y-2 mb-3">
+              {messages.map(m => (
+                <div key={m.id} className={`text-sm rounded-lg p-3 border ${
+                  m.from === 'client' ? 'bg-emerald-50 border-emerald-100 ml-8' : 'bg-slate-50 border-slate-100 mr-8'
+                }`}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[10px] font-semibold text-slate-400">{m.from === 'client' ? 'You' : 'StowStack'}</span>
+                    <span className="text-[10px] text-slate-300">{new Date(m.timestamp).toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-slate-700">{m.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {messages.length === 0 && (
+            <p className="text-xs text-slate-400 mb-3">No messages yet. Send a message to your StowStack team below.</p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={msgText}
+              onChange={e => setMsgText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && msgText.trim()) sendMessage() }}
+              className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!msgText.trim() || msgSending}
+              className="px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            >
+              <Send size={12} />
+              {msgSending ? '...' : 'Send'}
+            </button>
+          </div>
+        </div>
 
         {/* Contact Card */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">

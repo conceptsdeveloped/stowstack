@@ -187,7 +187,7 @@ export default async function handler(req, res) {
 
   // PATCH — update lead status or add notes
   if (req.method === 'PATCH') {
-    const { id, status, note, pmsUploaded } = req.body || {}
+    const { id, status, note, pmsUploaded, followUpDate } = req.body || {}
     if (!id) return res.status(400).json({ error: 'Missing lead ID' })
 
     try {
@@ -198,6 +198,7 @@ export default async function handler(req, res) {
       if (status) record.status = status
       if (note) record.notes = [...(record.notes || []), { text: note, at: new Date().toISOString() }]
       if (pmsUploaded !== undefined) record.pmsUploaded = pmsUploaded
+      if (followUpDate !== undefined) record.followUpDate = followUpDate || null
       record.updatedAt = new Date().toISOString()
 
       // When a lead becomes a signed client, provision portal access + send welcome email
