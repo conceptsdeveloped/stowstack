@@ -25,6 +25,10 @@ async function findPlaceId(facilityName, location, apiKey) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Places text search failed: ${res.status}`)
   const data = await res.json()
+  console.log('Places search status:', data.status, 'results:', data.results?.length ?? 0)
+  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+    console.error('Places API error:', data.status, data.error_message)
+  }
   if (!data.results?.length) return null
   return data.results[0].place_id
 }
