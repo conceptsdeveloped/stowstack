@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
+import AdminDashboard from '@/components/AdminDashboard'
+import ClientPortal from '@/components/ClientPortal'
+import { PrivacyPolicy, TermsOfService } from '@/components/LegalPages'
+import DemoDashboard from '@/components/DemoDashboard'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -9,7 +13,7 @@ import {
   Code, Headphones, BarChart2, Key, Calculator, ArrowUpRight,
   XCircle, CheckCircle2, Crosshair, Timer, Cpu,
   SlidersHorizontal, Sparkles, MousePointerClick, PhoneCall,
-  MessageSquare, UserCheck, Linkedin, Globe
+  MessageSquare, UserCheck, Linkedin, Globe, Play
 } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════ */
@@ -298,6 +302,9 @@ function Nav() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <a href="/portal" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Client Login
+          </a>
           <a href="tel:+12699298541" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <Phone size={14} /> (269) 929-8541
           </a>
@@ -320,6 +327,9 @@ function Nav() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-4">
+            <a href="/portal" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+              Client Login
+            </a>
             <a href="tel:+12699298541" className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Phone size={14} /> (269) 929-8541
             </a>
@@ -384,6 +394,16 @@ function Hero() {
                 </a>
               </Button>
             </div>
+          </Reveal>
+
+          <Reveal delay={350}>
+            <a
+              href="/demo"
+              onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/demo'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+              className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors mb-4"
+            >
+              <Play size={14} /> See a live demo dashboard with simulated results
+            </a>
           </Reveal>
 
           <Reveal delay={400}>
@@ -1005,6 +1025,218 @@ function IdealClientSection() {
   )
 }
 
+const SCORECARD_QUESTIONS = [
+  { id: 'pixel', question: 'Is the Meta Pixel installed on your website?', weight: 15, yesText: 'Pixel active — your campaigns can build audiences.', noText: 'No Pixel means zero retargeting, no Lookalikes, and no conversion tracking. You are running blind.' },
+  { id: 'capi', question: 'Do you have Conversions API (CAPI) configured?', weight: 12, yesText: 'Server-side tracking in place — strong data signal.', noText: 'Without CAPI, iOS privacy changes gut your data. Expect 30-40% of conversions to go untracked.' },
+  { id: 'retargeting', question: 'Are you running retargeting campaigns?', weight: 13, yesText: 'Retargeting active — recapturing warm prospects.', noText: 'Website visitors who leave never see your facility again. Retargeting recaptures 10-20% of lost traffic.' },
+  { id: 'speedToLead', question: 'Do leads get contacted within 5 minutes?', weight: 15, yesText: 'Fast follow-up — you are converting at the highest rate.', noText: 'Leads contacted in 5 min convert 8x more than those contacted after 30. This is likely your biggest leak.' },
+  { id: 'unitSegmentation', question: 'Do your ads target specific unit types separately?', weight: 10, yesText: 'Unit-type segmentation — smart budget allocation.', noText: 'One generic ad for all units wastes budget. A 5x5 renter and a 10x30 RV parker need completely different messaging.' },
+  { id: 'cpl', question: 'Do you know your cost per move-in (not just cost per lead)?', weight: 12, yesText: 'Tracking cost-per-move-in — real ROI visibility.', noText: 'CPL means nothing if leads do not convert. Cost-per-move-in is the only metric that ties ad spend to revenue.' },
+  { id: 'creative', question: 'Are you A/B testing ad creatives regularly?', weight: 10, yesText: 'Active creative testing — finding top performers.', noText: 'Running one ad set indefinitely guarantees fatigue. You need 3-5 variants per audience with regular rotation.' },
+  { id: 'missedCalls', question: 'Do you have a missed call recovery system?', weight: 13, yesText: 'Missed call recovery — no leads falling through the cracks.', noText: 'Missed calls are dead leads. An automated callback or SMS within 2 minutes recovers 25-40% of them.' },
+]
+
+function getGrade(score: number): { letter: string; color: string; bg: string; border: string; message: string } {
+  if (score >= 90) return { letter: 'A', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', message: 'Your marketing stack is strong. Fine-tuning and scale are your next moves.' }
+  if (score >= 75) return { letter: 'B', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', message: 'Solid foundation with key gaps. Fixing them could significantly improve your cost-per-move-in.' }
+  if (score >= 55) return { letter: 'C', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', message: 'Several critical gaps in your funnel. You are likely overpaying for leads and missing conversions.' }
+  if (score >= 35) return { letter: 'D', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', message: 'Major infrastructure missing. Your ad spend is working against you without these fundamentals.' }
+  return { letter: 'F', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', message: 'Your marketing needs a complete overhaul. The good news: the upside from here is massive.' }
+}
+
+function MarketingScorecard() {
+  const [answers, setAnswers] = useState<Record<string, boolean | null>>({})
+  const [submitted, setSubmitted] = useState(false)
+
+  const answeredCount = Object.values(answers).filter(v => v !== null && v !== undefined).length
+  const allAnswered = answeredCount === SCORECARD_QUESTIONS.length
+
+  const score = SCORECARD_QUESTIONS.reduce((sum, q) => {
+    return sum + (answers[q.id] === true ? q.weight : 0)
+  }, 0)
+
+  const grade = getGrade(score)
+  const weaknesses = SCORECARD_QUESTIONS.filter(q => answers[q.id] === false)
+
+  const handleAnswer = (id: string, value: boolean) => {
+    setAnswers(prev => ({ ...prev, [id]: value }))
+  }
+
+  const handleSubmit = () => {
+    if (allAnswered) setSubmitted(true)
+  }
+
+  const handleReset = () => {
+    setAnswers({})
+    setSubmitted(false)
+  }
+
+  return (
+    <section className="py-20 md:py-28" style={{ background: '#0f172a' }}>
+      <div className="max-w-6xl mx-auto px-5">
+        <Reveal>
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-amber-500/10 text-amber-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-amber-500/20">
+              <SlidersHorizontal size={14} /> Free Marketing Assessment
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              Grade Your Storage Marketing in 60 Seconds
+            </h2>
+            <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+              Answer 8 questions about your current setup. Get an instant score with specific recommendations for your facility.
+            </p>
+          </div>
+        </Reveal>
+
+        {!submitted ? (
+          <Reveal>
+            <div className="max-w-3xl mx-auto">
+              <div className="space-y-3">
+                {SCORECARD_QUESTIONS.map((q, i) => (
+                  <div
+                    key={q.id}
+                    className={`rounded-xl p-5 border transition-all ${
+                      answers[q.id] !== null && answers[q.id] !== undefined
+                        ? 'bg-slate-800/50 border-slate-700'
+                        : 'bg-slate-800/30 border-slate-700/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <span className="text-xs font-bold text-slate-500 bg-slate-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <p className="text-sm font-medium text-white leading-relaxed">{q.question}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleAnswer(q.id, true)}
+                          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            answers[q.id] === true
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => handleAnswer(q.id, false)}
+                          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            answers[q.id] === false
+                              ? 'bg-red-500 text-white shadow-lg shadow-red-500/25'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="h-2 flex-1 max-w-xs bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-green-400 rounded-full transition-all duration-500"
+                      style={{ width: `${(answeredCount / SCORECARD_QUESTIONS.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">{answeredCount}/{SCORECARD_QUESTIONS.length}</span>
+                </div>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!allAnswered}
+                  className={`rounded-full px-8 py-3 font-semibold border-0 shadow-lg transition-all ${
+                    allAnswered
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/20 text-white'
+                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Sparkles size={16} className="mr-2" /> Get My Score
+                </Button>
+              </div>
+            </div>
+          </Reveal>
+        ) : (
+          <Reveal>
+            <div className="max-w-3xl mx-auto">
+              {/* Score Header */}
+              <div className="text-center mb-8">
+                <div className={`inline-flex items-center justify-center w-28 h-28 rounded-2xl ${grade.bg} ${grade.border} border-2 mb-4`}>
+                  <span className={`text-6xl font-extrabold ${grade.color}`}>{grade.letter}</span>
+                </div>
+                <p className="text-4xl font-extrabold text-white mb-2">{score}/100</p>
+                <p className="text-slate-400 max-w-lg mx-auto">{grade.message}</p>
+              </div>
+
+              {/* Breakdown */}
+              <div className="space-y-2 mb-8">
+                {SCORECARD_QUESTIONS.map((q) => {
+                  const yes = answers[q.id] === true
+                  return (
+                    <div key={q.id} className={`rounded-xl p-4 border ${yes ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                      <div className="flex items-start gap-3">
+                        {yes ? (
+                          <CheckCircle2 size={18} className="text-emerald-400 shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{q.question}</p>
+                          <p className={`text-xs mt-1 ${yes ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+                            {yes ? q.yesText : q.noText}
+                          </p>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${yes ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {yes ? `+${q.weight}` : '0'}/{q.weight}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* CTA based on score */}
+              {weaknesses.length > 0 && (
+                <div className="rounded-2xl p-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 mb-6">
+                  <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
+                    <Zap size={16} className="text-amber-400" /> Your Biggest Opportunities
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-3">
+                    Fixing these {weaknesses.length} area{weaknesses.length !== 1 ? 's' : ''} could recover thousands in lost monthly revenue:
+                  </p>
+                  <ul className="space-y-1.5">
+                    {weaknesses.slice(0, 3).map((w) => (
+                      <li key={w.id} className="flex items-start gap-2 text-sm text-amber-200/80">
+                        <ArrowRight size={14} className="shrink-0 mt-0.5 text-amber-400" />
+                        {w.noText}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button className="rounded-full px-6 font-semibold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 shadow-lg shadow-emerald-600/20" asChild>
+                  <a href="#cta"><Search size={16} className="mr-2" /> Get a Free Facility Audit</a>
+                </Button>
+                <button
+                  onClick={handleReset}
+                  className="text-sm text-slate-500 hover:text-slate-300 font-medium transition-colors cursor-pointer"
+                >
+                  Retake Assessment
+                </button>
+              </div>
+            </div>
+          </Reveal>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function KPIDashboard() {
   return (
     <section className="py-20 md:py-28">
@@ -1157,13 +1389,17 @@ function CaseStudyTeaser() {
                   See what this looks like for your facility <ArrowUpRight size={16} />
                 </a>
               </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-100 p-8 flex items-center justify-center">
-                <div className="text-center text-emerald-600/60">
-                  <BarChart3 size={48} className="mx-auto mb-3" />
-                  <p className="text-sm font-medium">Performance Visualization</p>
-                  <p className="text-xs">Occupancy trend chart</p>
+              <a
+                href="/demo"
+                onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/demo'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+                className="bg-gradient-to-br from-emerald-50 to-teal-100 p-8 flex items-center justify-center group hover:from-emerald-100 hover:to-teal-200 transition-all cursor-pointer"
+              >
+                <div className="text-center text-emerald-600">
+                  <BarChart3 size={48} className="mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                  <p className="text-sm font-semibold">Explore the Live Demo</p>
+                  <p className="text-xs text-emerald-600/60">See a full client dashboard in action</p>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
         </Reveal>
@@ -1401,6 +1637,7 @@ function Footer() {
               {['Free Audit', 'Case Studies', 'Demand Engine Guide', 'Blog'].map(l => (
                 <a key={l} href="#cta" className="block text-sm text-slate-400 hover:text-white transition-colors">{l}</a>
               ))}
+              <a href="/portal" className="block text-sm text-slate-400 hover:text-white transition-colors">Client Login</a>
             </div>
           </div>
           <div>
@@ -1425,8 +1662,8 @@ function Footer() {
           <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {BRAND}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <span>Serving operators across the US & Canada</span>
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
           </div>
         </div>
       </div>
@@ -1489,7 +1726,34 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
+type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'demo'
+
+function pathToView(pathname: string): View {
+  if (pathname === '/admin') return 'admin'
+  if (pathname === '/portal') return 'portal'
+  if (pathname === '/privacy') return 'privacy'
+  if (pathname === '/terms') return 'terms'
+  if (pathname === '/demo') return 'demo'
+  return 'website'
+}
+
 export default function App() {
+  const [view, setView] = useState<View>(() => pathToView(window.location.pathname))
+
+  useEffect(() => {
+    const onPop = () => setView(pathToView(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const goHome = () => { window.history.pushState({}, '', '/'); setView('website') }
+
+  if (view === 'admin') return <AdminDashboard onBack={goHome} />
+  if (view === 'portal') return <ClientPortal onBack={goHome} />
+  if (view === 'privacy') return <PrivacyPolicy onBack={goHome} />
+  if (view === 'terms') return <TermsOfService onBack={goHome} />
+  if (view === 'demo') return <DemoDashboard onBack={goHome} />
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       <AuditBanner />
@@ -1501,14 +1765,15 @@ export default function App() {
         <LaunchTimeline />
         <ProblemSection />
         <ComparisonSection />
+        <OccupancyEngine />
         <VacancyCostCalculator />
         <TeamSection />
         <WhyUsSection />
         <DemandTriggersSection />
         <CampaignArchSection />
         <ServicesSection />
-        <OccupancyEngine />
         <IdealClientSection />
+        <MarketingScorecard />
         <KPIDashboard />
         <PricingSection />
         <CaseStudyTeaser />

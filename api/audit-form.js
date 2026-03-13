@@ -240,10 +240,11 @@ export default async function handler(req, res) {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
         await redis.set(`lead:${id}`, JSON.stringify({
           ...leadData,
+          formNotes: leadData.notes || null,
+          notes: [],
           status: 'form_sent',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          notes: [],
         }))
       }
     } catch (kvErr) {

@@ -22,7 +22,66 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
+function esc(str) {
+  if (!str) return ''
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+async function sendWelcomeEmail(record, accessCode) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return
+
+  const firstName = esc(record.name.trim().split(' ')[0])
+  const html = `
+    <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+      <p>Hey ${firstName},</p>
+      <p>Welcome aboard! We're thrilled to have <strong>${esc(record.facilityName)}</strong> as a StowStack client.</p>
+      <p>Your client portal is ready. This is where you'll be able to see your campaign performance, leads, move-ins, and ROI in real time once your campaigns go live.</p>
+      <div style="margin: 24px 0; padding: 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;">
+        <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Your Login Details</p>
+        <p style="margin: 0; font-size: 14px; color: #374151;">Email: <strong>${esc(record.email)}</strong></p>
+        <p style="margin: 4px 0 0; font-size: 14px; color: #374151;">Access Code: <strong style="font-family: monospace; letter-spacing: 2px; font-size: 16px;">${esc(accessCode)}</strong></p>
+      </div>
+      <p style="margin: 24px 0;">
+        <a href="https://stowstack.co/portal" style="display: inline-block; padding: 14px 28px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Open Your Dashboard</a>
+      </p>
+      <p>We're getting your campaigns built right now. You'll start seeing performance data in your portal as soon as the first ads go live.</p>
+      <p>If you have any questions in the meantime, just reply to this email.</p>
+      <p style="margin-top: 24px;">
+        Blake Burkett<br/>
+        StowStack<br/>
+        <a href="tel:2699298541" style="color: #16a34a; text-decoration: none;">269-929-8541</a><br/>
+        <a href="mailto:blake@storepawpaw.com" style="color: #16a34a; text-decoration: none;">blake@storepawpaw.com</a>
+      </p>
+    </div>`
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: 'Blake at StowStack <noreply@stowstack.co>',
+        to: record.email,
+        cc: 'anna@storepawpaw.com',
+        reply_to: ['blake@storepawpaw.com', 'anna@storepawpaw.com'],
+        subject: `Welcome to StowStack — Your ${esc(record.facilityName)} dashboard is ready`,
+        html,
+      }),
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('Welcome email failed:', res.status, text)
+    }
+  } catch (err) {
+    console.error('Welcome email error:', err.message)
+  }
+}
+
 function getRedis() {
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
   return new Redis({
     url: process.env.KV_REST_API_URL,
     token: process.env.KV_REST_API_TOKEN,
@@ -41,6 +100,11 @@ export default async function handler(req, res) {
   }
 
   const redis = getRedis()
+  if (!redis) {
+    // No Redis configured (local dev) — return empty data
+    if (req.method === 'GET') return res.status(200).json({ leads: [], auditCount: 0 })
+    return res.status(200).json({ success: true })
+  }
 
   // GET — list all leads
   if (req.method === 'GET') {
@@ -109,6 +173,26 @@ export default async function handler(req, res) {
       if (note) record.notes = [...(record.notes || []), { text: note, at: new Date().toISOString() }]
       if (pmsUploaded !== undefined) record.pmsUploaded = pmsUploaded
       record.updatedAt = new Date().toISOString()
+
+      // When a lead becomes a signed client, provision portal access + send welcome email
+      if (status === 'client_signed' && !record.accessCode) {
+        const code = Math.random().toString(36).slice(2, 10).toUpperCase()
+        record.accessCode = code
+        // Store client portal record keyed by access code
+        await redis.set(`client:${code}`, JSON.stringify({
+          email: record.email,
+          name: record.name,
+          facilityName: record.facilityName,
+          location: record.location,
+          occupancyRange: record.occupancyRange,
+          totalUnits: record.totalUnits,
+          signedAt: new Date().toISOString(),
+          accessCode: code,
+          campaigns: [],
+        }))
+        // Fire-and-forget welcome email with portal credentials
+        sendWelcomeEmail(record, code)
+      }
 
       await redis.set(`lead:${id}`, JSON.stringify(record))
       return res.status(200).json({ success: true, record })
