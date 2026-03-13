@@ -60,11 +60,37 @@ export default function SharedAudit({ slug }) {
   // Loading
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center"
+      <div className="min-h-screen"
         style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' }}>
-        <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 border-3 border-green-500/30 border-t-green-500 rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm">Loading audit...</p>
+        <div className="max-w-5xl mx-auto px-4 pt-16">
+          {/* Brand header skeleton */}
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 animate-pulse" />
+            <div>
+              <div className="h-5 w-28 bg-slate-700/60 rounded animate-pulse" />
+              <div className="h-3 w-40 bg-slate-700/40 rounded mt-1.5 animate-pulse" />
+            </div>
+          </div>
+          {/* Score gauge skeleton */}
+          <div className="flex justify-center mb-10">
+            <div className="w-40 h-40 rounded-full border-4 border-slate-700/50 bg-slate-800/50 animate-pulse" />
+          </div>
+          {/* Cards skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="h-24 bg-slate-800/60 rounded-xl border border-slate-700/30 animate-pulse" />
+            ))}
+          </div>
+          {/* Content skeleton */}
+          <div className="space-y-3 mb-8">
+            <div className="h-4 bg-slate-700/40 rounded w-3/4 animate-pulse" />
+            <div className="h-4 bg-slate-700/30 rounded w-1/2 animate-pulse" />
+            <div className="h-4 bg-slate-700/20 rounded w-2/3 animate-pulse" />
+          </div>
+          <div className="text-center pt-4">
+            <div className="w-10 h-10 mx-auto mb-3 border-3 border-green-500/30 border-t-green-500 rounded-full animate-spin" />
+            <p className="text-slate-500 text-sm">Loading facility audit...</p>
+          </div>
         </div>
       </div>
     )

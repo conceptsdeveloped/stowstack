@@ -95,12 +95,12 @@ function NavBar({ hasBanner }) {
         </div>
         {open && (
           <div className="md:hidden pb-4 flex flex-col gap-3 animate-slide-down">
-            <a href="#problem" className="text-sm text-slate-600 py-2">Why Us</a>
-            <a href="#services" className="text-sm text-slate-600 py-2">Services</a>
-            <a href="#engine" className="text-sm text-slate-600 py-2">System</a>
-            <a href="#pricing" className="text-sm text-slate-600 py-2">Pricing</a>
-            <a href="#faq" className="text-sm text-slate-600 py-2">FAQ</a>
-            <a href={CTA_HREF} className="inline-flex items-center justify-center gap-2 gradient-brand text-white px-5 py-2.5 rounded-lg text-sm font-semibold">
+            <a href="#problem" onClick={() => setOpen(false)} className="text-sm text-slate-600 py-2">Why Us</a>
+            <a href="#services" onClick={() => setOpen(false)} className="text-sm text-slate-600 py-2">Services</a>
+            <a href="#engine" onClick={() => setOpen(false)} className="text-sm text-slate-600 py-2">System</a>
+            <a href="#pricing" onClick={() => setOpen(false)} className="text-sm text-slate-600 py-2">Pricing</a>
+            <a href="#faq" onClick={() => setOpen(false)} className="text-sm text-slate-600 py-2">FAQ</a>
+            <a href={CTA_HREF} onClick={() => setOpen(false)} className="inline-flex items-center justify-center gap-2 gradient-brand text-white px-5 py-2.5 rounded-lg text-sm font-semibold">
               <Search size={14} /> {PRIMARY_CTA}
             </a>
           </div>
@@ -158,6 +158,37 @@ function Hero({ hasBanner }) {
               <span className="text-xs font-medium text-slate-300">{text}</span>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────── SOCIAL PROOF STRIP ─────────────────── */
+function SocialProofStrip() {
+  return (
+    <section className="py-6 bg-white border-b border-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-slate-500">
+          <div className="flex items-center gap-2">
+            <Building2 size={16} className="text-brand-500" />
+            <span><strong className="text-slate-800">Self-Storage Exclusive</strong></span>
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-brand-500" />
+            <span><strong className="text-slate-800">Operator-Run Team</strong></span>
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <Rocket size={16} className="text-brand-500" />
+            <span><strong className="text-slate-800">48hr Launch</strong></span>
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <Shield size={16} className="text-brand-500" />
+            <span><strong className="text-slate-800">No Contracts</strong></span>
+          </div>
         </div>
       </div>
     </section>
@@ -271,7 +302,7 @@ function ComparisonSection() {
           </div>
         </ScrollReveal>
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 gap-4 mb-4 px-4">
+          <div className="hidden sm:grid grid-cols-2 gap-4 mb-4 px-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
                 <X size={14} className="text-red-500" />
@@ -285,14 +316,16 @@ function ComparisonSection() {
               <span className="text-sm font-bold text-brand-600 uppercase tracking-wider">{BRAND}</span>
             </div>
           </div>
-          <div className="space-y-2 stagger-children">
+          <div className="space-y-2 sm:space-y-2 stagger-children">
             {rows.map((row, i) => (
               <ScrollReveal key={i}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-red-50/80 border border-red-100 rounded-xl px-5 py-4 backdrop-blur-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                  <div className="bg-red-50/80 border border-red-100 rounded-xl px-4 sm:px-5 py-3 sm:py-4 backdrop-blur-sm">
+                    <span className="sm:hidden text-[10px] font-bold text-red-400 uppercase tracking-wider">Generic Agency</span>
                     <p className="text-sm text-red-700">{row.generic}</p>
                   </div>
-                  <div className="bg-brand-50/80 border border-brand-200 rounded-xl px-5 py-4 backdrop-blur-sm">
+                  <div className="bg-brand-50/80 border border-brand-200 rounded-xl px-4 sm:px-5 py-3 sm:py-4 backdrop-blur-sm">
+                    <span className="sm:hidden text-[10px] font-bold text-brand-500 uppercase tracking-wider">{BRAND}</span>
                     <p className="text-sm text-brand-800 font-medium">{row.stow}</p>
                   </div>
                 </div>
@@ -877,12 +910,12 @@ function KPIDashboard() {
         </ScrollReveal>
         <ScrollReveal>
           <div className="max-w-4xl mx-auto glass rounded-2xl p-6 shadow-xl shadow-slate-900/5 border border-slate-200/50">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="font-semibold text-slate-900">Monthly Performance - Illustrative Example</h3>
                 <p className="text-sm text-slate-500">Sample data showing the type of reporting your facility receives</p>
               </div>
-              <span className="text-xs font-medium bg-green-100 text-green-700 px-3 py-1 rounded-full">Active Campaign</span>
+              <span className="text-xs font-medium bg-green-100 text-green-700 px-3 py-1 rounded-full whitespace-nowrap">Active Campaign</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 stagger-children">
               {metrics.map((m) => (
@@ -1206,7 +1239,7 @@ function Footer() {
   return (
     <footer className="bg-slate-950 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex flex-col items-center gap-6 text-center md:text-left md:flex-row md:justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 gradient-brand rounded-lg flex items-center justify-center">
               <Building2 size={18} className="text-white" />
@@ -1216,17 +1249,17 @@ function Footer() {
               <span className="text-[10px] text-slate-500 ml-1.5 uppercase tracking-wider">Self-Storage Ad Engine</span>
             </div>
           </div>
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-slate-500 max-w-xs">
             Operator-built Meta ads for self-storage. Occupancy growth. Revenue recovery. Full-funnel performance.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <a href="https://linkedin.com/in/mruhaul" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
               <Linkedin size={14} /> LinkedIn
             </a>
             <a href="https://midwayselfstoragemi.com" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
               <Globe size={14} /> Midway Self Storage
             </a>
-            <a href="mailto:blake@stowstack.com" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+            <a href="mailto:blake@storepawpaw.com" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
               <Mail size={14} /> Email
             </a>
           </div>
@@ -1270,6 +1303,61 @@ function GuidePromo({ onNavigate }) {
   )
 }
 
+/* ─────────────── MOBILE CTA BAR ─────────────── */
+function MobileCTABar() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => {
+      const ctaSection = document.getElementById('cta')
+      if (ctaSection) {
+        const rect = ctaSection.getBoundingClientRect()
+        setVisible(window.scrollY > 600 && rect.top > window.innerHeight)
+      } else {
+        setVisible(window.scrollY > 600)
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  if (!visible) return null
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-lg border-t border-slate-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] animate-fade-up">
+      <a
+        href={CTA_HREF}
+        className="flex items-center justify-center gap-2 w-full gradient-brand text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-brand-600/20"
+      >
+        <Search size={14} /> {PRIMARY_CTA} <ArrowRight size={14} />
+      </a>
+    </div>
+  )
+}
+
+/* ─────────────── BACK TO TOP ─────────────── */
+function BackToTop() {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 1200)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  if (!show) return null
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-20 md:bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-slate-800/80 backdrop-blur-sm text-white shadow-lg flex items-center justify-center hover:bg-slate-700 transition-all cursor-pointer animate-fade-up"
+      aria-label="Back to top"
+    >
+      <ChevronUp size={20} />
+    </button>
+  )
+}
+
 /* ─────────────────── PAGE ASSEMBLY ─────────────────── */
 export default function Website({ onNavigate }) {
   const [hasBanner, setHasBanner] = useState(true)
@@ -1288,6 +1376,7 @@ export default function Website({ onNavigate }) {
       <AuditBanner />
       <NavBar hasBanner={hasBanner} />
       <Hero hasBanner={hasBanner} />
+      <SocialProofStrip />
       <LaunchTimeline />
       <ProblemSection />
       <ComparisonSection />
@@ -1307,6 +1396,8 @@ export default function Website({ onNavigate }) {
       <FAQSection />
       <CTA />
       <Footer />
+      <MobileCTABar />
+      <BackToTop />
     </div>
   )
 }

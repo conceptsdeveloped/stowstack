@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Website from './views/Website'
 import Dashboard from './views/Dashboard'
 import MetaAdsGuide from './views/MetaAdsGuide'
@@ -9,8 +9,11 @@ import FacilityDiagnostic from './views/FacilityDiagnostic'
 import SharedAudit from './views/SharedAudit'
 import AdminDashboard from './views/AdminDashboard'
 import PMSUpload from './views/PMSUpload'
+import CreativeStudio from './views/CreativeStudio'
 import Chatbot from './components/Chatbot'
-import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck, Shield, Upload } from 'lucide-react'
+import { LayoutDashboard, Globe, BookOpen, Library as LibraryIcon, LogIn, ClipboardCheck, Shield, Upload, Paintbrush } from 'lucide-react'
+
+const SECRET_CODE = 'stack'
 
 // Check if the URL is a shared audit link: /audit/:slug
 // or PMS upload portal: /upload
@@ -26,10 +29,39 @@ export default function App() {
   const [initialRoute] = useState(getInitialRoute)
   const [view, setView] = useState('website')
   const [clientLoggedIn, setClientLoggedIn] = useState(false)
+  const [devMode, setDevMode] = useState(() => localStorage.getItem('stowstack_dev') === '1')
 
   useEffect(() => {
     const stored = localStorage.getItem('stowstack_client')
     if (stored) setClientLoggedIn(true)
+  }, [])
+
+  // Secret keyboard sequence: type "stack" anywhere to toggle dev nav
+  useEffect(() => {
+    let buffer = ''
+    let timer = null
+    function handleKey(e) {
+      buffer += e.key.toLowerCase()
+      clearTimeout(timer)
+      timer = setTimeout(() => { buffer = '' }, 1500)
+      if (buffer.includes(SECRET_CODE)) {
+        buffer = ''
+        setDevMode(prev => {
+          const next = !prev
+          if (next) {
+            localStorage.setItem('stowstack_dev', '1')
+          } else {
+            localStorage.removeItem('stowstack_dev')
+          }
+          return next
+        })
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      clearTimeout(timer)
+    }
   }, [])
 
   /* Shared audit link — takes over the entire page */
@@ -70,6 +102,15 @@ export default function App() {
     )
   }
 
+  if (view === 'studio') {
+    return (
+      <>
+        <CreativeStudio onBack={() => setView('website')} />
+        <Chatbot />
+      </>
+    )
+  }
+
   if (view === 'admin') {
     return <AdminDashboard onBack={() => setView('website')} />
   }
@@ -104,22 +145,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Floating view toggle */}
-      <div className="fixed top-4 right-4 z-[100] flex glass-dark rounded-xl shadow-2xl overflow-hidden">
+      {/* Floating view toggle — internal tools only visible in dev mode (type "stack" to toggle) */}
+      <div className="fixed top-4 right-4 z-[100] flex flex-wrap justify-end gap-0 glass-dark rounded-xl shadow-2xl overflow-hidden max-w-[calc(100vw-2rem)]">
         {[
           { id: 'website', label: 'Site', icon: Globe },
           { id: 'library', label: 'Library', icon: BookOpen },
           { id: 'guide', label: 'Guide', icon: BookOpen },
           { id: 'login', label: 'Login', icon: LogIn },
-          { id: 'diagnostic', label: 'Audit', icon: ClipboardCheck },
-          { id: 'pms-upload', label: 'PMS', icon: Upload },
-          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'admin', label: 'Admin', icon: Shield },
+          ...(devMode ? [
+            { id: 'studio', label: 'Studio', icon: Paintbrush },
+            { id: 'diagnostic', label: 'Audit', icon: ClipboardCheck },
+            { id: 'pms-upload', label: 'PMS', icon: Upload },
+            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'admin', label: 'Admin', icon: Shield },
+          ] : []),
         ].map((v) => (
           <button
             key={v.id}
             onClick={() => setView(v.id)}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1 px-2.5 sm:px-4 py-2 text-[11px] sm:text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               view === v.id
                 ? 'bg-brand-600 text-white'
                 : 'text-slate-400 hover:text-white'
