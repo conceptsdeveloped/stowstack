@@ -80,6 +80,22 @@ async function sendWelcomeEmail(record, accessCode) {
   }
 }
 
+function logActivity(redis, { type, leadId, leadName, facilityName, detail, meta }) {
+  if (!redis) return
+  const entry = JSON.stringify({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    type, leadId, leadName, facilityName,
+    detail: (detail || '').slice(0, 500),
+    meta: meta || {},
+    timestamp: new Date().toISOString(),
+  })
+  // Fire and forget — don't block the response
+  Promise.all([
+    redis.lpush('activity:global', entry).then(() => redis.ltrim('activity:global', 0, 499)),
+    redis.lpush(`activity:lead:${leadId}`, entry).then(() => redis.ltrim(`activity:lead:${leadId}`, 0, 99)),
+  ]).catch(err => console.error('Activity log error:', err))
+}
+
 function getRedis() {
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
   return new Redis({
@@ -152,6 +168,16 @@ export default async function handler(req, res) {
       }
 
       await redis.set(`lead:${id}`, JSON.stringify(record))
+
+      // Log activity
+      logActivity(redis, {
+        type: 'lead_created',
+        leadId: id,
+        leadName: lead.name || '',
+        facilityName: lead.facilityName || '',
+        detail: `New lead from ${lead.facilityName || 'unknown facility'}`,
+      })
+
       return res.status(200).json({ id })
     } catch (err) {
       console.error('Admin lead create error:', err)
@@ -195,6 +221,40 @@ export default async function handler(req, res) {
       }
 
       await redis.set(`lead:${id}`, JSON.stringify(record))
+
+      // Log activities
+      if (status) {
+        const actType = status === 'client_signed' ? 'client_signed' : 'status_change'
+        logActivity(redis, {
+          type: actType,
+          leadId: id,
+          leadName: record.name || '',
+          facilityName: record.facilityName || '',
+          detail: status === 'client_signed'
+            ? `${record.facilityName} signed as client`
+            : `Status changed to "${status}"`,
+          meta: { to: status },
+        })
+      }
+      if (note) {
+        logActivity(redis, {
+          type: 'note_added',
+          leadId: id,
+          leadName: record.name || '',
+          facilityName: record.facilityName || '',
+          detail: `Note added: "${note.slice(0, 100)}"`,
+        })
+      }
+      if (pmsUploaded) {
+        logActivity(redis, {
+          type: 'pms_uploaded',
+          leadId: id,
+          leadName: record.name || '',
+          facilityName: record.facilityName || '',
+          detail: `PMS report uploaded for ${record.facilityName}`,
+        })
+      }
+
       return res.status(200).json({ success: true, record })
     } catch (err) {
       console.error('Admin lead update error:', err)
