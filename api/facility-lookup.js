@@ -20,16 +20,14 @@ function getCorsHeaders(req) {
 
 // Search for a place and return its place_id
 async function findPlaceId(facilityName, location, apiKey) {
-  const query = encodeURIComponent(`${facilityName} ${location}`)
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&key=${apiKey}`
+  const searchQuery = encodeURIComponent(`${facilityName} ${location}`)
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${searchQuery}&key=${apiKey}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Places text search failed: ${res.status}`)
   const data = await res.json()
-  console.log('Places search status:', data.status, 'results:', data.results?.length ?? 0)
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-    console.error('Places API error:', data.status, data.error_message)
+  if (!data.results?.length) {
+    throw new Error(`Places API returned: ${data.status}${data.error_message ? ' — ' + data.error_message : ''}`)
   }
-  if (!data.results?.length) return null
   return data.results[0].place_id
 }
 
@@ -92,6 +90,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         found: false,
         message: 'No matching facility found on Google Maps',
+        _debug: { query: `${facilityName} ${location}` },
       })
     }
 
@@ -166,6 +165,6 @@ export default async function handler(req, res) {
     return res.status(200).json(result)
   } catch (err) {
     console.error('Facility lookup failed:', err.message)
-    return res.status(500).json({ error: 'Facility lookup failed', details: err.message })
+    return res.status(500).json({ error: 'Facility lookup failed', details: err.message, _debug: { facilityName, location } })
   }
 }
