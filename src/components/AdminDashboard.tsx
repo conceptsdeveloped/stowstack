@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Building2, RefreshCw, Search, ChevronDown, ChevronUp,
   Mail, Phone, MapPin, Calendar, ArrowLeft,
@@ -6,7 +6,9 @@ import {
   StickyNote, KeyRound, Copy, BarChart3, Plus, Trash2,
   DollarSign, Target, Award, ArrowUpRight, ArrowDownRight, Minus,
   ClipboardList, FileText, Send, AlertTriangle, Bell, Sparkles,
-  Download, CalendarClock, CheckSquare, MessageSquare
+  Download, CalendarClock, CheckSquare, MessageSquare,
+  Settings, Columns3, CreditCard, Moon, Sun, Keyboard,
+  GripVertical, Receipt, ChevronRight, X as XIcon, Command
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import {
@@ -183,7 +185,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   return <AdminDashboardInner adminKey={adminKey} onBack={onBack} onLogout={() => { localStorage.removeItem(STORAGE_KEY); setAdminKey(null) }} />
 }
 
-type AdminTab = 'pipeline' | 'portfolio' | 'insights'
+type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings'
 
 function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string; onBack: () => void; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('pipeline')
@@ -200,6 +202,13 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
   const [bulkStatus, setBulkStatus] = useState('')
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('stowstack_theme') === 'dark')
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState<{ id: string; type: string; title: string; detail: string; timestamp: string }[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [commandQuery, setCommandQuery] = useState('')
+  const [showShortcuts, setShowShortcuts] = useState(false)
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -235,6 +244,67 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     }
     fetchScores()
   }, [leads, adminKey])
+
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch('/api/notifications', { headers: { 'X-Admin-Key': adminKey } })
+        if (res.ok) {
+          const data = await res.json()
+          setNotifications(data.notifications || [])
+          setUnreadCount(data.unreadCount || 0)
+        }
+      } catch { /* silent */ }
+    }
+    fetchNotifs()
+    const interval = setInterval(fetchNotifs, 60000)
+    return () => clearInterval(interval)
+  }, [adminKey])
+
+  // Dark mode
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('stowstack_theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+K: command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCommandPalette(prev => !prev)
+      }
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false)
+        setShowNotifications(false)
+        setShowShortcuts(false)
+      }
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
+      // 1-6 for tabs
+      if (e.key === '1') setActiveTab('pipeline')
+      if (e.key === '2') setActiveTab('kanban')
+      if (e.key === '3') setActiveTab('portfolio')
+      if (e.key === '4') setActiveTab('insights')
+      if (e.key === '5') setActiveTab('billing')
+      if (e.key === '6') setActiveTab('settings')
+      if (e.key === 'r') { setLoading(true); fetchLeads() }
+      if (e.key === 'n') setShowNotifications(prev => !prev)
+      if (e.key === '?') setShowShortcuts(prev => !prev)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [fetchLeads])
+
+  const markNotificationsRead = async () => {
+    try {
+      await fetch('/api/notifications?markSeen=true', { headers: { 'X-Admin-Key': adminKey } })
+      setUnreadCount(0)
+    } catch { /* silent */ }
+  }
 
   const updateLead = async (id: string, updates: { status?: string; note?: string; followUpDate?: string }) => {
     setUpdating(id)
@@ -334,15 +404,12 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const activeLeads = leads.filter(l => !['lost', 'client_signed'].includes(l.status)).length
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen transition-colors ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className={`sticky top-0 z-30 border-b ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"
-            >
+            <button onClick={onBack} className={`p-2 -ml-2 transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-600'}`}>
               <ArrowLeft size={20} />
             </button>
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
@@ -350,43 +417,82 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight">StowStack Admin</h1>
-              <p className="text-xs text-slate-500 -mt-0.5">Manage leads & campaign performance</p>
+              <p className={`text-xs -mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Manage leads & campaign performance</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Command Palette Trigger */}
             <button
-              onClick={downloadCsv}
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-              title="Export leads as CSV"
+              onClick={() => setShowCommandPalette(true)}
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
+              }`}
+              title="Search (Cmd+K)"
             >
+              <Search size={12} />
+              <span>Search...</span>
+              <kbd className={`text-[10px] px-1 rounded ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>⌘K</kbd>
+            </button>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markNotificationsRead() }}
+                className={`p-2 rounded-lg transition-colors relative ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title="Notifications (N)"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <NotificationPanel
+                  notifications={notifications}
+                  darkMode={darkMode}
+                  onClose={() => setShowNotifications(false)}
+                />
+              )}
+            </div>
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-amber-400 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button onClick={downloadCsv} className={`flex items-center gap-1.5 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`} title="Export leads as CSV">
               <Download size={14} />
               <span className="hidden sm:inline">CSV</span>
             </button>
-            <button
-              onClick={() => { setLoading(true); fetchLeads() }}
-              className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-            >
+            <button onClick={() => { setLoading(true); fetchLeads() }} className={`flex items-center gap-2 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
-            <button
-              onClick={onLogout}
-              className="text-sm text-slate-400 hover:text-red-600 transition-colors"
-            >
+            <button onClick={onLogout} className={`text-sm transition-colors ${darkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-600'}`}>
               Sign out
             </button>
           </div>
         </div>
         {/* Tab bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px">
-          {([['pipeline', 'Pipeline', Users], ['portfolio', 'Portfolio', BarChart3], ['insights', 'Insights', TrendingUp]] as const).map(([id, label, Icon]) => (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px overflow-x-auto">
+          {([
+            ['pipeline', 'Pipeline', Users],
+            ['kanban', 'Kanban', Columns3],
+            ['portfolio', 'Portfolio', BarChart3],
+            ['insights', 'Insights', TrendingUp],
+            ['billing', 'Billing', CreditCard],
+            ['settings', 'Settings', Settings],
+          ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === id
-                  ? 'border-emerald-600 text-emerald-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                  ? `border-emerald-600 ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`
+                  : `border-transparent ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:border-slate-600' : 'text-slate-500 hover:text-slate-700 hover:border-slate-300'}`
               }`}
             >
               <Icon size={15} />
@@ -396,13 +502,55 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
         </div>
       </header>
 
+      {/* Command Palette */}
+      {showCommandPalette && (
+        <CommandPalette
+          query={commandQuery}
+          onQueryChange={setCommandQuery}
+          leads={leads}
+          darkMode={darkMode}
+          onClose={() => { setShowCommandPalette(false); setCommandQuery('') }}
+          onSelectLead={(id) => { setExpandedId(id); setActiveTab('pipeline'); setShowCommandPalette(false); setCommandQuery('') }}
+          onAction={(action) => {
+            if (action === 'pipeline') setActiveTab('pipeline')
+            if (action === 'kanban') setActiveTab('kanban')
+            if (action === 'portfolio') setActiveTab('portfolio')
+            if (action === 'insights') setActiveTab('insights')
+            if (action === 'billing') setActiveTab('billing')
+            if (action === 'settings') setActiveTab('settings')
+            if (action === 'dark') setDarkMode(!darkMode)
+            if (action === 'csv') downloadCsv()
+            if (action === 'refresh') { setLoading(true); fetchLeads() }
+            setShowCommandPalette(false)
+            setCommandQuery('')
+          }}
+        />
+      )}
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcuts && (
+        <ShortcutsModal darkMode={darkMode} onClose={() => setShowShortcuts(false)} />
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {activeTab === 'portfolio' && (
-          <PortfolioView leads={leads} adminKey={adminKey} loading={loading} />
+          <PortfolioView leads={leads} adminKey={adminKey} loading={loading} darkMode={darkMode} />
         )}
 
         {activeTab === 'insights' && (
-          <InsightsView adminKey={adminKey} leads={leads} />
+          <InsightsView adminKey={adminKey} leads={leads} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'kanban' && (
+          <KanbanView leads={leads} onUpdateStatus={(id, status) => updateLead(id, { status })} onSelectLead={setExpandedId} darkMode={darkMode} loading={loading} />
+        )}
+
+        {activeTab === 'billing' && (
+          <BillingView adminKey={adminKey} leads={leads} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsView adminKey={adminKey} darkMode={darkMode} onToggleDarkMode={() => setDarkMode(!darkMode)} />
         )}
 
         {activeTab === 'pipeline' && (<>
@@ -558,7 +706,7 @@ interface ClientPortfolioData {
   latestRoas: number
 }
 
-function PortfolioView({ leads, adminKey, loading }: { leads: Lead[]; adminKey: string; loading: boolean }) {
+function PortfolioView({ leads, adminKey, loading, darkMode }: { leads: Lead[]; adminKey: string; loading: boolean; darkMode?: boolean }) {
   const [clientData, setClientData] = useState<ClientPortfolioData[]>([])
   const [fetching, setFetching] = useState(false)
   const [fetched, setFetched] = useState(false)
@@ -830,7 +978,7 @@ interface ActivityEntry {
   timestamp: string
 }
 
-function InsightsView({ adminKey, leads }: { adminKey: string; leads: Lead[] }) {
+function InsightsView({ adminKey, leads, darkMode }: { adminKey: string; leads: Lead[]; darkMode?: boolean }) {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [activities, setActivities] = useState<ActivityEntry[]>([])
   const [loadingAnalytics, setLoadingAnalytics] = useState(true)
@@ -2131,6 +2279,717 @@ function AlertsBanner({ adminKey }: { adminKey: string }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  NOTIFICATION PANEL                                     */
+/* ═══════════════════════════════════════════════════════ */
+
+function NotificationPanel({ notifications, darkMode, onClose }: {
+  notifications: { id: string; type: string; title: string; detail: string; timestamp: string }[]
+  darkMode: boolean
+  onClose: () => void
+}) {
+  const typeIcon = (type: string) => {
+    if (type === 'new_lead') return <Users size={12} className="text-blue-500" />
+    if (type === 'overdue') return <CalendarClock size={12} className="text-red-500" />
+    if (type === 'new_message') return <MessageSquare size={12} className="text-purple-500" />
+    return <AlertTriangle size={12} className="text-amber-500" />
+  }
+  const typeBg = (type: string) => {
+    if (darkMode) {
+      if (type === 'new_lead') return 'bg-blue-900/30 border-blue-800'
+      if (type === 'overdue') return 'bg-red-900/30 border-red-800'
+      if (type === 'new_message') return 'bg-purple-900/30 border-purple-800'
+      return 'bg-amber-900/30 border-amber-800'
+    }
+    if (type === 'new_lead') return 'bg-blue-50 border-blue-100'
+    if (type === 'overdue') return 'bg-red-50 border-red-100'
+    if (type === 'new_message') return 'bg-purple-50 border-purple-100'
+    return 'bg-amber-50 border-amber-100'
+  }
+
+  return (
+    <div className={`absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border shadow-xl z-50 max-h-[480px] overflow-hidden flex flex-col ${
+      darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+    }`}>
+      <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+        <h3 className="text-sm font-semibold">Notifications</h3>
+        <button onClick={onClose} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+          <XIcon size={14} />
+        </button>
+      </div>
+      <div className="overflow-y-auto flex-1">
+        {notifications.length === 0 ? (
+          <div className={`text-center py-12 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <Bell size={24} className="mx-auto mb-2 opacity-40" />
+            <p className="text-xs">All caught up!</p>
+          </div>
+        ) : (
+          <div className="p-2 space-y-1.5">
+            {notifications.map(n => (
+              <div key={n.id} className={`rounded-lg border p-3 ${typeBg(n.type)}`}>
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5">{typeIcon(n.type)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{n.title}</p>
+                    <p className={`text-[11px] mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{n.detail}</p>
+                    <p className={`text-[10px] mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgo(n.timestamp)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  COMMAND PALETTE (Global Search)                        */
+/* ═══════════════════════════════════════════════════════ */
+
+function CommandPalette({ query, onQueryChange, leads, darkMode, onClose, onSelectLead, onAction }: {
+  query: string
+  onQueryChange: (v: string) => void
+  leads: Lead[]
+  darkMode: boolean
+  onClose: () => void
+  onSelectLead: (id: string) => void
+  onAction: (action: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const q = query.toLowerCase()
+  const matchedLeads = q ? leads.filter(l =>
+    l.name.toLowerCase().includes(q) ||
+    l.facilityName.toLowerCase().includes(q) ||
+    l.email.toLowerCase().includes(q) ||
+    l.location.toLowerCase().includes(q)
+  ).slice(0, 5) : []
+
+  const actions = [
+    { id: 'pipeline', label: 'Go to Pipeline', icon: Users },
+    { id: 'kanban', label: 'Go to Kanban Board', icon: Columns3 },
+    { id: 'portfolio', label: 'Go to Portfolio', icon: BarChart3 },
+    { id: 'insights', label: 'Go to Insights', icon: TrendingUp },
+    { id: 'billing', label: 'Go to Billing', icon: CreditCard },
+    { id: 'settings', label: 'Go to Settings', icon: Settings },
+    { id: 'dark', label: darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode', icon: darkMode ? Sun : Moon },
+    { id: 'csv', label: 'Export Leads as CSV', icon: Download },
+    { id: 'refresh', label: 'Refresh Data', icon: RefreshCw },
+  ]
+
+  const matchedActions = q ? actions.filter(a => a.label.toLowerCase().includes(q)) : actions
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className={`relative w-full max-w-lg rounded-xl border shadow-2xl overflow-hidden ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className={`flex items-center gap-3 px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+          <Search size={16} className="text-slate-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search leads, navigate, or run an action..."
+            value={query}
+            onChange={e => onQueryChange(e.target.value)}
+            className={`flex-1 text-sm bg-transparent focus:outline-none ${darkMode ? 'text-slate-100 placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-400'}`}
+          />
+          <kbd className={`text-[10px] px-1.5 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-400'}`}>ESC</kbd>
+        </div>
+        <div className="max-h-80 overflow-y-auto p-2">
+          {matchedLeads.length > 0 && (
+            <div className="mb-2">
+              <p className={`text-[10px] uppercase font-semibold tracking-wide px-2 py-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Leads</p>
+              {matchedLeads.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => onSelectLead(l.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <Users size={14} className={darkMode ? 'text-slate-500' : 'text-slate-400'} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{l.name}</p>
+                    <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{l.facilityName} · {l.location}</p>
+                  </div>
+                  <ChevronRight size={12} className={darkMode ? 'text-slate-600' : 'text-slate-300'} />
+                </button>
+              ))}
+            </div>
+          )}
+          <div>
+            <p className={`text-[10px] uppercase font-semibold tracking-wide px-2 py-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Actions</p>
+            {matchedActions.map(a => (
+              <button
+                key={a.id}
+                onClick={() => onAction(a.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
+                }`}
+              >
+                <a.icon size={14} className={darkMode ? 'text-slate-500' : 'text-slate-400'} />
+                <span className="text-sm">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  KEYBOARD SHORTCUTS MODAL                               */
+/* ═══════════════════════════════════════════════════════ */
+
+function ShortcutsModal({ darkMode, onClose }: { darkMode: boolean; onClose: () => void }) {
+  const shortcuts = [
+    { key: '⌘K', desc: 'Open command palette' },
+    { key: '1', desc: 'Pipeline view' },
+    { key: '2', desc: 'Kanban view' },
+    { key: '3', desc: 'Portfolio view' },
+    { key: '4', desc: 'Insights view' },
+    { key: '5', desc: 'Billing view' },
+    { key: '6', desc: 'Settings view' },
+    { key: 'R', desc: 'Refresh data' },
+    { key: 'N', desc: 'Toggle notifications' },
+    { key: '?', desc: 'Show shortcuts' },
+    { key: 'ESC', desc: 'Close panel/modal' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className={`relative w-full max-w-sm rounded-xl border shadow-2xl p-5 ${
+          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+        }`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Keyboard size={16} />
+            Keyboard Shortcuts
+          </h3>
+          <button onClick={onClose} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+            <XIcon size={14} />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {shortcuts.map(s => (
+            <div key={s.key} className="flex items-center justify-between">
+              <span className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{s.desc}</span>
+              <kbd className={`text-xs font-mono px-2 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{s.key}</kbd>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  KANBAN VIEW                                            */
+/* ═══════════════════════════════════════════════════════ */
+
+function KanbanView({ leads, onUpdateStatus, onSelectLead, darkMode, loading }: {
+  leads: Lead[]
+  onUpdateStatus: (id: string, status: string) => void
+  onSelectLead: (id: string) => void
+  darkMode: boolean
+  loading: boolean
+}) {
+  const [dragId, setDragId] = useState<string | null>(null)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400">
+        <Loader2 size={24} className="animate-spin mr-2" /> Loading...
+      </div>
+    )
+  }
+
+  const columns = STATUSES.map(s => ({
+    ...s,
+    leads: leads.filter(l => l.status === s.value),
+  }))
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e: React.DragEvent, status: string) => {
+    e.preventDefault()
+    if (dragId) {
+      const lead = leads.find(l => l.id === dragId)
+      if (lead && lead.status !== status) {
+        onUpdateStatus(dragId, status)
+      }
+    }
+    setDragId(null)
+  }
+
+  return (
+    <div className="overflow-x-auto pb-4">
+      <div className="flex gap-4 min-w-max">
+        {columns.map(col => (
+          <div
+            key={col.value}
+            className={`w-64 shrink-0 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-100/50 border-slate-200'}`}
+            onDragOver={handleDragOver}
+            onDrop={e => handleDrop(e, col.value)}
+          >
+            <div className={`px-3 py-2.5 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${col.color}`}>{col.label}</span>
+                <span className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{col.leads.length}</span>
+              </div>
+            </div>
+            <div className="p-2 space-y-2 min-h-[200px]">
+              {col.leads.map(lead => (
+                <div
+                  key={lead.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, lead.id)}
+                  onClick={() => onSelectLead(lead.id)}
+                  className={`rounded-lg border p-3 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
+                    dragId === lead.id ? 'opacity-50' : ''
+                  } ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <GripVertical size={12} className={`mt-0.5 shrink-0 ${darkMode ? 'text-slate-600' : 'text-slate-300'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{lead.name}</p>
+                      <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{lead.facilityName}</p>
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-2 text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <MapPin size={9} />
+                    <span className="truncate">{lead.location}</span>
+                    <span className="ml-auto">{timeAgo(lead.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+              {col.leads.length === 0 && (
+                <div className={`text-center py-8 text-xs ${darkMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Drop leads here
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  BILLING VIEW                                           */
+/* ═══════════════════════════════════════════════════════ */
+
+interface Invoice {
+  id: string
+  month: string
+  amount: number
+  adSpend: number
+  managementFee: number
+  status: 'draft' | 'sent' | 'paid' | 'overdue'
+  dueDate: string
+  paidDate: string | null
+  notes: string
+  createdAt: string
+}
+
+function BillingView({ adminKey, leads, darkMode }: { adminKey: string; leads: Lead[]; darkMode: boolean }) {
+  const [invoices, setInvoices] = useState<Record<string, Invoice[]>>({})
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [createCode, setCreateCode] = useState('')
+  const [createMonth, setCreateMonth] = useState('')
+  const [createAdSpend, setCreateAdSpend] = useState('')
+  const [createFee, setCreateFee] = useState('')
+  const [createDue, setCreateDue] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const signedClients = leads.filter(l => l.status === 'client_signed' && l.accessCode)
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const res = await fetch('/api/client-billing?all=true', { headers: { 'X-Admin-Key': adminKey } })
+        if (res.ok) {
+          const data = await res.json()
+          setInvoices(data.invoices || {})
+        }
+      } catch { /* silent */ }
+      setLoading(false)
+    }
+    fetchAll()
+  }, [adminKey])
+
+  const createInvoice = async () => {
+    if (!createCode || !createMonth || !createAdSpend || !createFee) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/client-billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({
+          code: createCode,
+          month: createMonth,
+          adSpend: Number(createAdSpend),
+          managementFee: Number(createFee),
+          amount: Number(createAdSpend) + Number(createFee),
+          dueDate: createDue || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setInvoices(prev => ({ ...prev, [createCode]: data.invoices || [] }))
+        setShowCreate(false)
+        setCreateMonth(''); setCreateAdSpend(''); setCreateFee(''); setCreateDue('')
+      }
+    } catch { /* silent */ }
+    setSaving(false)
+  }
+
+  const updateInvoice = async (code: string, invoiceId: string, status: string) => {
+    try {
+      const res = await fetch('/api/client-billing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({
+          code,
+          invoiceId,
+          status,
+          paidDate: status === 'paid' ? new Date().toISOString() : null,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setInvoices(prev => ({ ...prev, [code]: data.invoices || [] }))
+      }
+    } catch { /* silent */ }
+  }
+
+  const statusColor = (s: string) => {
+    if (s === 'paid') return darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+    if (s === 'sent') return darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
+    if (s === 'overdue') return darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700'
+    return darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+  }
+
+  const allInvoices = Object.values(invoices).flat()
+  const totalRevenue = allInvoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
+  const totalOutstanding = allInvoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0)
+  const overdueAmount = allInvoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400">
+        <Loader2 size={24} className="animate-spin mr-2" /> Loading billing data...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, sub: 'collected', color: 'text-emerald-600' },
+          { label: 'Outstanding', value: `$${totalOutstanding.toLocaleString()}`, sub: 'awaiting payment', color: '' },
+          { label: 'Overdue', value: `$${overdueAmount.toLocaleString()}`, sub: 'past due', color: 'text-red-500' },
+          { label: 'Invoices', value: String(allInvoices.length), sub: 'total', color: '' },
+        ].map(kpi => (
+          <div key={kpi.label} className={`rounded-xl border p-4 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <p className={`text-[10px] uppercase tracking-wide font-medium mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>{kpi.label}</p>
+            <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+            <p className={`text-[10px] mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{kpi.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Create Invoice */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">Client Invoices</h3>
+        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700">
+          <Plus size={14} /> New Invoice
+        </button>
+      </div>
+
+      {showCreate && (
+        <div className={`rounded-xl border p-4 space-y-3 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <select value={createCode} onChange={e => setCreateCode(e.target.value)}
+              className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500/30 ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200'}`}>
+              <option value="">Client...</option>
+              {signedClients.map(c => (<option key={c.id} value={c.accessCode}>{c.facilityName}</option>))}
+            </select>
+            <input type="text" placeholder="Month (Mar 2026)" value={createMonth} onChange={e => setCreateMonth(e.target.value)}
+              className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500/30 ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200'}`} />
+            <input type="number" placeholder="Ad Spend" value={createAdSpend} onChange={e => setCreateAdSpend(e.target.value)}
+              className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500/30 ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200'}`} />
+            <input type="number" placeholder="Mgmt Fee" value={createFee} onChange={e => setCreateFee(e.target.value)}
+              className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500/30 ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200'}`} />
+            <input type="date" value={createDue} onChange={e => setCreateDue(e.target.value)}
+              className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500/30 ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200'}`} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={createInvoice} disabled={!createCode || !createMonth || !createAdSpend || !createFee || saving}
+              className="px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-40">
+              {saving ? 'Creating...' : 'Create Invoice'}
+            </button>
+            <button onClick={() => setShowCreate(false)} className={`px-3 py-1.5 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice List by Client */}
+      {signedClients.length === 0 ? (
+        <div className={`text-center py-16 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+          <Receipt size={32} className="mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No signed clients yet</p>
+          <p className="text-xs mt-1">Invoices will appear here once clients are signed</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {signedClients.map(client => {
+            const clientInvoices = invoices[client.accessCode!] || []
+            return (
+              <div key={client.id} className={`rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+                  <div>
+                    <h4 className="text-sm font-semibold">{client.facilityName}</h4>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{client.location}</p>
+                  </div>
+                  <span className={`text-xs font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {clientInvoices.length} invoice{clientInvoices.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {clientInvoices.length === 0 ? (
+                  <div className={`px-4 py-6 text-center text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>No invoices yet</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className={darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}>
+                          {['Month', 'Ad Spend', 'Fee', 'Total', 'Status', 'Actions'].map(h => (
+                            <th key={h} className={`px-4 py-2 font-medium ${h === 'Month' ? 'text-left' : h === 'Actions' || h === 'Status' ? 'text-center' : 'text-right'} ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientInvoices.map(inv => (
+                          <tr key={inv.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+                            <td className="px-4 py-2.5 font-medium">{inv.month}</td>
+                            <td className={`px-4 py-2.5 text-right ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>${inv.adSpend.toLocaleString()}</td>
+                            <td className={`px-4 py-2.5 text-right ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>${inv.managementFee.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold">${inv.amount.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
+                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <select value={inv.status} onChange={e => updateInvoice(client.accessCode!, inv.id, e.target.value)}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                <option value="draft">Draft</option>
+                                <option value="sent">Sent</option>
+                                <option value="paid">Paid</option>
+                                <option value="overdue">Overdue</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  SETTINGS VIEW                                          */
+/* ═══════════════════════════════════════════════════════ */
+
+function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
+  adminKey: string; darkMode: boolean; onToggleDarkMode: () => void
+}) {
+  const [settings, setSettings] = useState({
+    companyName: 'StowStack',
+    companyEmail: 'anna@storepawpaw.com',
+    companyPhone: '',
+    notifyNewLeads: true,
+    notifyOverdue: true,
+    notifyMessages: true,
+    notifyAlerts: true,
+    emailSignature: '',
+    defaultFollowUpDays: 3,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const res = await fetch('/api/admin-settings', { headers: { 'X-Admin-Key': adminKey } })
+        if (res.ok) {
+          const data = await res.json()
+          setSettings(prev => ({ ...prev, ...data.settings }))
+        }
+      } catch { /* silent */ }
+      setLoading(false)
+    }
+    fetch_()
+  }, [adminKey])
+
+  const saveSettings = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify(settings),
+      })
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+    } catch { /* silent */ }
+    setSaving(false)
+  }
+
+  const cardClass = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+  const inputClass = darkMode
+    ? 'bg-slate-700 border-slate-600 text-slate-200 focus:ring-emerald-500/30'
+    : 'bg-white border-slate-200 text-slate-900 focus:ring-emerald-500/20'
+  const labelClass = `text-xs font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400">
+        <Loader2 size={24} className="animate-spin mr-2" /> Loading settings...
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Company Info */}
+      <div className={`rounded-xl border p-5 ${cardClass}`}>
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Building2 size={16} /> Company Information</h3>
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass}>Company Name</label>
+            <input type="text" value={settings.companyName} onChange={e => setSettings({ ...settings, companyName: e.target.value })}
+              className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${inputClass}`} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Email</label>
+              <input type="email" value={settings.companyEmail} onChange={e => setSettings({ ...settings, companyEmail: e.target.value })}
+                className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${inputClass}`} />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input type="text" value={settings.companyPhone} onChange={e => setSettings({ ...settings, companyPhone: e.target.value })}
+                className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${inputClass}`} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Email Signature</label>
+            <textarea value={settings.emailSignature} onChange={e => setSettings({ ...settings, emailSignature: e.target.value })}
+              rows={3} placeholder="Custom email signature..."
+              className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 resize-none ${inputClass}`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Notifications */}
+      <div className={`rounded-xl border p-5 ${cardClass}`}>
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Bell size={16} /> Notification Preferences</h3>
+        <div className="space-y-3">
+          {[
+            { key: 'notifyNewLeads', label: 'New lead submissions', desc: 'Get notified when a new lead comes in' },
+            { key: 'notifyOverdue', label: 'Overdue follow-ups', desc: 'Alert when a follow-up date has passed' },
+            { key: 'notifyMessages', label: 'Client messages', desc: 'Notify on new client messages' },
+            { key: 'notifyAlerts', label: 'Campaign alerts', desc: 'CPL spikes, ROAS drops, lead droughts' },
+          ].map(item => (
+            <label key={item.key} className="flex items-center justify-between cursor-pointer">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>{item.label}</p>
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+              </div>
+              <div className="relative">
+                <input type="checkbox" checked={(settings as any)[item.key]}
+                  onChange={e => setSettings({ ...settings, [item.key]: e.target.checked })}
+                  className="sr-only peer" />
+                <div className={`w-9 h-5 rounded-full transition-colors peer-checked:bg-emerald-500 ${darkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Defaults */}
+      <div className={`rounded-xl border p-5 ${cardClass}`}>
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Settings size={16} /> Defaults</h3>
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass}>Default follow-up (days after submission)</label>
+            <input type="number" min="1" max="30" value={settings.defaultFollowUpDays}
+              onChange={e => setSettings({ ...settings, defaultFollowUpDays: Number(e.target.value) })}
+              className={`w-24 mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${inputClass}`} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>Dark Mode</p>
+              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Toggle dark theme for the admin dashboard</p>
+            </div>
+            <button onClick={onToggleDarkMode}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                darkMode ? 'border-amber-600 text-amber-400 hover:bg-amber-900/20' : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}>
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              {darkMode ? 'Light Mode' : 'Dark Mode'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Save */}
+      <div className="flex items-center gap-3">
+        <button onClick={saveSettings} disabled={saving}
+          className="px-4 py-2 text-sm font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+        </button>
+        {saved && <span className="text-xs text-emerald-600 font-medium">Settings saved successfully</span>}
+      </div>
     </div>
   )
 }
