@@ -1496,11 +1496,37 @@ function FAQSection() {
 
 function CTASection() {
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [fields, setFields] = useState({
+    name: '', email: '', phone: '', facilityName: '', location: '',
+    occupancyRange: '', totalUnits: '', biggestIssue: '', notes: '',
+  })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const set = (key: string, val: string) => setFields(f => ({ ...f, [key]: val }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
+    setSubmitting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/audit-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Something went wrong')
+      setSubmitted(true)
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  const inputClass = "w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+  const selectClass = "w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all appearance-none"
 
   return (
     <section id="cta" className="py-20 md:py-28 text-white" style={{ background: '#020617' }}>
@@ -1556,50 +1582,81 @@ function CTASection() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-medium text-white/60 mb-1.5 block">Name *</label>
-                      <input required type="text" placeholder="Blake Burkett"
-                        className="w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all" />
+                      <input required type="text" placeholder="Blake Burkett" value={fields.name}
+                        onChange={e => set('name', e.target.value)}
+                        className={inputClass} />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-white/60 mb-1.5 block">Email *</label>
-                      <input required type="email" placeholder="blake@facility.com"
-                        className="w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all" />
+                      <input required type="email" placeholder="blake@facility.com" value={fields.email}
+                        onChange={e => set('email', e.target.value)}
+                        className={inputClass} />
                     </div>
                   </div>
                   <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Phone *</label>
+                    <input required type="tel" placeholder="(555) 555-5555" value={fields.phone}
+                      onChange={e => set('phone', e.target.value)}
+                      className={inputClass} />
+                  </div>
+                  <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Facility Name *</label>
-                    <input required type="text" placeholder="Lakeside Self Storage"
-                      className="w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all" />
+                    <input required type="text" placeholder="Lakeside Self Storage" value={fields.facilityName}
+                      onChange={e => set('facilityName', e.target.value)}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Location (City, State) *</label>
+                    <input required type="text" placeholder="Austin, TX" value={fields.location}
+                      onChange={e => set('location', e.target.value)}
+                      className={inputClass} />
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-white/60 mb-1.5 block">Number of Facilities</label>
-                      <select className="w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all appearance-none">
-                        <option value="1">1</option>
-                        <option value="2-5">2-5</option>
-                        <option value="6-10">6-10</option>
-                        <option value="11+">11+</option>
+                      <label className="text-xs font-medium text-white/60 mb-1.5 block">Current Occupancy *</label>
+                      <select required value={fields.occupancyRange} onChange={e => set('occupancyRange', e.target.value)} className={selectClass}>
+                        <option value="">Select...</option>
+                        <option value="below-60">Below 60%</option>
+                        <option value="60-75">60–75%</option>
+                        <option value="75-85">75–85%</option>
+                        <option value="85-95">85–95%</option>
+                        <option value="above-95">Above 95%</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-white/60 mb-1.5 block">Current Occupancy</label>
-                      <select className="w-full h-10 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all appearance-none">
+                      <label className="text-xs font-medium text-white/60 mb-1.5 block">Total Units *</label>
+                      <select required value={fields.totalUnits} onChange={e => set('totalUnits', e.target.value)} className={selectClass}>
                         <option value="">Select...</option>
-                        <option value="below-60">Below 60%</option>
-                        <option value="60-75">60-75%</option>
-                        <option value="75-85">75-85%</option>
-                        <option value="85-95">85-95%</option>
-                        <option value="95+">95%+</option>
+                        <option value="under-100">Under 100</option>
+                        <option value="100-300">100–300</option>
+                        <option value="300-500">300–500</option>
+                        <option value="500+">500+</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Biggest Challenge *</label>
+                    <select required value={fields.biggestIssue} onChange={e => set('biggestIssue', e.target.value)} className={selectClass}>
+                      <option value="">Select...</option>
+                      <option value="low-occupancy">Low occupancy</option>
+                      <option value="lease-up">Lease-up / new facility</option>
+                      <option value="standard-units">Filling standard units</option>
+                      <option value="climate-controlled">Filling climate-controlled units</option>
+                      <option value="drive-up">Filling drive-up units</option>
+                      <option value="vehicle-rv-boat">Vehicle / RV / boat storage</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Anything else?</label>
                     <textarea rows={3} placeholder="Tell us about your biggest challenge..."
+                      value={fields.notes} onChange={e => set('notes', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder:text-white/25 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all resize-none" />
                   </div>
-                  <Button type="submit" size="lg" className="w-full rounded-full font-semibold h-11 text-base group bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0">
-                    Submit — It's Free
-                    <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />
+                  {error && <p className="text-red-400 text-xs">{error}</p>}
+                  <Button type="submit" disabled={submitting} size="lg" className="w-full rounded-full font-semibold h-11 text-base group bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 disabled:opacity-60">
+                    {submitting ? 'Submitting...' : 'Submit — It\'s Free'}
+                    {!submitting && <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />}
                   </Button>
                   <p className="text-[11px] text-white/25 text-center">No credit card. No obligation. Just insights.</p>
                 </form>
