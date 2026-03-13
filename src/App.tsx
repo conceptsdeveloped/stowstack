@@ -1517,7 +1517,21 @@ function CTASection() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Something went wrong')
+
       setSubmitted(true)
+
+      // Fire facility lookup in background — saves Google Places data to DB
+      const facilityId = data.facilityId || null
+      fetch('/api/facility-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          facilityName: fields.facilityName,
+          location: fields.location,
+          facilityId,
+        }),
+      }).catch(() => {}) // background — don't block or surface errors to user
+
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
