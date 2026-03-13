@@ -21,7 +21,7 @@ function getCorsHeaders(req) {
 // Search for a place and return its place_id
 async function findPlaceId(facilityName, location, apiKey) {
   const query = encodeURIComponent(`${facilityName} ${location}`)
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&type=storage&key=${apiKey}`
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&key=${apiKey}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Places text search failed: ${res.status}`)
   const data = await res.json()
