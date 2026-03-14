@@ -29,9 +29,9 @@ export default async function handler(req, res) {
     return res.redirect('/?auth=error&platform=google_ads&message=Google+Ads+not+configured')
   }
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+    || (process.env.VERCEL_ENV === 'production' ? 'https://www.stowstack.co' : null)
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   const redirectUri = `${baseUrl}/api/auth/google/callback`
 
   try {

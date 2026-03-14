@@ -26,9 +26,9 @@ function checkAuth(req) {
 
 // Build the OAuth URL for a given platform
 function getOAuthUrl(platform, facilityId) {
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+    || (process.env.VERCEL_ENV === 'production' ? 'https://www.stowstack.co' : null)
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const state = Buffer.from(JSON.stringify({ facilityId, platform })).toString('base64url')
 
