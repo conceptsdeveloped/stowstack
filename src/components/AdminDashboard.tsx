@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import AdminGuide from './AdminGuide'
+import WhatsNew from './WhatsNew'
 import { RenderSection } from './LandingPageView'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -188,7 +189,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   return <AdminDashboardInner adminKey={adminKey} onBack={onBack} onLogout={() => { localStorage.removeItem(STORAGE_KEY); setAdminKey(null) }} />
 }
 
-type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities'
+type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities' | 'whats-new'
 
 /* ── Facilities View ── */
 
@@ -3894,13 +3895,15 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
       }
       // Don't trigger shortcuts when typing in inputs
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
-      // 1-6 for tabs
+      // 1-8 for tabs
       if (e.key === '1') setActiveTab('pipeline')
       if (e.key === '2') setActiveTab('kanban')
       if (e.key === '3') setActiveTab('portfolio')
       if (e.key === '4') setActiveTab('insights')
       if (e.key === '5') setActiveTab('billing')
       if (e.key === '6') setActiveTab('settings')
+      if (e.key === '7') setActiveTab('facilities')
+      if (e.key === '8') setActiveTab('whats-new')
       if (e.key === 'r') { setLoading(true); fetchLeads() }
       if (e.key === 'n') setShowNotifications(prev => !prev)
       if (e.key === '?') setShowShortcuts(prev => !prev)
@@ -4115,6 +4118,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['billing', 'Billing', CreditCard],
             ['settings', 'Settings', Settings],
             ['facilities', 'Facilities', Building2],
+            ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
@@ -4205,6 +4209,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           </div>
           <FacilitiesView adminKey={adminKey} darkMode={darkMode} />
         </>)}
+
+        {activeTab === 'whats-new' && (
+          <WhatsNew darkMode={darkMode} adminKey={adminKey} />
+        )}
 
         {activeTab === 'pipeline' && (<>
         {/* Stats Cards */}
