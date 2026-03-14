@@ -26,73 +26,103 @@ function checkAuth(req) {
 
 // ── Meta Publishing ──
 
+async function metaApi(endpoint, accessToken, body) {
+  const res = await fetch(`https://graph.facebook.com/v21.0/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: accessToken, ...body }),
+  })
+  const data = await res.json()
+  if (data.error) throw new Error(data.error.message)
+  return data
+}
+
 async function publishToMeta(variation, connection, imageUrl) {
-  const { access_token, account_id, metadata } = connection
+  const { access_token, account_id, page_id } = connection
   const adAccountId = account_id.startsWith('act_') ? account_id : `act_${account_id}`
   const content = variation.content_json
+  const facilityName = content.headline || 'Storage Ad'
+  const landingUrl = connection.metadata?.landingUrl || 'https://stowstack.co'
 
-  // Step 1: Upload image as ad creative
+  if (!page_id) throw new Error('No Facebook Page connected. Reconnect Meta and ensure a Page is linked.')
+
+  // Step 1: Upload image
   let imageHash = null
   if (imageUrl) {
-    const uploadRes = await fetch(
-      `https://graph.facebook.com/v21.0/${adAccountId}/adimages`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token,
-          url: imageUrl,
-        }),
-      }
-    )
-    const uploadData = await uploadRes.json()
+    const uploadData = await metaApi(`${adAccountId}/adimages`, access_token, { url: imageUrl })
     if (uploadData.images) {
       const firstKey = Object.keys(uploadData.images)[0]
       imageHash = uploadData.images[firstKey]?.hash
     }
   }
 
-  // Step 2: Create ad creative
-  const creativePayload = {
-    access_token,
-    name: `StowStack - ${content.headline || 'Ad'}`,
-    object_story_spec: {
-      page_id: connection.page_id,
-      link_data: {
-        message: content.primaryText || '',
-        link: connection.metadata?.landingUrl || 'https://stowstack.co',
-        name: content.headline || '',
-        description: content.description || '',
-        call_to_action: {
-          type: mapCtaToMeta(content.cta),
-          value: { link: connection.metadata?.landingUrl || 'https://stowstack.co' },
-        },
+  // Step 2: Create Campaign (PAUSED so it doesn't spend money immediately)
+  const campaignData = await metaApi(`${adAccountId}/campaigns`, access_token, {
+    name: `StowStack — ${facilityName}`,
+    objective: 'OUTCOME_TRAFFIC',
+    status: 'PAUSED',
+    special_ad_categories: [],
+  })
+  const campaignId = campaignData.id
+
+  // Step 3: Create Ad Set (targeting, budget, schedule — all defaults, paused)
+  const adSetData = await metaApi(`${adAccountId}/adsets`, access_token, {
+    name: `${facilityName} — ${content.angleLabel || variation.angle || 'Ad Set'}`,
+    campaign_id: campaignId,
+    status: 'PAUSED',
+    billing_event: 'IMPRESSIONS',
+    optimization_goal: 'LINK_CLICKS',
+    daily_budget: 1000, // $10/day in cents — operator adjusts in Ads Manager
+    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+    targeting: {
+      geo_locations: { countries: ['US'] },
+      age_min: 25,
+      age_max: 65,
+    },
+  })
+  const adSetId = adSetData.id
+
+  // Step 4: Create Ad Creative
+  const creativeSpec = {
+    page_id,
+    link_data: {
+      message: content.primaryText || '',
+      link: landingUrl,
+      name: content.headline || '',
+      description: content.description || '',
+      call_to_action: {
+        type: mapCtaToMeta(content.cta),
+        value: { link: landingUrl },
       },
     },
   }
+  if (imageHash) creativeSpec.link_data.image_hash = imageHash
 
-  if (imageHash) {
-    creativePayload.object_story_spec.link_data.image_hash = imageHash
-  }
+  const creativeData = await metaApi(`${adAccountId}/adcreatives`, access_token, {
+    name: `Creative — ${facilityName}`,
+    object_story_spec: creativeSpec,
+  })
+  const creativeId = creativeData.id
 
-  const creativeRes = await fetch(
-    `https://graph.facebook.com/v21.0/${adAccountId}/adcreatives`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(creativePayload),
-    }
-  )
-  const creativeData = await creativeRes.json()
-
-  if (creativeData.error) {
-    throw new Error(`Meta creative creation failed: ${creativeData.error.message}`)
-  }
+  // Step 5: Create the Ad (links creative to ad set — PAUSED)
+  const adData = await metaApi(`${adAccountId}/ads`, access_token, {
+    name: `Ad — ${content.angleLabel || variation.angle || ''} — ${facilityName}`,
+    adset_id: adSetId,
+    creative: { creative_id: creativeId },
+    status: 'PAUSED',
+  })
 
   return {
-    externalId: creativeData.id,
-    externalUrl: `https://business.facebook.com/adsmanager/manage/ads?act=${account_id}`,
-    response: creativeData,
+    externalId: adData.id,
+    externalUrl: `https://business.facebook.com/adsmanager/manage/campaigns?act=${account_id}&campaign_ids=${campaignId}`,
+    response: {
+      campaignId,
+      adSetId,
+      creativeId,
+      adId: adData.id,
+      status: 'PAUSED',
+      note: 'Campaign created as PAUSED. Review targeting and budget in Ads Manager, then activate when ready.',
+    },
   }
 }
 

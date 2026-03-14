@@ -1553,21 +1553,26 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={publishAd}
-              disabled={!selectedVariation || !selectedConnection || !!publishing}
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
-            >
-              {publishing ? (
-                <><Loader2 size={14} className="animate-spin" /> Publishing...</>
-              ) : (
-                <><Send size={14} /> Publish Ad</>
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={publishAd}
+                disabled={!selectedVariation || !selectedConnection || !!publishing}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {publishing ? (
+                  <><Loader2 size={14} className="animate-spin" /> Publishing...</>
+                ) : (
+                  <><Send size={14} /> Publish Ad</>
+                )}
+              </button>
+              {selectedImage && (
+                <img src={selectedImage} alt="" className="h-10 w-16 object-cover rounded" />
               )}
-            </button>
-            {selectedImage && (
-              <img src={selectedImage} alt="" className="h-10 w-16 object-cover rounded" />
-            )}
+            </div>
+            <p className={`text-xs ${sub}`}>
+              Ad will be created as <span className="font-semibold">PAUSED</span> in Ads Manager. Review targeting and budget there, then activate when ready.
+            </p>
           </div>
         </div>
       )}
