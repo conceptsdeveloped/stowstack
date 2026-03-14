@@ -103,6 +103,41 @@ CREATE TABLE IF NOT EXISTS assets (
   metadata      JSONB
 );
 
+-- Platform connections: OAuth tokens for Meta, Google Ads per facility
+CREATE TABLE IF NOT EXISTS platform_connections (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  platform        TEXT NOT NULL,        -- meta | google_ads
+  status          TEXT DEFAULT 'disconnected',  -- disconnected | connected | expired | error
+  access_token    TEXT,
+  refresh_token   TEXT,
+  token_expires_at TIMESTAMPTZ,
+  account_id      TEXT,                 -- Meta ad account ID or Google Ads customer ID
+  account_name    TEXT,                 -- Display name for the connected account
+  page_id         TEXT,                 -- Meta page ID (for Instagram/Facebook)
+  page_name       TEXT,
+  metadata        JSONB,               -- Platform-specific extra data
+  UNIQUE(facility_id, platform)
+);
+
+-- Publish log: track every ad push to external platforms
+CREATE TABLE IF NOT EXISTS publish_log (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  variation_id    UUID REFERENCES ad_variations(id) ON DELETE CASCADE,
+  connection_id   UUID REFERENCES platform_connections(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  platform        TEXT NOT NULL,
+  status          TEXT DEFAULT 'pending',  -- pending | published | failed
+  external_id     TEXT,                    -- Campaign/ad ID on the external platform
+  external_url    TEXT,                    -- Link to the ad in the platform's dashboard
+  error_message   TEXT,
+  request_payload JSONB,
+  response_payload JSONB
+);
+
 -- Indexes for common lookups
 CREATE INDEX IF NOT EXISTS idx_audits_facility ON audits(facility_id);
 CREATE INDEX IF NOT EXISTS idx_places_facility ON places_data(facility_id);
@@ -112,6 +147,9 @@ CREATE INDEX IF NOT EXISTS idx_variations_brief ON ad_variations(brief_id);
 CREATE INDEX IF NOT EXISTS idx_variations_status ON ad_variations(status);
 CREATE INDEX IF NOT EXISTS idx_assets_facility ON assets(facility_id);
 CREATE INDEX IF NOT EXISTS idx_facilities_status ON facilities(status);
+CREATE INDEX IF NOT EXISTS idx_platform_connections_facility ON platform_connections(facility_id);
+CREATE INDEX IF NOT EXISTS idx_publish_log_facility ON publish_log(facility_id);
+CREATE INDEX IF NOT EXISTS idx_publish_log_variation ON publish_log(variation_id);
 `
 
 async function migrate() {
