@@ -1283,7 +1283,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
       )}
 
       {subTab === 'ad-preview' && (
-        <AdPreviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <AdPreviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
       )}
 
       {subTab === 'publish' && (
@@ -1636,7 +1636,7 @@ const AD_FORMATS: { id: AdFormat; label: string; width: number; height: number }
   { id: 'google_display', label: 'Google Display', width: 300, height: 250 },
 ]
 
-function AdPreviewTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
+function AdPreviewTab({ facility, adminKey, darkMode, onPublish }: { facility: Facility; adminKey: string; darkMode: boolean; onPublish: () => void }) {
   const [variations, setVariations] = useState<AdVariation[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
   const [stockImages, setStockImages] = useState<{ id: string; url: string; alt: string; category: string }[]>([])
@@ -1729,6 +1729,12 @@ function AdPreviewTab({ facility, adminKey, darkMode }: { facility: Facility; ad
               darkMode={darkMode}
             />
           </div>
+          <button
+            onClick={onPublish}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700"
+          >
+            <Send size={14} /> Publish This Ad
+          </button>
         </div>
 
         {/* Right: Controls */}
