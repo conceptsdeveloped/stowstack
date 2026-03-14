@@ -24,47 +24,47 @@ import {
 const BRAND = 'StowStack'
 
 const TEAM = [
-  { name: 'Blake Burkett', role: 'CEO & Founder', avatar: 'BB', bio: 'Blake has 7+ years in self-storage, U-Haul, and moving operations in Michigan. A walking encyclopedia of storage know-how with 4 fully automated facilities of his own. He needed a system that could actually fill units and could not find one. <em>So he built it.</em> StowStack was tried, tested, and born inside his own portfolio.', linkedin: 'https://linkedin.com/in/mruhaul' },
-  { name: 'Angelo Vogley', role: 'Co-Founder & Chief Design Officer', avatar: 'AV', bio: 'Angelo obsesses over the details most people never notice. He leads creative across the entire company and his talent and training let him look at a landing page, an ad, or a brand and know exactly what is costing you conversions. Every pixel, every headline, every layout goes through him. His job is turning eyeballs on screens into feet inside your facility.' },
-  { name: 'Anna Almeida', role: 'Onboarding Specialist & Scrum Master', avatar: 'AA', bio: 'Anna is the reason clients say we are easy to work with. She owns your experience before the first campaign launches, keeps the entire team on schedule while it runs, and checks in long after the work is done. She answers fast, asks the right questions, and treats your facility like it is the only one on her list. Fill out our facility audit form and Anna will be the first person you hear from and the last one to let anything slip.' },
+  { name: 'Blake Burkett', role: 'CEO & Founder', avatar: 'BB', bio: 'Blake is an active self-storage operator with 7+ years in storage, U-Haul, and moving operations in Michigan. He runs his own portfolio of facilities. He got tired of paying agencies that could not tell him which ad produced which move-in, <em>so he built StowStack for his own facilities first.</em> After it worked, operators in his network started asking for it.', linkedin: 'https://linkedin.com/in/mruhaul' },
+  { name: 'Angelo Vogley', role: 'Co-Founder & Chief Design Officer', avatar: 'AV', bio: 'Angelo leads all creative, design, and conversion optimization across StowStack. He can look at a landing page and tell you exactly what is costing you reservations. Every ad-specific landing page, every headline test, every layout decision goes through him. His job is making sure the pages we build convert at rates your default rental page never will.' },
+  { name: 'Anna Almeida', role: 'Onboarding Specialist & Scrum Master', avatar: 'AA', bio: 'Anna is the reason clients say working with StowStack is easy. She owns your onboarding, keeps the team on schedule during campaign builds, and checks in long after launch. She answers fast, asks the right questions, and treats your facility like it is the only one on her list. Submit a facility audit and Anna will be the first person you hear from.' },
 ]
 
 const STATS = [
-  { value: '47%', label: 'Avg. occupancy lift', icon: TrendingUp },
-  { value: '$8.20', label: 'Cost per lead', icon: DollarSign },
-  { value: '3.2x', label: 'Return on ad spend', icon: BarChart3 },
-  { value: '14 days', label: 'Avg. time to first lead', icon: Clock },
+  { value: '$41', label: 'Avg. cost per move-in', icon: DollarSign },
+  { value: '8.7%', label: 'Landing page conversion rate', icon: TrendingUp },
+  { value: '4-12x', label: 'Return on investment', icon: BarChart3 },
+  { value: '7 days', label: 'Time to first move-in', icon: Clock },
 ]
 
 const PROBLEMS = [
-  { title: 'Vacant Units Hemorrhaging MRR', desc: 'Every empty 10x10 at $120/mo is $1,440/year in lost Monthly Recurring Revenue. Multiply that across a row of units and you are bleeding five figures annually while your marketing team reports "impressions."' },
-  { title: 'Nobody Can Define Occupancy Velocity', desc: 'They run ads for dentists, HVAC, and restaurants on the same playbook. They do not understand lease-up curves, revenue per available unit (RevPAU), or how unit-mix strategy affects yield.' },
-  { title: 'Speed-to-Lead Is Nonexistent', desc: 'Industry data shows leads contacted within 5 minutes convert at 8x the rate of leads contacted after 30. Most marketing partners never mention this because they do not track past the click.' },
-  { title: 'Promos Driving Unqualified Traffic', desc: 'High CPM, low conversion rate, inflated CTR on broad audiences. Traditional marketing celebrates "engagement" while your front desk wastes hours on tire-kickers who never sign a lease.' },
-  { title: 'No Pixel. No CAPI. No Retargeting.', desc: 'Without Meta Pixel and Conversions API installed, your campaigns have zero feedback loop. No Custom Audiences, no Lookalike targeting, no retargeting. You are running blind and paying for it.' },
-  { title: 'Stale Unit Mix With Zero Demand Segmentation', desc: 'Climate-controlled 5x10s need different creative than outdoor parking or drive-up 10x20s. One generic ad set because nobody understands unit-type economics.' },
+  { title: 'Every Ad Goes to the Same Page', desc: 'Your Google ads, Facebook ads, and retargeting all dump traffic onto your homepage or a generic storEDGE rental page. Someone searching "climate controlled storage" lands on the same page as someone clicking a "first month free" ad. Different intent, same dead-end experience.' },
+  { title: 'Your Rental Flow Lives on Someone Else\'s Page', desc: 'When a customer decides to reserve, they get bounced to an off-brand system page that looks nothing like your facility. You lose trust. You lose conversions. You lose move-ins you already paid to attract.' },
+  { title: 'You Cannot Tell What Is Working', desc: 'Which ad produced that move-in last Tuesday? Which campaign is actually driving revenue? Your agency does not know either. They are optimizing for clicks, not leases.' },
+  { title: 'No Full-Funnel Attribution', desc: 'Your marketing reports show impressions, clicks, and cost-per-click. None of those numbers connect to a signed lease. You are paying for metrics that have nothing to do with move-ins.' },
+  { title: 'No A/B Testing Based on Revenue', desc: 'Nobody is testing which headline, offer, or page layout produces more signed leases. Tests are measured against clicks, not reservations. The winner fills more ad accounts, not more units.' },
+  { title: 'Generic Pages With No Conversion Optimization', desc: 'You are sending paid traffic to pages you do not control, with no embedded rental flow, no offer-specific messaging, and no tracking that ties back to the campaign that drove the visit.' },
 ]
 
 const COMPARISON_ROWS = [
-  { generic: 'Reports CPM and CTR, vanity metrics only', stow: 'Reports CPL, cost-per-move-in, and occupancy velocity' },
-  { generic: 'Cannot explain unit-mix strategy or RevPAU', stow: 'Segments campaigns by unit type, pricing tier, and demand trigger' },
-  { generic: 'Ignores everything past the ad click', stow: 'Audits full funnel: ad to landing page to call to follow-up to move-in' },
-  { generic: 'Treats storage like another local-service client', stow: 'Built by operators who run our own storage portfolio' },
-  { generic: 'Generic audiences with no pixel data', stow: 'Custom Audiences, Lookalikes, and retargeting powered by Pixel + CAPI' },
-  { generic: '2 to 4 week onboarding with "strategy decks"', stow: 'Campaigns live in 48 to 72 hours. No decks. Just results.' },
-  { generic: 'One ad set, one audience, set it and forget it', stow: 'CBO structures with dynamic creative testing across multiple ad sets' },
-  { generic: 'No operator experience. Learning on your budget.', stow: 'Team with 7+ years in storage ops, U-Haul, and moving services' },
+  { generic: 'Sends traffic to your homepage or default rental page', stow: 'Every ad gets its own landing page with its own headline, offer, and tracking' },
+  { generic: 'Customer bounces to a generic off-brand rental page', stow: 'Embedded storEDGE rental flow — customer reserves without ever leaving your page' },
+  { generic: 'Reports clicks, impressions, and CTR', stow: 'Reports cost per reservation, cost per move-in, and ROAS by creative' },
+  { generic: 'Cannot tell you which ad produced which move-in', stow: 'Full-funnel attribution from ad impression to signed lease' },
+  { generic: 'No landing page testing or conversion optimization', stow: 'A/B tests headlines, offers, and layouts based on actual revenue behavior' },
+  { generic: 'No operator experience. Learning on your budget.', stow: 'Built by an active storage operator who tested this at his own facilities first' },
+  { generic: 'SEO shops say wait 3-6 months for results', stow: 'Meta ads create demand in days. Google PPC captures existing search intent.' },
+  { generic: 'One-size-fits-all marketing playbook', stow: 'Campaign-specific funnels matched to different intent, audiences, and offers' },
 ]
 
 const SERVICES_FULL = [
-  { icon: Megaphone, title: 'Full-Funnel Meta Campaigns', desc: 'Custom campaign architecture with CBO, Auction buying, and Advantage+ placements. Built around your specific vacant unit types. Live in 48 to 72 hours.' },
-  { icon: Eye, title: 'Operator-Informed Creative', desc: 'Ad headlines, angles, and creative assets built around real demand triggers, not stock "secure storage" copy. We A/B test 3 to 5 variants per ad set and kill underperformers fast.' },
-  { icon: Target, title: 'Precision Audience Targeting', desc: 'Lookalike Audiences from your highest-value move-ins, Custom Audiences from Pixel data, life-event behavioral targeting, and radius-based geo-fencing. No wasted impressions.' },
-  { icon: RefreshCw, title: 'Retargeting Sequences', desc: 'Multi-window retargeting for website visitors, video viewers, and lead form openers. Sequential creative that moves prospects through the funnel with frequency capping to prevent fatigue.' },
-  { icon: Code, title: 'Pixel + Conversions API Setup', desc: 'Full Meta Pixel and server-side Conversions API installation. Custom conversion events for lead form submits, calls, and move-ins. Event match quality optimization.' },
-  { icon: Key, title: 'Move-In Conversion Strategy', desc: 'Tactical recommendations on offer structure, pricing presentation, urgency messaging, and lease-up acceleration. We optimize the path from lead to signed lease, not just the ad.' },
-  { icon: Headphones, title: 'Call & Follow-Up Audit', desc: 'We audit your speed-to-lead metrics, missed call recovery, voicemail scripts, and SMS follow-up sequences. If your office kills conversions, we tell you directly and show you the fix.' },
-  { icon: BarChart2, title: 'Operator-Grade Reporting', desc: 'Monthly performance tied to CPL, cost-per-move-in, ROAS, and occupancy impact. Attribution by unit type, campaign, and audience. No vanity dashboards. Actionable intelligence only.' },
+  { icon: Megaphone, title: 'Meta & Google Ad Campaigns', desc: 'Meta ads create new demand by reaching people before they search. Google PPC captures existing search intent. Retargeting brings back visitors who left. We run all three channels.' },
+  { icon: Layers, title: 'Ad-Specific Landing Pages', desc: 'Every campaign gets its own dedicated URL with its own headline, offer, tracking, and embedded rental flow. Different intent maps to different pages. That is how conversion rate goes up.' },
+  { icon: Code, title: 'Embedded storEDGE Rental Flow', desc: 'The actual reservation and move-in functionality is embedded directly into each landing page we build. Your customer never leaves your branded page. storEDGE handles the transaction underneath.' },
+  { icon: BarChart2, title: 'Full-Funnel Attribution', desc: 'Which ad generated the visit. Which page they saw. Which offer they responded to. Whether they reserved. Whether they moved in. Cost per reservation. Cost per move-in. By campaign, ad, and creative.' },
+  { icon: Target, title: 'Revenue-Based A/B Testing', desc: 'We test headlines, offers, page layouts, and creative — then pick winners based on actual reservation and move-in behavior. The winner produces more signed leases, not more clicks.' },
+  { icon: RefreshCw, title: 'Retargeting Campaigns', desc: 'Multi-window retargeting for website visitors who left without reserving. Sequential creative that brings them back to a specific landing page built to close the deal.' },
+  { icon: Eye, title: 'Conversion Rate Optimization', desc: 'Ongoing testing and improvement of landing pages based on revenue behavior. Every page gets smarter over time as A/B testing data and attribution compound.' },
+  { icon: Key, title: 'Operator-Grade Reporting', desc: 'Cost per reservation. Cost per move-in. Conversion rate by campaign, audience, keyword, and creative. ROAS by channel. Every number ties to whether units are getting filled.' },
 ]
 
 const DEMAND_TRIGGERS = [
@@ -80,117 +80,112 @@ const DEMAND_TRIGGERS = [
 ]
 
 const ENGINE_STEPS = [
-  { icon: MousePointerClick, label: 'Demand Generation', desc: 'Targeted campaigns reach local prospects during life transitions before they search Google. Demand creation, not just demand capture.' },
-  { icon: Users, label: 'Qualified Leads', desc: 'Lead forms filter for intent, location, unit type, and urgency. Conversion-optimized landing pages eliminate tire-kickers.' },
-  { icon: PhoneCall, label: 'Calls & Inquiries', desc: 'Leads convert to real phone calls and online inquiries from people who actually need a unit now.' },
-  { icon: MessageSquare, label: 'Speed-to-Lead System', desc: 'Sub-5-minute response, missed call recovery, and automated SMS sequences. Leads do not decay in your inbox.' },
-  { icon: UserCheck, label: 'Move-Ins', desc: 'Qualified prospects convert into signed leases. Optimized offers, reduced friction, clear urgency. The metric that matters.' },
-  { icon: TrendingUp, label: 'Occupancy & Revenue Growth', desc: 'Vacancy decreases. RevPAU increases. Pricing power returns. Recurring revenue recovered and compounding.' },
+  { icon: Megaphone, label: 'Demand Creation', desc: 'Meta ads reach people before they search. Google PPC captures existing intent. Retargeting brings back visitors who left. We create demand, capture it, and recapture it.' },
+  { icon: Layers, label: 'Ad-Specific Landing Pages', desc: 'Every ad sends traffic to its own dedicated page with its own headline, offer, and tracking. Not your homepage. Not a generic rental page.' },
+  { icon: Code, label: 'Embedded Rental Flow', desc: 'storEDGE reservation and move-in functionality embedded directly in each landing page. The customer stays on your branded page and reserves right there.' },
+  { icon: BarChart2, label: 'Full Attribution', desc: 'Every move-in traces back to the specific ad that produced it. Cost per reservation. Cost per move-in. Conversion rate by campaign, ad, and creative.' },
+  { icon: Target, label: 'A/B Testing on Revenue', desc: 'Test headlines, offers, and layouts. Winners are measured against actual reservation behavior, not clicks. The system gets smarter every month.' },
+  { icon: TrendingUp, label: 'Compounding Returns', desc: 'As attribution data compounds, cost per move-in drops and conversion rate climbs. The ROI only gets better with time.' },
 ]
 
 const IDEAL_CLIENTS = [
-  { title: 'Independent Owner-Operators', desc: 'Single-location owners who want occupancy-focused demand generation managed by people who understand the business, not another generalist marketing firm.' },
-  { title: 'Small Multi-Site Operators (2-10 Locations)', desc: 'Groups needing consistent lead flow across facilities with per-location CPL tracking, centralized reporting, and portfolio-level budget optimization.' },
-  { title: 'Underperforming Facilities with Stubborn Vacancy', desc: 'Mature properties where specific unit types have been sitting empty. You need demand segmentation by unit class, not more broad campaigns.' },
-  { title: 'Lease-Up & New Build Properties', desc: 'New facilities that need to accelerate occupancy velocity. Meta campaigns build local awareness and drive move-ins before SEO has time to compound.' },
-  { title: 'Operators Who Want Operators', desc: 'You have paid someone who could not define RevPAU, never configured a Pixel, and ran the same playbook they use for HVAC clients. You want a team that operates storage.' },
+  { title: 'Independent Owner-Operators (1-10 Facilities)', desc: 'The overlooked backbone of the industry. You do not want another SaaS login or another agency that does not understand storage. You want units filled.' },
+  { title: 'Operators With Vacancy Pain', desc: 'Specific unit types sitting empty. Seasonal dips hitting harder than expected. You need demand creation and campaign-specific funnels, not another broad awareness campaign.' },
+  { title: 'Operators Without Full-Funnel Attribution', desc: 'Your agency reports clicks and impressions but cannot tell you which ad produced which move-in. You want every dollar traced to a result.' },
+  { title: 'Operators With Weak Digital Presence', desc: 'Your website is a default template. Your rental flow lives on someone else\'s page. You need a branded conversion layer with embedded reservation functionality.' },
+  { title: 'Operators Who Have Been Burned by Agencies', desc: 'You paid for marketing that could not define move-in economics. You want a team that operates storage facilities and built this system for their own portfolio first.' },
 ]
 
 const KPI_METRICS = [
-  { label: 'Leads Generated', value: '197', change: '+18%' },
-  { label: 'Cost Per Lead', value: '$28.40', change: '-22%' },
-  { label: 'Phone Calls', value: '134', change: '+22%' },
-  { label: 'Move-Ins', value: '57', change: '+15%' },
-  { label: 'Cost Per Move-In', value: '$97.89', change: '-8%' },
-  { label: 'Occupancy Velocity', value: '+4.2%', change: '/month' },
+  { label: 'Total Move-Ins', value: '34', change: '+26%' },
+  { label: 'Cost Per Move-In', value: '$41', change: '-18%' },
+  { label: 'Reservations', value: '47', change: '+31%' },
+  { label: 'Landing Page Conv. Rate', value: '8.7%', change: '+3.2%' },
+  { label: 'Return on Ad Spend', value: '6.4x', change: '+1.8x' },
+  { label: 'Occupancy Change', value: '+13%', change: 'this quarter' },
 ]
 
 const PRICING_TIERS = [
   {
-    name: 'Launch', price: '$750', period: '/mo', popular: false,
-    desc: 'For single-location operators ready to start recovering lost MRR with targeted Meta campaigns.',
+    name: 'Launch', price: '$750', period: '/mo per facility', popular: false,
+    desc: 'For operators ready to start filling units with paid ads and ad-specific landing pages.',
     features: [
-      'Full facility audit + competitor analysis',
-      'Meta Pixel + Conversions API installation',
-      'Campaign build: 2 ad sets, 3 creatives each',
-      'Lookalike + Custom Audience setup',
-      'Local radius geo-targeting',
-      'Lead form or landing page optimization',
-      'Monthly performance report (CPL, move-ins)',
-      'Campaigns live in 48 to 72 hours',
+      'Meta ad campaigns (Facebook + Instagram)',
+      '2 ad-specific landing pages with embedded storEDGE rental flow',
+      'Static creative and ad copy',
+      'Per-campaign tracking and attribution',
+      'Monthly performance report with cost-per-move-in data',
+      'Campaigns live in days, not weeks',
     ],
   },
   {
-    name: 'Growth', price: '$1,500', period: '/mo', popular: true,
-    desc: 'For operators serious about occupancy velocity with full-funnel conversion support and retargeting.',
+    name: 'Growth', price: '$1,500', period: '/mo per facility', popular: true,
+    desc: 'The full system. Meta + Google + retargeting + 5 landing pages + A/B testing + full attribution dashboard.',
     features: [
       'Everything in Launch',
-      'Expanded campaign: 4+ ad sets, dynamic creative',
-      'Multi-window retargeting sequences',
-      'A/B split testing on audiences + creative',
-      'Call handling + speed-to-lead audit',
-      'Move-in conversion strategy',
-      'Unit-type specific campaign segmentation',
-      'Bi-weekly strategy calls with the team',
-      'Priority Slack support',
+      'Google PPC campaigns (search + display)',
+      '5 ad-specific landing pages with embedded storEDGE rental flow',
+      'Retargeting campaigns for abandoned visitors',
+      'A/B testing on creative and landing pages',
+      'Video creative production',
+      'Full attribution dashboard — cost per reservation, cost per move-in, ROAS by creative',
+      'Bi-weekly optimization calls',
     ],
   },
   {
-    name: 'Portfolio', price: 'Custom', period: '', popular: false,
-    desc: 'For multi-site operators (3+ locations) needing centralized campaign management and portfolio optimization.',
+    name: 'Portfolio', price: 'Custom', period: '5+ facilities', popular: false,
+    desc: 'Everything in Growth, scaled across your portfolio with centralized management and volume pricing.',
     features: [
-      'Everything in Growth per location',
-      'Centralized multi-facility dashboard',
-      'Cross-location budget allocation optimization',
-      'Market-specific campaign strategy per facility',
-      'Dedicated onboarding specialist (Anna)',
-      'Weekly strategy calls with Blake + Angelo',
-      'Full-funnel audit for each location',
-      'Custom KPI tracking + attribution modeling',
+      'Everything in Growth per facility',
+      'Unlimited landing pages across all facilities',
+      'Cross-facility budget allocation and optimization',
+      'Portfolio-level attribution and reporting',
+      'Dedicated strategist',
+      'Volume discount: 20-35% off per-facility rates',
+      'Weekly strategy calls',
       'Quarterly business review',
     ],
   },
 ]
 
 const TESTIMONIALS = [
-  { name: 'Mark D.', role: 'Owner, 3 Locations, Michigan', text: 'Went from 72% to 89% occupancy in four months. They actually understand what drives move-ins, not just ad metrics. The call handling audit alone was worth the fee.', metric: '+17% occ.' },
-  { name: 'Lisa R.', role: 'Operator, Single Site, Ohio', text: 'First team that did not try to sell me on "brand awareness." They set up the Pixel, built retargeting from day one, and focused entirely on cost-per-move-in. Results showed in month one.', metric: '$6.40 CPL' },
-  { name: 'Jeff T.', role: 'Regional Manager, 6 Locations, Indiana', text: 'The per-location CPL tracking and unit-type campaign segmentation changed everything. I finally know which facilities are converting and which ad sets to scale. Real operator reporting.', metric: '3.8x ROAS' },
+  { name: 'Mark D.', role: 'Owner, 3 Locations, Michigan', text: 'Went from 71% to 84% occupancy in one quarter. For the first time I can see exactly which ad produced which move-in. 34 move-ins at $41 each. The attribution alone changed how I think about marketing.', metric: '+13% occ.' },
+  { name: 'Lisa R.', role: 'Operator, Single Site, Ohio', text: 'The ad-specific landing pages converted at 8.7% versus my old homepage at 2.1%. Same traffic, completely different results. The embedded rental flow means customers reserve without ever leaving my branded page.', metric: '8.7% conv.' },
+  { name: 'Jeff T.', role: 'Regional Manager, 6 Locations, Indiana', text: 'I can finally see which campaigns produce revenue and which ones waste money. The per-facility attribution and A/B testing on landing pages changed everything. Cost per move-in drops every month.', metric: '6.4x ROAS' },
 ]
 
 const FAQS = [
-  { q: 'Why Meta ads instead of Google for self-storage?', a: 'Google captures existing demand: people already searching "storage near me." Meta creates new demand by reaching local people during life events (moving, divorce, downsizing, renovation) before they ever search. By the time someone is on Google, they are already comparing four facilities. Meta gets your facility in front of them first. We run both channels for some clients, but Meta consistently delivers lower CPL when properly configured with Pixel tracking and retargeting.' },
-  { q: 'How fast do campaigns actually go live?', a: 'Campaigns are live within 48 to 72 hours of our initial audit call. Our team moves this fast because we already know the industry. There is no learning curve. We audit your facility, build the CBO campaign structure with Lookalike and Custom Audiences, upload dynamic creative, and launch. Most firms burn 2 to 4 weeks on onboarding decks before a single ad runs.' },
-  { q: 'What makes this different from hiring a regular agency?', a: 'We operate self-storage facilities. That is the difference. Our team runs our own portfolio: drive-up, climate, industrial conversions, heated boat/RV, U-Haul dealerships. Every campaign we build is informed by real operational data: unit-mix economics, seasonal demand patterns, lease-up curves, and conversion bottlenecks we see in our own business. We do not just run ads. We audit your full funnel from ads to website to call handling to follow-up to move-in process.' },
-  { q: 'What if our website or follow-up process is weak?', a: 'We will tell you directly and give specific, actionable fixes. A strong campaign still fails if leads hit a weak website or calls go unanswered past five rings. Our audit covers speed-to-lead, website conversion rate, call scripts, missed call recovery, and SMS follow-up sequences. Most agencies never mention operational friction because they do not know what good storage operations look like.' },
-  { q: 'Do you handle Pixel and Conversions API setup?', a: 'Yes. Full Meta Pixel installation, server-side Conversions API (CAPI) configuration, custom conversion event setup, and event match quality optimization are included in every engagement. Without this infrastructure, campaigns have no feedback loop and cannot build Custom or Lookalike Audiences. We consider it non-negotiable.' },
-  { q: 'What KPIs do you report on?', a: 'Cost per lead (CPL), cost per move-in, leads by source, phone calls, move-ins, ROAS, occupancy velocity, and unit-type attribution. Not impressions, not reach, not CTR. Every metric ties directly to whether units are getting filled and what it cost to fill them. Reports are in plain English with clear action items.' },
-  { q: 'Who is behind StowStack?', a: 'Blake Burkett (CEO/Founder) is a CRE owner with 7+ years in self-storage and U-Haul operations in Michigan. Angelo Vogley (Co-Founder/CDO) leads all design vision, creative strategy, and brand identity. Anna Almeida (Onboarding Specialist/Scrum Master) ensures every client gets fast, responsive support from day one through mission complete. We built this for our own facilities first, proved it worked, and now run it for operators across the US and Canada.' },
-  { q: 'Do you require long-term contracts?', a: 'No. 90-day initial engagement, then month-to-month. We earn your business every month. That said, campaign performance compounds over time as Pixel data matures, Lookalike audiences sharpen, and creative testing narrows to top performers. The operators who stay past 90 days see significantly stronger ROAS because the system gets smarter every month.' },
-  { q: 'What ad spend do you recommend?', a: 'Minimum $1,000/month paid directly to Meta (not to us). For most single-location facilities, $1,500 to $2,500/month in ad spend produces the strongest CPL and enough data volume for meaningful optimization. Multi-site operators typically allocate $1,000 to $2,000 per location. Our management fee is separate and transparent.' },
+  { q: 'How is this different from hiring a regular marketing agency?', a: 'Most agencies run your ads and send traffic to a page they do not control, to a rental flow they did not build, and report metrics that have nothing to do with move-ins. StowStack controls the ad, the page, the rental flow, and the attribution. It is a closed loop. Every dollar traces to a result. And the founder operates storage facilities — this was built for his own portfolio first.' },
+  { q: 'What are ad-specific landing pages?', a: 'Every ad campaign gets its own dedicated URL with its own headline, offer, tracking, and embedded storEDGE rental flow. A Google ad for "climate controlled storage in Paw Paw" goes to stowstacksite.com/climate-pawpaw-a. A Facebook ad for "first month free 10x10" goes to stowstacksite.com/10x10-offer-b. Different intent. Different pages. Different offers. That is how conversion rate compounds.' },
+  { q: 'How does the embedded storEDGE rental flow work?', a: 'The actual storEDGE reservation and move-in functionality is embedded directly into each landing page we build. Your customer stays on your branded page the entire time — your facility name, your colors, your offer. storEDGE handles real-time unit availability, reservation processing, and payment underneath. The customer never bounces to a generic off-brand page.' },
+  { q: 'How fast will I see results?', a: 'Most operators see leads within the first week of campaign launch. Move-ins typically start within 2-3 weeks. This is not SEO — you are not waiting 6 months to find out if it works. An operator at 78% occupancy heading into summer cannot wait. StowStack creates demand immediately through Meta ads.' },
+  { q: 'What do you actually report on?', a: 'Which ad generated the visit. Which landing page they saw. Which offer they responded to. Whether they reserved. Whether they completed move-in. Cost per reservation. Cost per move-in. Conversion rate by campaign, ad, audience, keyword, and creative. ROAS by creative. Not clicks. Not impressions. Revenue.' },
+  { q: 'Do I need to change my PMS or rental software?', a: 'No. StowStack sits on top of storEDGE. Your current systems stay the same. We embed the storEDGE rental flow into the landing pages we build — nothing changes on your end operationally. If you use a different PMS, reach out and we can discuss whether your system supports the kind of embedding we need.' },
+  { q: 'What is the minimum ad spend?', a: 'We recommend at least $1,000/mo in ad spend for a single facility, paid directly to Meta and Google — separate from StowStack fees. More spend means more data, faster optimization, and more move-ins.' },
+  { q: 'Do you require long-term contracts?', a: 'No. Month-to-month on the Demand Engine. The only commitment structure is the optional 6-month bundle discount on website builds — commit to 6 months of Growth and the site build drops from $5,000 to $2,500. Operators who stay 6+ months see their cost per move-in drop significantly as A/B testing and attribution data compounds.' },
 ]
 
 const WHY_US = [
-  { icon: Building2, title: 'We Operate Storage Facilities', desc: 'Our team runs our own portfolio: drive-up, climate, industrial, boat/RV, U-Haul, moving. We know the business because we are in it every day.' },
-  { icon: DollarSign, title: 'Revenue Recovery, Not Vanity Metrics', desc: 'We track CPL, cost-per-move-in, and occupancy velocity. Not impressions. Not reach. Your monthly report tells you exactly how many units we helped fill.' },
-  { icon: Phone, title: 'We Audit Past the Click', desc: 'Most marketing stops at the ad. We audit your call handling, website conversion rate, speed-to-lead, follow-up sequences, and move-in friction.' },
-  { icon: TrendingUp, title: 'Pricing & Promo Intelligence', desc: 'We understand rate sensitivity, promotional ROI, competitor price positioning, and how discounting strategy affects lease-up velocity and tenant quality.' },
-  { icon: Crosshair, title: 'Demand-Trigger Targeting', desc: 'Our campaigns target life events that create storage need: moving, downsizing, divorce, remodels. We see these triggers in our own facilities daily.' },
-  { icon: Timer, title: '48-72 Hour Launch', desc: 'No 3-week onboarding. No strategy decks. Our team builds your full campaign architecture and goes live in days, not months.' },
+  { icon: Building2, title: 'Full Funnel Ownership', desc: 'The only company that controls the complete path from ad impression to signed lease. We create the demand, catch the click on a custom page, convert through embedded rental flow, and attribute the move-in back to the specific ad.' },
+  { icon: Target, title: 'The Channel Nobody Else Owns', desc: 'Meta ads are our primary channel. SEO shops do not touch paid media. Google-only platforms treat social as an afterthought. Nobody else in self-storage is building a system around Meta ad expertise.' },
+  { icon: DollarSign, title: 'Attribution That Connects to Revenue', desc: 'Cost per reservation. Cost per move-in. Conversion rate by campaign, ad, and creative. Every number ties to whether units are getting filled and what it cost to fill them.' },
+  { icon: Key, title: 'Operator-Built, Operator-Run', desc: 'The founder runs storage facilities. Not a marketing company that decided to specialize in storage. An operator who got tired of paying for reports full of clicks and no move-ins.' },
+  { icon: Timer, title: 'Results in Days, Not Months', desc: 'SEO shops tell you to wait 6 months. We create demand in the first week. An operator at 78% occupancy heading into summer cannot wait. StowStack is the emergency room, not the annual physical.' },
+  { icon: Crosshair, title: 'Integration + Execution Moat', desc: 'We understand storage operations, reservation flow, and move-in economics. We connect traffic source to actual move-in behavior. That combination is harder to replace than any single service.' },
 ]
 
 const CAMPAIGN_ARCH = [
   {
-    icon: Layers, title: 'CBO Campaign Structure',
-    items: ['Campaign Budget Optimization across ad sets', 'Separate ad sets per unit type and demand trigger', 'Dynamic creative testing (3-5 variants per set)', 'Automated rules for pausing underperformers'],
+    icon: Layers, title: 'Ad-Specific Landing Pages',
+    items: ['Dedicated URL for every campaign with its own headline and offer', 'Embedded storEDGE reservation flow on each page', 'Per-page tracking tied to the ad that drove the visit', 'Conversion data by page, campaign, and creative'],
   },
   {
-    icon: Target, title: 'Audience Architecture',
-    items: ['Custom Audiences from website visitors (Pixel + CAPI)', 'Lookalike Audiences (1%, 3%, 5%) from move-in conversions', 'Life-event targeting: recently moved, listed home, newly engaged', 'Radius-based geo-fencing around your facility'],
+    icon: Target, title: 'Multi-Channel Demand',
+    items: ['Meta ads create new demand before people search', 'Google PPC captures existing search intent', 'Display retargeting recaptures abandoned visitors', 'Campaign-specific funnels matched to different audiences'],
   },
   {
-    icon: RefreshCw, title: 'Retargeting Engine',
-    items: ['Website visitor retargeting (7, 14, 30-day windows)', 'Engaged viewer retargeting (video, lead form openers)', 'Sequential ad creative based on funnel stage', 'Frequency capping to prevent ad fatigue'],
+    icon: RefreshCw, title: 'Attribution + Optimization',
+    items: ['Full path tracking from ad impression to signed lease', 'Cost per reservation and cost per move-in by campaign', 'A/B testing measured against actual revenue behavior', 'Compounding performance as data matures over time'],
   },
 ]
 
@@ -236,8 +231,8 @@ function AuditBanner() {
     <div data-audit-banner className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600">
       <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 text-white text-sm">
         <Zap size={14} className="shrink-0 animate-pulse" />
-        <span className="font-medium">Same-Day Facility Audits Available</span>
-        <span className="hidden sm:inline text-white/80">Book before 2PM and get your audit today.</span>
+        <span className="font-medium">Free Facility Audit — See Where You Are Losing Move-Ins</span>
+        <span className="hidden sm:inline text-white/80">No contracts. No commitment. Real answers.</span>
         <a href="#cta" className="shrink-0 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold transition-all">
           Book Now
         </a>
@@ -365,24 +360,22 @@ function Hero() {
         <div className="max-w-4xl mx-auto text-center">
           <Reveal>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-sm font-medium mb-6">
-              <Rocket size={14} /> The Occupancy Demand Engine for Self-Storage
+              <Rocket size={14} /> Built by an operator. Tested at my own facilities first.
             </div>
           </Reveal>
 
           <Reveal delay={100}>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 text-white">
-              The{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Demand Engine</span>{' '}
-              That Fills Vacant Storage Units
+              Every ad has its own page.{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Every move-in traces back to the ad that produced it.</span>
             </h1>
           </Reveal>
 
           <Reveal delay={200}>
             <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto mb-8">
-              We built this system for our own self-storage portfolio. After it cut vacancy rates and drove qualified
-              move-ins across our facilities, we opened it to operators in our network.
-              Our demand engine combines precision audience targeting, conversion-optimized creative, full-funnel tracking,
-              and retargeting — launching in 48 to 72 hours.
+              StowStack is a full-funnel acquisition and conversion system for self-storage. We build ad-specific
+              landing pages with embedded online reservation and move-in functionality. We track exactly which ads
+              produce reservations and move-ins, run A/B tests, and optimize based on actual revenue outcomes.
             </p>
           </Reveal>
 
@@ -397,7 +390,7 @@ function Hero() {
               </Button>
               <Button size="lg" variant="outline" className="rounded-full px-8 text-base font-semibold h-13 group border-white/20 text-white hover:bg-white/10 !bg-transparent w-full sm:w-auto" asChild>
                 <a href="#engine">
-                  See the Occupancy Engine
+                  See How the System Works
                 </a>
               </Button>
             </div>
@@ -409,23 +402,23 @@ function Hero() {
               onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/demo'); window.dispatchEvent(new PopStateEvent('popstate')) }}
               className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors mb-4"
             >
-              <Play size={14} /> See a live demo dashboard with simulated results
+              <Play size={14} /> See a live attribution dashboard with sample data
             </a>
           </Reveal>
 
           <Reveal delay={400}>
-            <p className="text-sm text-slate-400 mb-10">No contracts. No setup fees. No learning-your-industry phase. We already operate in it.</p>
+            <p className="text-sm text-slate-400 mb-10">Not an agency. Not a SaaS dashboard. A closed-loop system that fills units and proves it.</p>
           </Reveal>
 
           {/* Credibility pills */}
           <Reveal delay={500}>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto">
               {[
-                { icon: Building2, text: 'Self-Storage Only' },
-                { icon: Key, text: 'Operator-Built' },
-                { icon: Target, text: 'Move-In Focused' },
-                { icon: Timer, text: '48-72hr Launch' },
-                { icon: DollarSign, text: 'Revenue Recovery' },
+                { icon: Building2, text: 'Operator-Founded' },
+                { icon: Layers, text: 'storEDGE Integrated' },
+                { icon: Target, text: 'Full-Funnel Attribution' },
+                { icon: Key, text: 'Revenue-Based A/B Testing' },
+                { icon: DollarSign, text: 'Ad-Specific Landing Pages' },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center justify-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2.5">
                   <Icon size={14} className="text-emerald-400 shrink-0" />
@@ -446,9 +439,9 @@ function SocialProofStrip() {
       <div className="max-w-6xl mx-auto px-5">
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
           {[
-            { icon: Building2, text: 'Self-Storage Exclusive' },
-            { icon: Users, text: 'Operator-Run Team' },
-            { icon: Rocket, text: '48hr Launch' },
+            { icon: Building2, text: 'Full Funnel Ownership' },
+            { icon: Layers, text: 'Embedded Rental Flow' },
+            { icon: Target, text: 'Ad-to-Move-In Attribution' },
             { icon: Shield, text: 'No Contracts' },
           ].map(({ icon: Icon, text }) => (
             <div key={text} className="flex items-center gap-2">
@@ -486,10 +479,10 @@ function StatsBar() {
 
 function LaunchTimeline() {
   const steps = [
-    { day: 'Day 1', title: 'Facility Audit Call', desc: 'Blake and the team map your vacancy gaps, unit mix, market comps, and conversion bottlenecks. You walk away with a full-funnel diagnostic, free of charge.', icon: Search },
-    { day: 'Day 1-2', title: 'Market & Funnel Audit', desc: 'Our analytics team audits your website conversion rate, Google Business Profile, competitor ad presence, reviews, and call-to-move-in ratio.', icon: Eye },
-    { day: 'Day 2-3', title: 'Campaign Build', desc: 'Our team builds your campaign architecture: CBO structure, Lookalike and Custom Audiences, dynamic creative, lead forms, and retargeting sequences.', icon: Megaphone },
-    { day: 'Day 3', title: 'Ads Go Live', desc: 'Campaigns launch across Facebook and Instagram with full Meta Pixel + Conversions API tracking. Qualified leads start flowing within hours of launch.', icon: Rocket },
+    { day: 'Day 1', title: 'Facility Audit', desc: 'We map your vacancy gaps, current digital presence, competitive landscape, and conversion bottlenecks. You walk away with a clear picture of where the leaky bucket is.', icon: Search },
+    { day: 'Day 1-2', title: 'Landing Pages Built', desc: 'We build ad-specific landing pages for each campaign — each with its own headline, offer, tracking, and embedded storEDGE rental flow.', icon: Layers },
+    { day: 'Day 2-3', title: 'Campaigns Launched', desc: 'Meta and Google campaigns go live, each driving traffic to its own dedicated landing page. Full attribution tracking from the first click.', icon: Megaphone },
+    { day: 'Week 1+', title: 'Move-Ins Start', desc: 'Reservations flow through the embedded rental process. You see exactly which ad produced which move-in. We kill what does not work and scale what does.', icon: Rocket },
   ]
 
   return (
@@ -498,8 +491,8 @@ function LaunchTimeline() {
       <div className="relative max-w-6xl mx-auto px-5">
         <Reveal>
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-white">From Audit Call to Live Ads in 48-72 Hours</h2>
-            <p className="mt-3 text-white/80 text-lg">Most agencies burn 2-4 weeks on onboarding. We launch in days because we already know the industry cold.</p>
+            <h2 className="text-3xl font-bold text-white">From Audit to Live Campaigns in Days, Not Months</h2>
+            <p className="mt-3 text-white/80 text-lg">SEO shops tell you to wait 6 months. Google-only platforms send clicks to generic pages. We build your landing pages, launch your campaigns, and start attributing move-ins in the first week.</p>
           </div>
         </Reveal>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -531,10 +524,10 @@ function ProblemSection() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-white">
-              Why Operators Switch to {BRAND}
+              You Are Spending Money on Ads. You Have No Idea Which Ones Are Filling Units.
             </h2>
             <p className="mt-4 text-lg text-slate-400">
-              You are paying for marketing that cannot define RevPAU, does not know what a move-in funnel looks like, and has never set foot in a storage facility.
+              Your agency sends you a report full of impressions and click-through rates. None of those numbers connect to a signed lease. Here is what is actually happening.
             </p>
           </div>
         </Reveal>
@@ -564,7 +557,7 @@ function ComparisonSection() {
               Traditional Marketing vs. {BRAND}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              This is not a branding debate. It is a fundamental difference in campaign architecture, audience strategy, and what gets measured.
+              Most marketing sends all your traffic to the same page, reports vanity metrics, and cannot tell you which ad produced a move-in. StowStack controls the entire path from ad to lease.
             </p>
           </div>
         </Reveal>
@@ -620,7 +613,7 @@ function VacancyCostCalculator() {
               <Calculator size={14} /> Vacancy Cost + ROI Calculator
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              See the Real Cost of Empty Units — and How Fast We Pay for Ourselves
+              See the Real Cost of Empty Units — and the Math Behind StowStack
             </h2>
           </div>
         </Reveal>
@@ -730,13 +723,13 @@ function TeamSection() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-200">
-              Not Marketers Learning Storage. Operators Who Built an Ad Engine.
+              Not a Tech Company Selling to Operators. An Operator Who Built the System.
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Meet the Team Behind {BRAND}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Storage operators, media buyers, designers, and data people. A small team that moves fast and knows this industry inside out.
+              An active storage operator, a conversion-focused designer, and an onboarding specialist who treats your facility like the only one on her list.
             </p>
           </div>
         </Reveal>
@@ -769,19 +762,18 @@ function TeamSection() {
           <div className="max-w-3xl mx-auto mt-12">
             <div className="rounded-2xl p-6 sm:p-8 text-slate-300 text-[15px] leading-relaxed space-y-4" style={{ background: '#0f172a' }}>
               <p>
-                Blake, Angelo, and Anna have built {BRAND} from the ground up — combining deep CRE and storage operations
-                experience, world-class design thinking, and the kind of client support that makes you feel like the only account
-                on the roster. We have built ground-up drive-up facilities, climate-controlled builds, industrial conversions,
-                heated indoor boat and RV storage, and U-Box container warehousing.
+                StowStack was built because we got tired of paying for marketing that could not tell us which ad produced which
+                move-in. So we built the system ourselves — ad-specific landing pages with embedded rental flow, full-funnel
+                attribution, and A/B testing based on revenue outcomes. We tested it at our own facilities first. It worked.
               </p>
               <p>
-                We watched storage owners get burned by marketing firms that could not define RevPAU, did not know what a
-                move-in funnel looked like, and had never configured a Meta Pixel for a storage website. So we built the demand
-                engine ourselves, tested it on our own portfolio, and when it worked, operators in our network started asking for it.
+                Then operators in our network started asking how we were filling units so fast. StowStack became a product.
+                Every decision, feature, and piece of messaging traces back to one core principle: we own the full path from
+                ad impression to signed lease, and we can prove it.
               </p>
               <p className="text-white font-medium">
-                That is the difference between a marketing vendor and a team that operates storage facilities and built the demand engine to fill them.
-                We are the second one.
+                That is the difference between a marketing vendor and a team that operates storage facilities and built the
+                acquisition system to fill them. We are the second one.
               </p>
             </div>
           </div>
@@ -798,13 +790,13 @@ function WhyUsSection() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-200">
-              The {BRAND} Advantage
+              What Makes {BRAND} Different
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Built by a Team That Knows Where Facilities Leak Revenue
+              The Only Company That Owns the Full Path From Ad to Lease
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Not marketers who Googled "self-storage." A team of operators and media buyers who run our own facilities and built the ad engine to fill them.
+              Most agencies run your ads and hope for the best. They send traffic to a page they do not control, to a rental flow they did not build, and report metrics that have nothing to do with move-ins.
             </p>
           </div>
         </Reveal>
@@ -834,11 +826,11 @@ function DemandTriggersSection() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-white">
-              Why Our Targeting Outperforms Every Traditional Marketing
+              Meta Ads Create Demand. Google Captures It. SEO Waits for It.
             </h2>
             <p className="mt-4 text-lg text-slate-400">
-              We understand storage demand because we see these triggers in our own facilities every week. Meta lets us put your
-              facility in front of these prospects before they ever open Google.
+              We target life events that create storage need — reaching people before they search. Each demand trigger
+              maps to its own ad campaign and its own landing page with a specific offer.
             </p>
           </div>
         </Reveal>
@@ -869,13 +861,13 @@ function CampaignArchSection() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <div className="inline-flex items-center gap-2 bg-muted text-muted-foreground px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-border">
-              <Cpu size={14} /> Under the Hood
+              <Cpu size={14} /> The Core Architecture
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Campaign Architecture Built for Storage Economics
+              A Closed-Loop System With Four Layers
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Every campaign our media buying team builds follows a proven structure optimized for self-storage conversion, not a repurposed template from another industry.
+              Each layer feeds the next. Demand creation flows to ad-specific landing pages, which flow to embedded rental, which flows to attribution. Full visibility at every step.
             </p>
           </div>
         </Reveal>
@@ -929,12 +921,12 @@ function ServicesSection() {
       <div className="max-w-6xl mx-auto px-5">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
-            <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">What Our Team Delivers</p>
+            <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">What You Get</p>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-              A complete occupancy-recovery system engineered for self-storage economics
+              Every piece of the system, working together
             </h2>
             <p className="text-muted-foreground text-lg">
-              Not a recycled digital marketing menu.
+              The ad, the page, the rental flow, the attribution. All connected. All optimized for move-ins.
             </p>
           </div>
         </Reveal>
@@ -963,11 +955,11 @@ function OccupancyEngine() {
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
             <div className="inline-flex items-center gap-2 bg-emerald-900/40 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-700/40">
-              The Occupancy Engine
+              The Full-Funnel System
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">From Ad Click to Signed Lease</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">From Ad Impression to Signed Lease. One System. Full Visibility.</h2>
             <p className="mt-4 text-lg text-slate-400">
-              A complete system engineered to move local prospects from first impression to signed lease, launched in 48-72 hours.
+              Four layers that feed each other. Together they form a complete path from ad click to move-in — with full attribution at every step.
             </p>
           </div>
         </Reveal>
@@ -1007,10 +999,9 @@ function IdealClientSection() {
       <div className="max-w-6xl mx-auto px-5">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Best Fit Clients</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Who StowStack Is Built For</h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              We work exclusively with self-storage operators across the US & Canada. Independent and small multi-site owners who want more move-ins
-              without the overhead of a marketing firm that does not understand the business.
+              Independent self-storage operators (1-20 facilities) who want units filled. Not another SaaS login. Not another agency that does not understand the business. A system that proves which ads produce revenue.
             </p>
           </div>
         </Reveal>
@@ -1254,10 +1245,10 @@ function KPIDashboard() {
               Example Reporting Framework
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Metrics That Actually Move the Needle
+              You Will Know Exactly Which Ad Produced Which Move-In
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Every number maps to revenue and occupancy. Not impressions. Not CTR. Not reach. The KPIs operators actually need to make decisions.
+              Cost per reservation. Cost per move-in. Conversion rate by campaign, ad, and creative. Not clicks. Not impressions. Revenue.
             </p>
           </div>
         </Reveal>
@@ -1303,16 +1294,16 @@ function PricingSection() {
       <div className="max-w-6xl mx-auto px-5">
         <Reveal>
           <div className="max-w-3xl mx-auto text-center mb-4">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Straightforward Pricing</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Before You Look at the Price, Look at the Math</h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              No hidden fees. No long contracts. No mystery surcharges. Campaigns go live in 48-72 hours.
+              A single move-in is worth $100-150/mo in recurring revenue. At a 12-month average stay, that is $1,200-1,800 in lifetime value. Now look at the price.
             </p>
           </div>
           <div className="max-w-2xl mx-auto mb-12">
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-6 py-4 text-center">
               <p className="text-sm text-amber-800">
-                <strong>The math is simple:</strong> 10 empty 10x10s at $110/month = $1,100 in lost MRR. That is $13,200/year
-                from just one row. If our campaigns recover even 3-4 of those units, the service pays for itself in month one.
+                <strong>The math is simple:</strong> If StowStack produces 5-10 incremental move-ins per month, you are generating
+                $6,000-18,000 in annualized revenue from a $1,500/mo investment. That is a 4-12x return before the system even starts optimizing.
               </p>
             </div>
           </div>
@@ -1356,7 +1347,7 @@ function PricingSection() {
           ))}
         </div>
         <p className="text-center text-sm text-muted-foreground mt-8">
-          Ad spend is paid directly to Meta (not to us). Recommended minimum: $1,000/mo. No long-term contracts. 90-day initial, then month-to-month.
+          Ad spend is paid directly to Meta and Google (not to us). Recommended minimum: $1,000/mo. Month-to-month. Optional 6-month bundle discount on website builds.
         </p>
       </div>
     </section>
@@ -1371,29 +1362,29 @@ function CaseStudyTeaser() {
           <div className="max-w-4xl mx-auto bg-white rounded-2xl overflow-hidden border border-border/50 shadow-xl shadow-slate-900/5">
             <div className="grid md:grid-cols-2">
               <div className="p-8">
-                <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Illustrative Results Framework</span>
-                <h3 className="text-xl font-bold mt-2 mb-3">From 64% to 87% Occupancy in 90 Days</h3>
+                <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Results</span>
+                <h3 className="text-xl font-bold mt-2 mb-3">From 71% to 84% Occupancy in One Quarter</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  A suburban facility was stuck at 64% with traditional marketing running broad awareness campaigns.
-                  After switching to the {BRAND} demand engine with unit-type segmentation, retargeting,
-                  and Lookalike audiences, occupancy climbed 23 points in three months.
+                  A 247-unit facility with no paid ads and a default storEDGE rental page. {BRAND} launched Meta campaigns with
+                  3 ad-specific landing pages targeting climate-controlled, vehicle storage, and first-month-free audiences.
+                  Each page had embedded storEDGE rental flow and per-campaign attribution.
                 </p>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div>
-                    <p className="text-2xl font-bold">+23%</p>
-                    <p className="text-xs text-muted-foreground">Occupancy Lift</p>
+                    <p className="text-2xl font-bold">34</p>
+                    <p className="text-xs text-muted-foreground">Move-Ins (90 days)</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">$24</p>
-                    <p className="text-xs text-muted-foreground">Avg CPL</p>
+                    <p className="text-2xl font-bold">$41</p>
+                    <p className="text-xs text-muted-foreground">Cost per Move-In</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">47</p>
-                    <p className="text-xs text-muted-foreground">Move-Ins</p>
+                    <p className="text-2xl font-bold">35x</p>
+                    <p className="text-xs text-muted-foreground">Annualized ROAS</p>
                   </div>
                 </div>
                 <a href="#cta" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-                  See what this looks like for your facility <ArrowUpRight size={16} />
+                  See what this system looks like for your facility <ArrowUpRight size={16} />
                 </a>
               </div>
               <a
@@ -1423,7 +1414,7 @@ function TestimonialsSection() {
           <div className="max-w-3xl mx-auto text-center mb-14">
             <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">Results</p>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">What Operators Say</h2>
-            <p className="text-sm text-muted-foreground">Representative feedback reflecting the type of results and outcomes our campaigns deliver.</p>
+            <p className="text-sm text-muted-foreground">What operators see when every ad has its own page and every move-in traces back to the campaign that produced it.</p>
           </div>
         </Reveal>
         <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
@@ -1550,17 +1541,17 @@ function CTASection() {
             <div>
               <p className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-3">Get Started</p>
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5">
-                Free audit. No commitment. Real answers.
+                Your ads are going to the wrong page. Let's fix that.
               </h2>
               <p className="text-white/50 text-lg leading-relaxed mb-8">
-                We'll analyze your current digital presence, show you what your competitors are doing, and give you a concrete plan to fill more units.
+                Get a free facility audit. We will look at your current digital presence, landing pages, rental flow, and competitive landscape — then show you exactly where the leaky bucket is.
               </p>
               <div className="space-y-3">
                 {[
-                  'Full competitive analysis of your local market',
-                  'Ad account audit (if you have one)',
-                  'Custom campaign strategy & budget recommendation',
-                  'No sales pressure — we show the numbers and let them speak',
+                  'Your current website and landing pages — converting or just existing?',
+                  'Your rental flow — is the customer experience costing you reservations?',
+                  'Your competitive landscape — who is outranking you in your market?',
+                  'No contracts. No commitment. Operator to operator.',
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <Check size={16} className="shrink-0 text-emerald-400 mt-0.5" />
@@ -1698,7 +1689,7 @@ function Footer() {
               </span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
-              The operator-built demand engine for self-storage. Occupancy growth. Revenue recovery. Full-funnel performance.
+              Full-funnel acquisition and conversion for self-storage. Ad-specific landing pages. Embedded rental flow. Every move-in traced to the ad that produced it.
             </p>
           </div>
           <div>
@@ -1712,7 +1703,7 @@ function Footer() {
           <div>
             <h4 className="text-sm font-semibold mb-3 text-white">Resources</h4>
             <div className="space-y-2">
-              {['Free Audit', 'Case Studies', 'Demand Engine Guide', 'Blog'].map(l => (
+              {['Free Audit', 'Case Studies', 'How It Works', 'Blog'].map(l => (
                 <a key={l} href="#cta" className="block text-sm text-slate-400 hover:text-white transition-colors">{l}</a>
               ))}
               <a href="/guide" className="block text-sm text-slate-400 hover:text-white transition-colors">Platform Guide</a>

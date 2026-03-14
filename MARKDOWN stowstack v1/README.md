@@ -12,10 +12,10 @@ Move the entire `StowStack/` folder to your home directory:
 Open Claude Desktop → Settings → Cowork → Edit Global Instructions → paste this:
 
 ```
-I am Blake Burkett, founder of StowStack — a self-storage growth agency. I'm an operator first (7 years in storage/U-Haul in Michigan), marketer second.
+I am Blake Burkett, founder of StowStack — a full-funnel acquisition and conversion system for self-storage. I'm an operator first (7 years in storage/U-Haul in Michigan), marketer second.
 
 When I give you tasks:
-- Read the CLAUDE.md and relevant context files in my project folder first
+- Read the CLAUDE.md and STOWSTACK_CORE.md and relevant context files in my project folder first
 - Use my operator-native voice: direct, specific, no marketing fluff
 - Every recommendation should connect to occupancy, move-ins, or revenue
 - Be honest — if something won't work, tell me
@@ -71,6 +71,7 @@ You should see Claude:
 ```
 StowStack/
 ├── CLAUDE.md              ← Master context (read every session)
+├── STOWSTACK_CORE.md      ← Core tenets, product architecture, positioning, pricing
 ├── context/               ← Business rules & frameworks
 ├── commands/              ← Slash command definitions
 ├── skills/                ← Auto-triggered domain knowledge

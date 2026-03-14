@@ -1,9 +1,11 @@
 # StowStack
 
 ## What This Is
-StowStack is a specialized growth agency for self-storage operators. Domain: stowstack.co. This repo contains the public website, form backend, API layer, internal tools, and client dashboard.
+StowStack is a full-funnel acquisition and conversion system for self-storage operators. Not an agency, not a SaaS platform. Domain: stowstack.co. This repo contains the public website, form backend, API layer, internal tools, and client dashboard.
 
-The business helps independent self-storage operators (1-20 facilities) fill vacant units through Meta ads, conversion optimization, and operator-native strategy. The founder (Blake Burkett) has 7 years in self-storage and U-Haul operations in Michigan.
+The business helps independent self-storage operators (1-20 facilities) fill vacant units through ad-specific landing pages with embedded online reservation/move-in functionality, full-funnel attribution, and A/B testing based on revenue outcomes. The founder (Blake Burkett) is an active self-storage operator with 7 years in storage and U-Haul operations in Michigan.
+
+**Core document:** See `STOWSTACK_CORE.md` for the complete product architecture, competitive positioning, pricing framework, and strategic vision.
 
 ## Tech Stack
 - **Frontend:** Vite 6+ / React 19+ / Tailwind CSS 4+ / React Router v7
@@ -184,7 +186,7 @@ All of this content must be preserved exactly during the component refactor. Cop
 - Don't use generic stock copy — everything must be self-storage specific and operator-native
 - Don't hardcode any URLs — use env vars or relative paths
 - Don't add auth libraries yet — dashboard uses simple code-based access, internal APIs use API key header
-- Don't over-engineer — this is a small agency, not a SaaS platform. Simple beats clever every time.
+- Don't over-engineer — this is not a SaaS platform. Simple beats clever every time.
 - Don't use semicolons inconsistently — pick one style (no semicolons preferred) and stick with it
 - Don't import entire icon libraries — import individual icons: import { Search } from "lucide-react"
 

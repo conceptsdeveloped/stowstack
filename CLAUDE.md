@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-StowStack is a marketing website and internal dashboard for a Meta ads agency serving self-storage operators. The product helps independent self-storage operators (1-20 facilities) fill vacant units through targeted Facebook/Instagram ad campaigns. Domain: stowstack.co.
+StowStack is a full-funnel acquisition and conversion system for self-storage operators — not an agency, not a SaaS platform. The product helps independent self-storage operators (1-20 facilities) fill vacant units through ad-specific landing pages with embedded reservation/move-in functionality, full-funnel attribution, and revenue-based A/B testing. Domain: stowstack.co.
 
 ## Repository Layout
 
@@ -14,7 +14,7 @@ The Vite + React app lives at the project root. Key top-level paths:
 - **`api/`** — Vercel serverless functions (API routes)
 - **`public/`** — Static assets served as-is
 - **`workers/`** — Cloudflare Worker experiments (not deployed)
-- **`MARKDOWN stowstack v1/`** — Markdown templates for sales campaigns, audit reports, lead scoring, and business operations (not code)
+- **`MARKDOWN stowstack v1/`** — Markdown templates for sales campaigns, audit reports, lead scoring, and business operations (not code). Core founding document: `STOWSTACK_CORE.md`
 
 ## Commands
 
