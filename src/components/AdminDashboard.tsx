@@ -9,7 +9,7 @@ import {
   Download, CalendarClock, CheckSquare, MessageSquare,
   Settings, Columns3, CreditCard, Moon, Sun, Keyboard,
   GripVertical, Receipt, ChevronRight, X as XIcon, Command,
-  Upload, Image, Film, Globe
+  Upload, Image, Film, Globe, Heart, MessageCircle, Bookmark, MoreHorizontal
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import {
@@ -264,7 +264,7 @@ const ANGLE_ICONS: Record<string, string> = {
   lifestyle: '🏡',
 }
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets'
+type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview'
 
 /* ── Ad Variation Card ── */
 
@@ -628,22 +628,9 @@ function CreativeTab({ facility, adminKey, darkMode }: { facility: Facility; adm
   )
 }
 
-/* ── Stock Library ── */
+/* ── Stock Library Categories ── */
 
-const STOCK_LIBRARY = [
-  { id: 'stock-1', url: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=800&q=80', alt: 'Storage facility exterior', category: 'exterior' },
-  { id: 'stock-2', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80', alt: 'Storage units hallway', category: 'interior' },
-  { id: 'stock-3', url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80', alt: 'Moving boxes and storage', category: 'lifestyle' },
-  { id: 'stock-4', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80', alt: 'Clean storage interior', category: 'interior' },
-  { id: 'stock-5', url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80', alt: 'Modern facility entrance', category: 'exterior' },
-  { id: 'stock-6', url: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80', alt: 'Family moving day', category: 'lifestyle' },
-  { id: 'stock-7', url: 'https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80', alt: 'Organized storage space', category: 'interior' },
-  { id: 'stock-8', url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80', alt: 'Property exterior wide', category: 'exterior' },
-  { id: 'stock-9', url: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80', alt: 'Secure facility gate', category: 'exterior' },
-  { id: 'stock-10', url: 'https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=800&q=80', alt: 'Bright clean hallway', category: 'interior' },
-  { id: 'stock-11', url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80', alt: 'Person packing boxes', category: 'lifestyle' },
-  { id: 'stock-12', url: 'https://images.unsplash.com/photo-1600566753376-12c8ab7a5a2e?w=800&q=80', alt: 'Moving truck loading', category: 'lifestyle' },
-]
+const STOCK_CATEGORIES = ['all', 'exterior', 'interior', 'moving', 'packing', 'lifestyle', 'vehicle'] as const
 
 /* ── Assets Tab ── */
 
@@ -664,9 +651,11 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
   const [dragOver, setDragOver] = useState(false)
   const [scrapeUrl, setScrapeUrl] = useState(facility.website || '')
   const [scraping, setScraping] = useState(false)
-  const [scrapeResult, setScrapeResult] = useState<{ images?: { url: string; alt: string }[]; videos?: { url: string; type: string }[]; contact?: { phones: string[]; emails: string[] }; headings?: string[] } | null>(null)
+  const [scrapeResult, setScrapeResult] = useState<{ images?: { url: string; alt: string }[]; videos?: { url: string; type: string }[]; contact?: { phones: string[]; emails: string[] }; headings?: string[]; pagesScraped?: number; pagesCrawled?: string[]; pageCopy?: string[]; services?: { heading?: string; description?: string }[]; promotions?: { text: string }[] } | null>(null)
   const [showLibrary, setShowLibrary] = useState(false)
   const [libraryFilter, setLibraryFilter] = useState<string>('all')
+  const [stockImages, setStockImages] = useState<{ id: string; url: string; alt: string; category: string }[]>([])
+  const [stockLoading, setStockLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
@@ -736,6 +725,20 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
       setAssets(prev => prev.filter(a => a.id !== assetId))
     } catch (err) {
       console.error('Delete failed:', err)
+    }
+  }
+
+  async function loadStockImages(cat: string) {
+    setLibraryFilter(cat)
+    setStockLoading(true)
+    try {
+      const res = await fetch(`/api/stock-images?category=${cat}`, { headers: { 'X-Admin-Key': adminKey } })
+      const data = await res.json()
+      if (data.images) setStockImages(data.images)
+    } catch (err) {
+      console.error('Stock image load failed:', err)
+    } finally {
+      setStockLoading(false)
     }
   }
 
@@ -841,7 +844,7 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
 
         {/* Stock library toggle */}
         <button
-          onClick={() => setShowLibrary(!showLibrary)}
+          onClick={() => { const next = !showLibrary; setShowLibrary(next); if (next && !stockImages.length) loadStockImages('all') }}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg border ${
             showLibrary
               ? 'bg-emerald-600 text-white border-emerald-600'
@@ -857,15 +860,19 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
       {scrapeResult && (
         <div className={`border rounded-xl overflow-hidden ${card}`}>
           <div className="px-4 py-3 flex items-center justify-between">
-            <h4 className={`text-sm font-semibold ${text}`}>Scraped from Website</h4>
+            <h4 className={`text-sm font-semibold ${text}`}>
+              Scraped from Website
+              {scrapeResult.pagesScraped && <span className={`ml-2 text-xs font-normal ${sub}`}>({scrapeResult.pagesScraped} pages crawled)</span>}
+            </h4>
             <button onClick={() => setScrapeResult(null)} className={`text-xs ${sub} hover:underline`}>Dismiss</button>
           </div>
-          <div className={`border-t px-4 py-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+          <div className={`border-t px-4 py-4 space-y-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+            {/* Images */}
             {scrapeResult.images && scrapeResult.images.length > 0 ? (
               <>
                 <p className={`text-xs ${sub} mb-2`}>{scrapeResult.images.length} images found — already saved to assets</p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                  {scrapeResult.images.slice(0, 18).map((img, i) => (
+                  {scrapeResult.images.slice(0, 24).map((img, i) => (
                     <div key={i} className="relative group">
                       <img src={img.url} alt={img.alt || ''} className="h-20 w-full object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     </div>
@@ -873,10 +880,48 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
                 </div>
               </>
             ) : (
-              <p className={`text-sm ${sub}`}>No usable images found on this page.</p>
+              <p className={`text-sm ${sub}`}>No usable images found. The site may use JavaScript-rendered images that require a browser to load.</p>
             )}
+
+            {/* Services discovered */}
+            {scrapeResult.services && scrapeResult.services.length > 0 && (
+              <div>
+                <p className={`text-xs font-medium ${sub} mb-1`}>Services / Features Found:</p>
+                <div className="flex flex-wrap gap-2">
+                  {scrapeResult.services.slice(0, 12).map((s, i) => (
+                    <span key={i} className={`text-xs px-2 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'}`}>
+                      {s.heading || s.description?.slice(0, 60)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Promotions */}
+            {scrapeResult.promotions && scrapeResult.promotions.length > 0 && (
+              <div>
+                <p className={`text-xs font-medium ${sub} mb-1`}>Promotions / Specials:</p>
+                {scrapeResult.promotions.slice(0, 5).map((p, i) => (
+                  <p key={i} className={`text-xs ${text} p-2 rounded-lg mb-1 ${darkMode ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>{p.text}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Key copy */}
+            {scrapeResult.pageCopy && scrapeResult.pageCopy.length > 0 && (
+              <details className={`text-xs ${sub}`}>
+                <summary className="font-medium cursor-pointer hover:underline">Site Copy ({scrapeResult.pageCopy.length} paragraphs extracted)</summary>
+                <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                  {scrapeResult.pageCopy.slice(0, 20).map((t, i) => (
+                    <p key={i} className={`text-xs ${text} p-2 rounded ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>{t}</p>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {/* Videos */}
             {scrapeResult.videos && scrapeResult.videos.length > 0 && (
-              <div className="mt-3">
+              <div>
                 <p className={`text-xs font-medium ${sub} mb-1`}>Videos found:</p>
                 {scrapeResult.videos.map((v, i) => (
                   <a key={i} href={v.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-emerald-500 hover:underline">
@@ -885,8 +930,10 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
                 ))}
               </div>
             )}
+
+            {/* Contact info */}
             {scrapeResult.contact && (scrapeResult.contact.phones.length > 0 || scrapeResult.contact.emails.length > 0) && (
-              <div className="mt-3 flex gap-4">
+              <div className="flex gap-4">
                 {scrapeResult.contact.phones.length > 0 && (
                   <div>
                     <p className={`text-xs font-medium ${sub} mb-1`}>Phones:</p>
@@ -901,6 +948,18 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
                 )}
               </div>
             )}
+
+            {/* Pages crawled */}
+            {scrapeResult.pagesCrawled && scrapeResult.pagesCrawled.length > 1 && (
+              <details className={`text-xs ${sub}`}>
+                <summary className="font-medium cursor-pointer hover:underline">Pages crawled ({scrapeResult.pagesCrawled.length})</summary>
+                <div className="mt-1 space-y-0.5">
+                  {scrapeResult.pagesCrawled.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block text-emerald-500 hover:underline truncate">{url}</a>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         </div>
       )}
@@ -909,12 +968,12 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
       {showLibrary && (
         <div className={`border rounded-xl overflow-hidden ${card}`}>
           <div className="px-4 py-3 flex items-center justify-between">
-            <h4 className={`text-sm font-semibold ${text}`}>Stock Library</h4>
-            <div className="flex gap-1">
-              {['all', 'exterior', 'interior', 'lifestyle'].map(cat => (
+            <h4 className={`text-sm font-semibold ${text}`}>Stock Library — Self-Storage Images</h4>
+            <div className="flex gap-1 flex-wrap">
+              {STOCK_CATEGORIES.map(cat => (
                 <button
                   key={cat}
-                  onClick={() => setLibraryFilter(cat)}
+                  onClick={() => loadStockImages(cat)}
                   className={`px-2 py-1 text-xs rounded-md ${
                     libraryFilter === cat
                       ? 'bg-emerald-600 text-white'
@@ -927,14 +986,15 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
             </div>
           </div>
           <div className={`border-t px-4 py-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-              {STOCK_LIBRARY
-                .filter(s => libraryFilter === 'all' || s.category === libraryFilter)
-                .map(stock => {
+            {stockLoading ? (
+              <div className="flex justify-center py-6"><Loader2 size={18} className="animate-spin text-emerald-500" /></div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {stockImages.map(stock => {
                   const alreadyAdded = assets.some(a => a.url === stock.url)
                   return (
                     <div key={stock.id} className="relative group">
-                      <img src={stock.url} alt={stock.alt} className="h-24 w-full object-cover rounded-lg" />
+                      <img src={stock.url} alt={stock.alt} className="h-24 w-full object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                         {alreadyAdded ? (
                           <span className="text-xs text-white font-medium">Added</span>
@@ -951,7 +1011,11 @@ function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; admin
                     </div>
                   )
                 })}
-            </div>
+                {stockImages.length === 0 && (
+                  <p className={`col-span-6 text-center text-xs ${sub} py-4`}>No images found for this category.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1113,6 +1177,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
           ['overview', 'Overview'],
           ['creative', 'Creative'],
           ['assets', 'Assets'],
+          ['ad-preview', 'Ad Preview'],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -1215,8 +1280,388 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
       {subTab === 'assets' && (
         <AssetsTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
+
+      {subTab === 'ad-preview' && (
+        <AdPreviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
     </div>
   )
+}
+
+/* ── Ad Preview Tab ── */
+
+type AdFormat = 'instagram_post' | 'instagram_story' | 'google_display' | 'facebook_feed'
+
+const AD_FORMATS: { id: AdFormat; label: string; width: number; height: number }[] = [
+  { id: 'instagram_post', label: 'Instagram Post', width: 1080, height: 1080 },
+  { id: 'instagram_story', label: 'Instagram Story', width: 1080, height: 1920 },
+  { id: 'facebook_feed', label: 'Facebook Feed', width: 1200, height: 628 },
+  { id: 'google_display', label: 'Google Display', width: 300, height: 250 },
+]
+
+function AdPreviewTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
+  const [variations, setVariations] = useState<AdVariation[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [stockImages, setStockImages] = useState<{ id: string; url: string; alt: string; category: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedVariation, setSelectedVariation] = useState<AdVariation | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [activeFormat, setActiveFormat] = useState<AdFormat>('instagram_post')
+  const [stockCategory, setStockCategory] = useState('all')
+  const [imageSource, setImageSource] = useState<'assets' | 'stock'>('assets')
+
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/facility-creatives?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
+      fetch(`/api/facility-assets?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
+      fetch(`/api/stock-images?category=all`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
+    ]).then(([creativeData, assetData, stockData]) => {
+      if (creativeData.variations?.length) {
+        setVariations(creativeData.variations)
+        setSelectedVariation(creativeData.variations[0])
+      }
+      if (assetData.assets) {
+        const photos = assetData.assets.filter((a: Asset) => a.type === 'photo')
+        setAssets(photos)
+        if (photos.length > 0) setSelectedImage(photos[0].url)
+      }
+      if (stockData.images) setStockImages(stockData.images)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [facility.id, adminKey])
+
+  async function loadStockCategory(cat: string) {
+    setStockCategory(cat)
+    try {
+      const res = await fetch(`/api/stock-images?category=${cat}`, { headers: { 'X-Admin-Key': adminKey } })
+      const data = await res.json()
+      if (data.images) setStockImages(data.images)
+    } catch {}
+  }
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-emerald-500" /></div>
+
+  if (!variations.length) {
+    return (
+      <div className={`text-center py-12 border rounded-xl ${card}`}>
+        <p className={`text-sm ${sub}`}>No ad copy generated yet. Go to the Creative tab first to generate ad variations.</p>
+      </div>
+    )
+  }
+
+  const copy = selectedVariation?.content_json || {}
+  const availableImages = imageSource === 'assets'
+    ? assets.map(a => ({ id: a.id, url: a.url, alt: '' }))
+    : stockImages.filter(s => stockCategory === 'all' || s.category === stockCategory)
+
+  return (
+    <div className="space-y-6">
+      {/* Format selector */}
+      <div className="flex flex-wrap gap-2">
+        {AD_FORMATS.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setActiveFormat(f.id)}
+            className={`px-4 py-2 text-xs font-medium rounded-lg border transition-colors ${
+              activeFormat === f.id
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {f.label}
+            <span className={`ml-1.5 text-[10px] ${activeFormat === f.id ? 'text-emerald-100' : sub}`}>
+              {f.width}x{f.height}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Ad Preview */}
+        <div className="space-y-4">
+          <h4 className={`text-sm font-semibold ${text}`}>Preview</h4>
+          <div className="flex justify-center">
+            <AdMockup
+              format={activeFormat}
+              image={selectedImage}
+              copy={copy}
+              facilityName={facility.name}
+              darkMode={darkMode}
+            />
+          </div>
+        </div>
+
+        {/* Right: Controls */}
+        <div className="space-y-5">
+          {/* Copy variation selector */}
+          <div>
+            <h4 className={`text-sm font-semibold ${text} mb-2`}>Ad Copy</h4>
+            <div className="space-y-2">
+              {variations.filter(v => v.status !== 'rejected').map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVariation(v)}
+                  className={`w-full text-left p-3 border rounded-lg transition-colors ${
+                    selectedVariation?.id === v.id
+                      ? darkMode ? 'border-emerald-500 bg-emerald-900/20' : 'border-emerald-500 bg-emerald-50'
+                      : card
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                      darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {v.content_json.angleLabel || v.angle}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_COLORS[v.status] || ''}`}>{v.status}</span>
+                  </div>
+                  <p className={`text-xs font-medium ${text} truncate`}>{v.content_json.headline}</p>
+                  <p className={`text-[11px] ${sub} line-clamp-2 mt-0.5`}>{v.content_json.primaryText}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Image selector */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className={`text-sm font-semibold ${text}`}>Image</h4>
+              <div className="flex gap-1 ml-auto">
+                <button
+                  onClick={() => setImageSource('assets')}
+                  className={`px-2 py-1 text-[11px] rounded ${imageSource === 'assets' ? 'bg-emerald-600 text-white' : darkMode ? 'text-slate-400 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Facility ({assets.length})
+                </button>
+                <button
+                  onClick={() => setImageSource('stock')}
+                  className={`px-2 py-1 text-[11px] rounded ${imageSource === 'stock' ? 'bg-emerald-600 text-white' : darkMode ? 'text-slate-400 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  Stock
+                </button>
+              </div>
+            </div>
+
+            {imageSource === 'stock' && (
+              <div className="flex gap-1 mb-2 flex-wrap">
+                {['all', 'exterior', 'interior', 'moving', 'packing', 'lifestyle', 'vehicle'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => loadStockCategory(cat)}
+                    className={`px-2 py-0.5 text-[10px] rounded ${
+                      stockCategory === cat ? 'bg-emerald-600 text-white' : darkMode ? 'text-slate-400 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto">
+              {availableImages.map(img => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img.url)}
+                  className={`relative rounded-lg overflow-hidden ${
+                    selectedImage === img.url ? 'ring-2 ring-emerald-500' : ''
+                  }`}
+                >
+                  <img src={img.url} alt={img.alt} className="h-16 w-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                </button>
+              ))}
+              {availableImages.length === 0 && (
+                <p className={`col-span-4 text-center text-xs ${sub} py-4`}>
+                  {imageSource === 'assets' ? 'No facility photos. Scrape the website or upload images in the Assets tab.' : 'Loading stock images...'}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Ad Mockup Renderer ── */
+
+function AdMockup({ format, image, copy, facilityName, darkMode }: {
+  format: AdFormat
+  image: string | null
+  copy: Record<string, string>
+  facilityName: string
+  darkMode: boolean
+}) {
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const headline = copy.headline || 'Your Headline Here'
+  const primaryText = copy.primaryText || 'Your ad copy will appear here.'
+  const description = copy.description || ''
+  const cta = copy.cta || 'Learn More'
+
+  if (format === 'instagram_story') {
+    return (
+      <div className="w-[270px] h-[480px] bg-black rounded-2xl overflow-hidden relative shadow-2xl flex-shrink-0">
+        {/* Background image */}
+        {image ? (
+          <img src={image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-900" />
+        )}
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        {/* Story progress bars */}
+        <div className="absolute top-2 left-3 right-3 flex gap-1">
+          <div className="h-0.5 flex-1 bg-white/60 rounded-full" />
+          <div className="h-0.5 flex-1 bg-white/30 rounded-full" />
+          <div className="h-0.5 flex-1 bg-white/30 rounded-full" />
+        </div>
+        {/* Sponsored tag */}
+        <div className="absolute top-6 left-3 flex items-center gap-2">
+          <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-white text-[9px] font-bold">SS</div>
+          <div>
+            <p className="text-white text-[10px] font-semibold">{facilityName}</p>
+            <p className="text-white/60 text-[8px]">Sponsored</p>
+          </div>
+        </div>
+        {/* Bottom content */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+          <p className="text-white text-sm font-bold leading-tight">{headline}</p>
+          <p className="text-white/80 text-[11px] leading-relaxed line-clamp-3">{primaryText}</p>
+          {/* Swipe up CTA */}
+          <div className="flex justify-center pt-2">
+            <div className="bg-white rounded-full px-5 py-1.5 text-[10px] font-bold text-black">{cta}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (format === 'instagram_post') {
+    return (
+      <div className={`w-[320px] rounded-xl overflow-hidden shadow-2xl flex-shrink-0 ${darkMode ? 'bg-slate-900' : 'bg-white'}`}>
+        {/* Instagram header */}
+        <div className="flex items-center gap-2 p-3">
+          <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold">SS</div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-semibold ${darkMode ? 'text-white' : 'text-slate-900'}`}>{facilityName.toLowerCase().replace(/\s+/g, '')}</p>
+            <p className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Sponsored</p>
+          </div>
+          <MoreHorizontal size={16} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+        </div>
+        {/* Image */}
+        <div className="w-full aspect-square bg-slate-200 relative">
+          {image ? (
+            <img src={image} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <Image size={32} className={sub} />
+            </div>
+          )}
+          {/* Headline overlay at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12">
+            <p className="text-white text-base font-bold">{headline}</p>
+          </div>
+        </div>
+        {/* Engagement bar */}
+        <div className={`flex items-center gap-4 px-3 py-2 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+          <Heart size={20} />
+          <MessageCircle size={20} />
+          <Send size={20} />
+          <div className="flex-1" />
+          <Bookmark size={20} />
+        </div>
+        {/* Caption */}
+        <div className="px-3 pb-3">
+          <p className={`text-xs ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+            <span className="font-semibold">{facilityName.toLowerCase().replace(/\s+/g, '')} </span>
+            {primaryText}
+          </p>
+          {description && <p className={`text-[10px] ${sub} mt-1`}>{description}</p>}
+          <div className="mt-2">
+            <span className="inline-block bg-emerald-600 text-white text-[10px] font-semibold px-3 py-1 rounded">{cta}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (format === 'facebook_feed') {
+    return (
+      <div className={`w-[400px] rounded-xl overflow-hidden shadow-2xl flex-shrink-0 ${darkMode ? 'bg-slate-900' : 'bg-white'}`}>
+        {/* FB header */}
+        <div className="flex items-center gap-2 p-3">
+          <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">SS</div>
+          <div className="flex-1">
+            <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-slate-900'}`}>{facilityName}</p>
+            <p className={`text-[11px] ${sub}`}>Sponsored · <Globe size={10} className="inline" /></p>
+          </div>
+          <MoreHorizontal size={18} className={sub} />
+        </div>
+        {/* Primary text */}
+        <div className="px-3 pb-2">
+          <p className={`text-sm ${darkMode ? 'text-white' : 'text-slate-900'}`}>{primaryText}</p>
+        </div>
+        {/* Image */}
+        <div className="w-full aspect-[1.91/1] bg-slate-200 relative">
+          {image ? (
+            <img src={image} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <Image size={32} className={sub} />
+            </div>
+          )}
+        </div>
+        {/* Link preview bar */}
+        <div className={`px-3 py-2 border-t ${darkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}>
+          <p className={`text-[10px] uppercase ${sub}`}>stowstack.co</p>
+          <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-slate-900'} truncate`}>{headline}</p>
+          <p className={`text-xs ${sub} truncate`}>{description}</p>
+        </div>
+        {/* CTA button */}
+        <div className={`px-3 py-2 border-t flex items-center justify-between ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+          <button className={`px-4 py-1.5 text-xs font-semibold rounded ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-900'}`}>{cta}</button>
+          <div className={`flex gap-4 ${sub}`}>
+            <span className="text-xs">👍 Like</span>
+            <span className="text-xs">💬 Comment</span>
+            <span className="text-xs">↗ Share</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (format === 'google_display') {
+    return (
+      <div className={`w-[300px] border rounded-lg overflow-hidden shadow-2xl flex-shrink-0 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+        {/* Image */}
+        <div className="w-full h-[150px] bg-slate-200 relative">
+          {image ? (
+            <img src={image} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <Image size={24} className={sub} />
+            </div>
+          )}
+          {/* Ad label */}
+          <div className="absolute top-1 left-1 bg-yellow-400 text-black text-[8px] font-bold px-1 rounded">Ad</div>
+        </div>
+        {/* Content */}
+        <div className="p-3 space-y-1.5">
+          <p className={`text-sm font-bold leading-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>{headline}</p>
+          <p className={`text-[11px] ${sub} line-clamp-2`}>{description || primaryText}</p>
+          <div className="flex items-center justify-between pt-1">
+            <span className={`text-[10px] ${sub}`}>{facilityName}</span>
+            <button className="bg-blue-600 text-white text-[10px] font-semibold px-3 py-1 rounded">{cta}</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }
 
 /* ── Facilities List + Detail Router ── */
