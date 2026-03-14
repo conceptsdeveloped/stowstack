@@ -138,6 +138,38 @@ CREATE TABLE IF NOT EXISTS publish_log (
   response_payload JSONB
 );
 
+-- Landing pages: ad-specific pages per facility
+CREATE TABLE IF NOT EXISTS landing_pages (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  slug              VARCHAR(120) NOT NULL UNIQUE,
+  title             VARCHAR(255) NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'draft',  -- draft | published | archived
+  variation_ids     UUID[],
+  meta_title        VARCHAR(120),
+  meta_description  VARCHAR(300),
+  og_image_url      TEXT,
+  theme             JSONB NOT NULL DEFAULT '{}',
+  storedge_widget_url TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  published_at      TIMESTAMPTZ
+);
+
+-- Landing page sections: ordered content blocks per page
+CREATE TABLE IF NOT EXISTS landing_page_sections (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  landing_page_id   UUID NOT NULL REFERENCES landing_pages(id) ON DELETE CASCADE,
+  sort_order        INTEGER NOT NULL DEFAULT 0,
+  section_type      VARCHAR(40) NOT NULL,
+  config            JSONB NOT NULL DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_landing_pages_facility ON landing_pages(facility_id);
+CREATE INDEX IF NOT EXISTS idx_landing_pages_slug ON landing_pages(slug);
+CREATE INDEX IF NOT EXISTS idx_lp_sections_page ON landing_page_sections(landing_page_id);
+
 -- Facebook data deletion requests (required by Meta Platform Terms)
 CREATE TABLE IF NOT EXISTS fb_deletion_requests (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -149,6 +181,26 @@ CREATE TABLE IF NOT EXISTS fb_deletion_requests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_fb_deletion_code ON fb_deletion_requests(confirmation_code);
+
+-- UTM tracked links per facility
+CREATE TABLE IF NOT EXISTS utm_links (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  landing_page_id UUID REFERENCES landing_pages(id) ON DELETE SET NULL,
+  label           TEXT NOT NULL,
+  utm_source      TEXT NOT NULL,
+  utm_medium      TEXT NOT NULL,
+  utm_campaign    TEXT,
+  utm_content     TEXT,
+  utm_term        TEXT,
+  short_code      VARCHAR(16) NOT NULL UNIQUE,
+  click_count     INTEGER DEFAULT 0,
+  last_clicked_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_utm_links_facility ON utm_links(facility_id);
+CREATE INDEX IF NOT EXISTS idx_utm_links_short_code ON utm_links(short_code);
 
 -- Indexes for common lookups
 CREATE INDEX IF NOT EXISTS idx_audits_facility ON audits(facility_id);

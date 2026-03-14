@@ -5,6 +5,8 @@ import ClientPortal from '@/components/ClientPortal'
 import { PrivacyPolicy, TermsOfService, DataDeletion } from '@/components/LegalPages'
 import DemoDashboard from '@/components/DemoDashboard'
 import GuidePage from '@/components/GuidePage'
+import LandingPageView from '@/components/LandingPageView'
+import BlogRouter from '@/components/blog/BlogRouter'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -298,6 +300,9 @@ function Nav() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <a href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Blog
+          </a>
           <a href="/guide" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Guide
           </a>
@@ -326,6 +331,9 @@ function Nav() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-4">
+            <a href="/blog" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+              Blog
+            </a>
             <a href="/guide" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
               Guide
             </a>
@@ -1703,9 +1711,10 @@ function Footer() {
           <div>
             <h4 className="text-sm font-semibold mb-3 text-white">Resources</h4>
             <div className="space-y-2">
-              {['Free Audit', 'Case Studies', 'How It Works', 'Blog'].map(l => (
+              {['Free Audit', 'Case Studies', 'How It Works'].map(l => (
                 <a key={l} href="#cta" className="block text-sm text-slate-400 hover:text-white transition-colors">{l}</a>
               ))}
+              <a href="/blog" className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
               <a href="/guide" className="block text-sm text-slate-400 hover:text-white transition-colors">Platform Guide</a>
               <a href="/portal" className="block text-sm text-slate-400 hover:text-white transition-colors">Client Login</a>
             </div>
@@ -1796,7 +1805,7 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide'
+type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog'
 
 function pathToView(pathname: string): View {
   if (pathname === '/admin') return 'admin'
@@ -1806,6 +1815,8 @@ function pathToView(pathname: string): View {
   if (pathname === '/data-deletion') return 'data-deletion'
   if (pathname === '/demo') return 'demo'
   if (pathname === '/guide') return 'guide'
+  if (pathname.startsWith('/lp/')) return 'landing-page'
+  if (pathname.startsWith('/blog')) return 'blog'
   return 'website'
 }
 
@@ -1827,6 +1838,8 @@ export default function App() {
   if (view === 'data-deletion') return <DataDeletion onBack={goHome} />
   if (view === 'demo') return <DemoDashboard onBack={goHome} />
   if (view === 'guide') return <GuidePage onBack={goHome} />
+  if (view === 'landing-page') return <LandingPageView slug={window.location.pathname.replace('/lp/', '')} />
+  if (view === 'blog') return <BlogRouter onBack={goHome} />
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
