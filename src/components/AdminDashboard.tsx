@@ -185,7 +185,219 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   return <AdminDashboardInner adminKey={adminKey} onBack={onBack} onLogout={() => { localStorage.removeItem(STORAGE_KEY); setAdminKey(null) }} />
 }
 
-type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings'
+type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities'
+
+/* ── Facilities View ── */
+
+interface Facility {
+  id: number
+  created_at: string
+  name: string
+  location: string
+  contact_name: string
+  contact_email: string
+  contact_phone: string
+  occupancy_range: string
+  total_units: string
+  biggest_issue: string
+  notes: string | null
+  status: string
+  google_address: string | null
+  google_rating: number | null
+  review_count: number | null
+  website: string | null
+  google_maps_url: string | null
+  google_phone: string | null
+  photos: { index: number; url: string; width: number; height: number }[] | null
+  reviews: { author: string; rating: number; text: string; time: string }[] | null
+}
+
+const FACILITY_STATUSES = ['intake', 'scraped', 'briefed', 'generating', 'review', 'approved', 'live', 'reporting'] as const
+
+const STATUS_COLORS: Record<string, string> = {
+  intake: 'bg-slate-100 text-slate-600',
+  scraped: 'bg-blue-100 text-blue-700',
+  briefed: 'bg-indigo-100 text-indigo-700',
+  generating: 'bg-purple-100 text-purple-700',
+  review: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-emerald-100 text-emerald-700',
+  live: 'bg-green-100 text-green-700',
+  reporting: 'bg-teal-100 text-teal-700',
+}
+
+function FacilitiesView({ adminKey, darkMode }: { adminKey: string; darkMode: boolean }) {
+  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [updatingId, setUpdatingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/admin-facilities', { headers: { 'X-Admin-Key': adminKey } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.facilities) setFacilities(data.facilities)
+        else setError(data.error || 'Failed to load facilities')
+      })
+      .catch(() => setError('Network error'))
+      .finally(() => setLoading(false))
+  }, [adminKey])
+
+  async function updateStatus(id: number, status: string) {
+    setUpdatingId(id)
+    try {
+      await fetch('/api/admin-facilities', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id, status }),
+      })
+      setFacilities(prev => prev.map(f => f.id === id ? { ...f, status } : f))
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <Loader2 size={24} className="animate-spin text-emerald-500" />
+    </div>
+  )
+
+  if (error) return (
+    <div className="text-center py-20 text-red-500">{error}</div>
+  )
+
+  if (facilities.length === 0) return (
+    <div className="text-center py-20 text-slate-400">No facilities yet. Submit an audit request to get started.</div>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className={`text-lg font-semibold ${text}`}>Facilities <span className={`text-sm font-normal ${sub}`}>({facilities.length})</span></h2>
+      </div>
+      {facilities.map(f => {
+        const isOpen = expandedId === f.id
+        return (
+          <div key={f.id} className={`border rounded-xl overflow-hidden ${card}`}>
+            {/* Header row */}
+            <button
+              onClick={() => setExpandedId(isOpen ? null : f.id)}
+              className="w-full text-left px-5 py-4 flex items-start gap-4"
+            >
+              {/* Status badge */}
+              <span className={`mt-0.5 shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>
+                {f.status}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold truncate ${text}`}>{f.name}</p>
+                <p className={`text-sm truncate ${sub}`}>{f.location}</p>
+              </div>
+              {f.google_rating && (
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold text-amber-500">★ {f.google_rating}</p>
+                  <p className={`text-xs ${sub}`}>{f.review_count} reviews</p>
+                </div>
+              )}
+              {isOpen ? <ChevronUp size={16} className={sub} /> : <ChevronDown size={16} className={sub} />}
+            </button>
+
+            {/* Expanded detail */}
+            {isOpen && (
+              <div className={`border-t px-5 py-4 space-y-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+                {/* Contact */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Contact</p>
+                    <p className={text}>{f.contact_name}</p>
+                    <p className={sub}>{f.contact_email}</p>
+                    <p className={sub}>{f.contact_phone}</p>
+                  </div>
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Facility Info</p>
+                    <p className={text}>Occupancy: {f.occupancy_range}</p>
+                    <p className={text}>Units: {f.total_units}</p>
+                    <p className={text}>Issue: {f.biggest_issue}</p>
+                  </div>
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Google Data</p>
+                    {f.google_address ? <p className={sub}>{f.google_address}</p> : <p className={sub}>Not scraped yet</p>}
+                    {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Website ↗</a>}
+                    {f.google_maps_url && <> · <a href={f.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Maps ↗</a></>}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {f.notes && (
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Notes</p>
+                    <p className={`text-sm ${text}`}>{f.notes}</p>
+                  </div>
+                )}
+
+                {/* Photos */}
+                {f.photos && f.photos.length > 0 && (
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Photos</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {f.photos.slice(0, 6).map(photo => (
+                        <img key={photo.index} src={photo.url} alt="" className="h-20 w-32 object-cover rounded-lg shrink-0" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reviews */}
+                {f.reviews && f.reviews.length > 0 && (
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Top Reviews</p>
+                    <div className="space-y-2">
+                      {f.reviews.map((r, i) => (
+                        <div key={i} className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
+                            <span className={`font-medium ${text}`}>{r.author}</span>
+                            <span className={`text-xs ${sub}`}>{r.time}</span>
+                          </div>
+                          <p className={sub}>{r.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status update */}
+                <div className="flex items-center gap-3 pt-2">
+                  <p className={`text-xs font-medium uppercase tracking-wide ${sub}`}>Move to:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {FACILITY_STATUSES.filter(s => s !== f.status).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => updateStatus(f.id, s)}
+                        disabled={updatingId === f.id}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } disabled:opacity-40`}
+                      >
+                        {updatingId === f.id ? '…' : s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className={`text-xs ${sub}`}>Added {new Date(f.created_at).toLocaleDateString()}</p>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string; onBack: () => void; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('pipeline')
@@ -485,6 +697,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['insights', 'Insights', TrendingUp],
             ['billing', 'Billing', CreditCard],
             ['settings', 'Settings', Settings],
+            ['facilities', 'Facilities', Building2],
           ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
@@ -551,6 +764,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'settings' && (
           <SettingsView adminKey={adminKey} darkMode={darkMode} onToggleDarkMode={() => setDarkMode(!darkMode)} />
+        )}
+
+        {activeTab === 'facilities' && (
+          <FacilitiesView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'pipeline' && (<>
