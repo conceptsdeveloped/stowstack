@@ -138,6 +138,18 @@ CREATE TABLE IF NOT EXISTS publish_log (
   response_payload JSONB
 );
 
+-- Facebook data deletion requests (required by Meta Platform Terms)
+CREATE TABLE IF NOT EXISTS fb_deletion_requests (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  confirmation_code  TEXT NOT NULL UNIQUE,
+  fb_user_id         TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'pending',  -- pending | in_progress | completed
+  requested_at       TIMESTAMPTZ DEFAULT NOW(),
+  completed_at       TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_fb_deletion_code ON fb_deletion_requests(confirmation_code);
+
 -- Indexes for common lookups
 CREATE INDEX IF NOT EXISTS idx_audits_facility ON audits(facility_id);
 CREATE INDEX IF NOT EXISTS idx_places_facility ON places_data(facility_id);

@@ -126,6 +126,9 @@ function ClientLogin({ onAuth }: { onAuth: (data: ClientData) => void }) {
         <p className="text-xs text-slate-400 text-center mt-6">
           Your access code was provided by StowStack when you signed on. Contact <a href="mailto:anna@storepawpaw.com" className="text-emerald-600 hover:text-emerald-700">anna@storepawpaw.com</a> if you need help.
         </p>
+        <p className="text-xs text-slate-400 text-center mt-3">
+          By signing in, you agree to our <a href="/terms" className="text-emerald-600 hover:text-emerald-700">Terms of Service</a> and <a href="/privacy" className="text-emerald-600 hover:text-emerald-700">Privacy Policy</a>.
+        </p>
       </div>
     </div>
   )

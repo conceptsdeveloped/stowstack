@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import AdminDashboard from '@/components/AdminDashboard'
 import ClientPortal from '@/components/ClientPortal'
-import { PrivacyPolicy, TermsOfService } from '@/components/LegalPages'
+import { PrivacyPolicy, TermsOfService, DataDeletion } from '@/components/LegalPages'
 import DemoDashboard from '@/components/DemoDashboard'
 import GuidePage from '@/components/GuidePage'
 import {
@@ -1796,13 +1796,14 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'demo' | 'guide'
+type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide'
 
 function pathToView(pathname: string): View {
   if (pathname === '/admin') return 'admin'
   if (pathname === '/portal') return 'portal'
   if (pathname === '/privacy') return 'privacy'
   if (pathname === '/terms') return 'terms'
+  if (pathname === '/data-deletion') return 'data-deletion'
   if (pathname === '/demo') return 'demo'
   if (pathname === '/guide') return 'guide'
   return 'website'
@@ -1823,6 +1824,7 @@ export default function App() {
   if (view === 'portal') return <ClientPortal onBack={goHome} />
   if (view === 'privacy') return <PrivacyPolicy onBack={goHome} />
   if (view === 'terms') return <TermsOfService onBack={goHome} />
+  if (view === 'data-deletion') return <DataDeletion onBack={goHome} />
   if (view === 'demo') return <DemoDashboard onBack={goHome} />
   if (view === 'guide') return <GuidePage onBack={goHome} />
 

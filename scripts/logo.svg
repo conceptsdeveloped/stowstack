@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a7a50"/>
+      <stop offset="100%" stop-color="#23a06a"/>
+    </linearGradient>
+    <linearGradient id="stackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#e0f5eb" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0d3d28" flood-opacity="0.3"/>
+    </filter>
+    <filter id="innerGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.15"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid pattern overlay for texture -->
+  <g opacity="0.04">
+    <line x1="256" y1="100" x2="256" y2="924" stroke="#fff" stroke-width="1"/>
+    <line x1="512" y1="100" x2="512" y2="924" stroke="#fff" stroke-width="1"/>
+    <line x1="768" y1="100" x2="768" y2="924" stroke="#fff" stroke-width="1"/>
+    <line x1="100" y1="256" x2="924" y2="256" stroke="#fff" stroke-width="1"/>
+    <line x1="100" y1="512" x2="924" y2="512" stroke="#fff" stroke-width="1"/>
+    <line x1="100" y1="768" x2="924" y2="768" stroke="#fff" stroke-width="1"/>
+  </g>
+
+  <!-- Stacked storage unit icon (3 stacked rectangles with subtle perspective) -->
+  <g filter="url(#shadow)" transform="translate(512, 380)">
+    <!-- Bottom unit (widest) -->
+    <rect x="-210" y="60" width="420" height="110" rx="18" ry="18" fill="url(#stackGrad)" opacity="0.75"/>
+    <!-- Middle unit -->
+    <rect x="-180" y="-55" width="360" height="110" rx="18" ry="18" fill="url(#stackGrad)" opacity="0.88"/>
+    <!-- Top unit (smallest) -->
+    <rect x="-150" y="-170" width="300" height="110" rx="18" ry="18" fill="url(#stackGrad)" opacity="1"/>
+
+    <!-- Unit door details - subtle vertical lines -->
+    <!-- Top unit doors -->
+    <line x1="-50" y1="-155" x2="-50" y2="-75" stroke="#1a7a50" stroke-width="3" opacity="0.2"/>
+    <line x1="50" y1="-155" x2="50" y2="-75" stroke="#1a7a50" stroke-width="3" opacity="0.2"/>
+    <!-- Middle unit doors -->
+    <line x1="-60" y1="-40" x2="-60" y2="40" stroke="#1a7a50" stroke-width="3" opacity="0.15"/>
+    <line x1="60" y1="-40" x2="60" y2="40" stroke="#1a7a50" stroke-width="3" opacity="0.15"/>
+    <!-- Bottom unit doors -->
+    <line x1="-70" y1="75" x2="-70" y2="155" stroke="#1a7a50" stroke-width="3" opacity="0.1"/>
+    <line x1="70" y1="75" x2="70" y2="155" stroke="#1a7a50" stroke-width="3" opacity="0.1"/>
+
+    <!-- Small handle dots on each unit -->
+    <circle cx="0" cy="-115" r="6" fill="#1a7a50" opacity="0.3"/>
+    <circle cx="0" cy="0" r="6" fill="#1a7a50" opacity="0.22"/>
+    <circle cx="0" cy="115" r="6" fill="#1a7a50" opacity="0.15"/>
+
+    <!-- Upward arrow overlay suggesting growth/stacking -->
+    <polygon points="0,-210 40,-175 15,-175 15,-130 -15,-130 -15,-175 -40,-175" fill="#ffffff" opacity="0.5"/>
+  </g>
+
+  <!-- "StowStack" wordmark -->
+  <text x="512" y="700" text-anchor="middle" font-family="'Space Grotesk', 'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif" font-weight="700" font-size="128" fill="#ffffff" letter-spacing="-3">
+    <tspan>Stow</tspan><tspan fill="#b8f0d5">Stack</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="512" y="780" text-anchor="middle" font-family="'DM Sans', 'SF Pro Text', 'Inter', system-ui, -apple-system, sans-serif" font-weight="400" font-size="42" fill="#b8f0d5" letter-spacing="6" opacity="0.85">
+    FULL-FUNNEL ACQUISITION
+  </text>
+</svg>
