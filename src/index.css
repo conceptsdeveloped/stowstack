@@ -44,3 +44,27 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* Blog slide-up animation */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Blog print styles */
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+  }
+  a { color: #000; text-decoration: underline; }
+  nav, footer, .fixed { display: none !important; }
+}

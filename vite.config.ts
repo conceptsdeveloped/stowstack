@@ -28,8 +28,18 @@ function vercelApiPlugin(): Plugin {
       server.middlewares.use(async (req: any, res: any, next: any) => {
         if (!req.url?.startsWith("/api/")) return next();
 
-        const fnName = req.url.replace(/^\/api\//, "").split("?")[0];
+        const [pathPart, queryString] = req.url.replace(/^\/api\//, "").split("?");
+        const fnName = pathPart;
         const fnPath = path.resolve(__dirname, "api", `${fnName}.js`);
+
+        // Parse query string into req.query (Vercel-compatible)
+        const queryParams: Record<string, string> = {};
+        if (queryString) {
+          for (const [k, v] of new URLSearchParams(queryString)) {
+            queryParams[k] = v;
+          }
+        }
+        req.query = queryParams;
 
         // Check file exists
         try {
