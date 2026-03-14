@@ -44,6 +44,8 @@ function esc(str) {
   4. check_in — Periodic check-in for leads that have gone quiet
   5. onboarding_reminder — Remind signed client to complete onboarding
   6. campaign_update — Share campaign performance highlights
+  7. value_add — Personalized tip based on facility's biggest challenge (drip sequence)
+  8. last_chance — Final soft touch before marking lead cold (drip sequence)
 
   GET — list available templates
   POST — send a template email to a lead
@@ -197,6 +199,87 @@ const TEMPLATES = {
             <a href="https://stowstack.co/portal" style="display: inline-block; padding: 14px 28px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">View Your Dashboard</a>
           </div>
           <p>Let us know if you have any questions about the numbers or if there's anything you'd like us to adjust in the campaigns.</p>
+          <p style="margin-top: 24px;">
+            Blake Burkett<br/>
+            StowStack<br/>
+            <a href="tel:2699298541" style="color: #16a34a; text-decoration: none;">269-929-8541</a><br/>
+            <a href="mailto:blake@storepawpaw.com" style="color: #16a34a; text-decoration: none;">blake@storepawpaw.com</a>
+          </p>
+        </div>`
+    },
+  },
+  value_add: {
+    id: 'value_add',
+    name: 'Value Add',
+    description: 'Personalized tip based on facility challenge (drip sequence)',
+    subject: (lead) => `A quick tip for ${esc(lead.facilityName)}`,
+    body: (lead) => {
+      const firstName = esc(lead.name.trim().split(' ')[0])
+      const issue = lead.biggestIssue || ''
+      let tip = ''
+      if (issue === 'lease-up' || issue === 'low-occupancy') {
+        tip = `
+          <p>Since you mentioned occupancy is a priority at <strong>${esc(lead.facilityName)}</strong>, here is something we have seen work really well for facilities in your position:</p>
+          <div style="margin: 20px 0; padding: 16px 20px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Geo-targeted move-in specials</p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">Operators who run hyper-local Meta ads with a first-month discount to people actively searching for storage within a 10-mile radius typically see 3-5x better cost-per-lead than broad campaigns. The key is pairing the offer with a dedicated landing page that has one clear call to action.</p>
+          </div>`
+      } else if (issue === 'climate-controlled') {
+        tip = `
+          <p>Climate-controlled units sitting empty is more common than you'd think, and it is usually a positioning problem rather than a demand problem. Here is what we have seen work:</p>
+          <div style="margin: 20px 0; padding: 16px 20px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Lead with the problem, not the feature</p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">Instead of advertising "climate-controlled units available," target people storing furniture, electronics, wine, or documents and emphasize protection. Ads that say "Don't let humidity ruin your furniture" outperform generic unit listings by 2-3x in our experience.</p>
+          </div>`
+      } else if (issue === 'drive-up') {
+        tip = `
+          <p>Drive-up units are usually the easiest to fill when you nail the targeting. Here is a pattern we keep seeing work:</p>
+          <div style="margin: 20px 0; padding: 16px 20px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Target life events in your zip codes</p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">People moving, downsizing, renovating, or going through a divorce are your best prospects for drive-up units. Meta lets you target these life events with surprising precision. Pair that with "reserve online in 60 seconds" messaging and conversion rates jump significantly.</p>
+          </div>`
+      } else if (issue === 'vehicle-rv-boat') {
+        tip = `
+          <p>Vehicle, RV, and boat storage has massive seasonal demand swings, and the operators who win are the ones who get ahead of the curve:</p>
+          <div style="margin: 20px 0; padding: 16px 20px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Start campaigns 6-8 weeks before peak season</p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">Most operators wait until demand picks up, but by then ad costs are higher and spots are filling at competitors. Running early-bird reservation campaigns with a small deposit to lock in a spot consistently fills vehicle storage before the rush even starts.</p>
+          </div>`
+      } else {
+        tip = `
+          <p>I have been looking at facilities similar to <strong>${esc(lead.facilityName)}</strong> in your area and noticed something interesting:</p>
+          <div style="margin: 20px 0; padding: 16px 20px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px; font-weight: 600; color: #166534;">Most operators leave money on the table with their online presence</p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">The #1 thing we see across the board is facilities sending paid traffic to their homepage instead of a dedicated landing page. A simple landing page with unit availability, pricing, and a reservation form typically converts 3-4x better than a homepage.</p>
+          </div>`
+      }
+      return `
+        <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+          <p>Hey ${firstName},</p>
+          ${tip}
+          <p>Happy to dig into this more if you are interested — no pitch, just sharing what is working in your market right now.</p>
+          <p style="margin-top: 24px;">
+            Blake Burkett<br/>
+            StowStack<br/>
+            <a href="tel:2699298541" style="color: #16a34a; text-decoration: none;">269-929-8541</a><br/>
+            <a href="mailto:blake@storepawpaw.com" style="color: #16a34a; text-decoration: none;">blake@storepawpaw.com</a>
+          </p>
+        </div>`
+    },
+  },
+  last_chance: {
+    id: 'last_chance',
+    name: 'Last Chance',
+    description: 'Final soft touch before marking lead cold (drip sequence)',
+    subject: (lead) => `One last thought on ${esc(lead.facilityName)}`,
+    body: (lead) => {
+      const firstName = esc(lead.name.trim().split(' ')[0])
+      return `
+        <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+          <p>Hey ${firstName},</p>
+          <p>I know I have reached out a few times, so I will keep this short. Totally understand if the timing is not right for <strong>${esc(lead.facilityName)}</strong> — running a storage facility is a lot and marketing is just one of a hundred things on the list.</p>
+          <p>This will be my last follow-up unless you want to keep the conversation going. But if occupancy ever becomes a priority again, we are here and happy to help. No expiration on that offer.</p>
+          <p>Either way, wishing you the best with the facility.</p>
           <p style="margin-top: 24px;">
             Blake Burkett<br/>
             StowStack<br/>

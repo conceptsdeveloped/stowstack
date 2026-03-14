@@ -1,5 +1,20 @@
 [
   {
+    "hash": "f440283010657b371c4630f1d6084f666d78e9a4",
+    "short": "f440283",
+    "author": "Blake Burkett",
+    "email": "blake@Blakes-MacBook-Pro.local",
+    "date": "2026-03-14T11:51:35-04:00",
+    "subject": "Add What's New admin tab with commit analytics, timeline, and idea dump",
+    "body": "Build-time commit history generator (scripts/generate-commits.js) extracts\ngit log with file stats, auto-categorizes by type and area, runs before\neach build. Overview section shows velocity, activity chart, contribution\nheatmap, category/area breakdown charts, and contributor stats. Timeline\nsection adds file change counts, daily/weekly toggle, new-since-last-visit\nbadges. Idea Dump section with Redis-backed CRUD API for capturing and\nprioritizing brainstorm ideas with voting, status workflow, and filtering.",
+    "category": "feature",
+    "area": "admin",
+    "coAuthor": "Claude Opus 4.6",
+    "filesChanged": 7,
+    "insertions": 2117,
+    "deletions": 3
+  },
+  {
     "hash": "f0d37d132590b93de3a4ff04706f3a37e2e410b1",
     "short": "f0d37d1",
     "author": "Blake Burkett",

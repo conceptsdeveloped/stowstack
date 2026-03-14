@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis'
 import { query } from './_db.js'
+import { enrollLead } from './drip-sequences.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -274,6 +275,14 @@ export default async function handler(req, res) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }))
+
+        // Enroll lead in post-audit drip sequence
+        try {
+          await enrollLead(redis, id, 'post_audit')
+          console.log('Lead enrolled in drip sequence:', id)
+        } catch (dripErr) {
+          console.error('Failed to enroll lead in drip:', dripErr.message)
+        }
       }
     } catch (kvErr) {
       console.error('Failed to store lead in KV:', kvErr.message)
