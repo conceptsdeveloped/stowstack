@@ -190,7 +190,7 @@ type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | '
 /* ── Facilities View ── */
 
 interface Facility {
-  id: number
+  id: string
   created_at: string
   name: string
   location: string
@@ -212,6 +212,29 @@ interface Facility {
   reviews: { author: string; rating: number; text: string; time: string }[] | null
 }
 
+interface AdVariation {
+  id: string
+  facility_id: string
+  brief_id: string | null
+  created_at: string
+  platform: string
+  format: string
+  angle: string
+  content_json: {
+    angle: string
+    angleLabel: string
+    primaryText: string
+    headline: string
+    description: string
+    cta: string
+    targetingNote: string
+  }
+  asset_urls: Record<string, string> | null
+  status: string
+  feedback: string | null
+  version: number
+}
+
 const FACILITY_STATUSES = ['intake', 'scraped', 'briefed', 'generating', 'review', 'approved', 'live', 'reporting'] as const
 
 const STATUS_COLORS: Record<string, string> = {
@@ -225,12 +248,571 @@ const STATUS_COLORS: Record<string, string> = {
   reporting: 'bg-teal-100 text-teal-700',
 }
 
+const VARIATION_STATUS_COLORS: Record<string, string> = {
+  draft: 'bg-slate-100 text-slate-600',
+  review: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-emerald-100 text-emerald-700',
+  published: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+}
+
+const ANGLE_ICONS: Record<string, string> = {
+  social_proof: '⭐',
+  convenience: '📍',
+  urgency: '⏰',
+  lifestyle: '🏡',
+}
+
+type FacilitySubTab = 'overview' | 'creative' | 'assets'
+
+/* ── Ad Variation Card ── */
+
+function VariationCard({
+  v, darkMode, adminKey, onUpdate,
+}: {
+  v: AdVariation
+  darkMode: boolean
+  adminKey: string
+  onUpdate: (updated: AdVariation) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [editFields, setEditFields] = useState(v.content_json)
+
+  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const inputBg = darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+
+  async function patchVariation(body: Record<string, unknown>) {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/facility-creatives', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ variationId: v.id, ...body }),
+      })
+      const data = await res.json()
+      if (data.variation) onUpdate(data.variation)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={`border rounded-xl overflow-hidden ${card}`}>
+      {/* Card header */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{ANGLE_ICONS[v.angle] || '📝'}</span>
+          <span className={`text-sm font-semibold ${text}`}>{v.content_json.angleLabel || v.angle}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${VARIATION_STATUS_COLORS[v.status] || 'bg-slate-100 text-slate-600'}`}>
+            {v.status}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs ${sub}`}>v{v.version}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+            {v.platform.replace('_', ' ')}
+          </span>
+        </div>
+      </div>
+
+      {/* Preview or edit mode */}
+      <div className={`border-t px-4 py-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+        {editing ? (
+          <div className="space-y-3">
+            <div>
+              <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>Primary Text</label>
+              <textarea
+                value={editFields.primaryText}
+                onChange={e => setEditFields({ ...editFields, primaryText: e.target.value })}
+                rows={3}
+                className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+              />
+              <p className={`text-xs mt-0.5 ${editFields.primaryText.length > 125 ? 'text-red-500' : sub}`}>{editFields.primaryText.length}/125</p>
+            </div>
+            <div>
+              <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>Headline</label>
+              <input
+                value={editFields.headline}
+                onChange={e => setEditFields({ ...editFields, headline: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+              />
+              <p className={`text-xs mt-0.5 ${editFields.headline.length > 40 ? 'text-red-500' : sub}`}>{editFields.headline.length}/40</p>
+            </div>
+            <div>
+              <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>Description</label>
+              <input
+                value={editFields.description}
+                onChange={e => setEditFields({ ...editFields, description: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+              />
+              <p className={`text-xs mt-0.5 ${editFields.description.length > 30 ? 'text-red-500' : sub}`}>{editFields.description.length}/30</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>CTA</label>
+                <select
+                  value={editFields.cta}
+                  onChange={e => setEditFields({ ...editFields, cta: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+                >
+                  {['Learn More', 'Get Quote', 'Book Now', 'Contact Us', 'Sign Up'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>Targeting</label>
+                <input
+                  value={editFields.targetingNote}
+                  onChange={e => setEditFields({ ...editFields, targetingNote: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => { patchVariation({ content_json: editFields, status: 'approved' }); setEditing(false) }}
+                disabled={saving}
+                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {saving ? 'Saving...' : 'Save & Approve'}
+              </button>
+              <button
+                onClick={() => { patchVariation({ content_json: editFields }); setEditing(false) }}
+                disabled={saving}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'} disabled:opacity-40`}
+              >
+                Save Draft
+              </button>
+              <button onClick={() => { setEditing(false); setEditFields(v.content_json) }} className={`px-3 py-1.5 text-xs ${sub} hover:underline`}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Meta ad preview mock */}
+            <div className={`rounded-lg p-4 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+              <p className={`text-sm leading-relaxed ${text}`}>{v.content_json.primaryText}</p>
+              <div className={`mt-3 border-t pt-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                <p className={`text-xs uppercase tracking-wide ${sub}`}>stowstack.co</p>
+                <p className={`font-semibold text-sm ${text}`}>{v.content_json.headline}</p>
+                <p className={`text-xs ${sub}`}>{v.content_json.description}</p>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className={`text-xs px-2 py-1 rounded font-medium ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'}`}>
+                  {v.content_json.cta}
+                </span>
+                {v.content_json.targetingNote && (
+                  <span className={`text-xs ${sub}`}>{v.content_json.targetingNote}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Feedback display */}
+            {v.feedback && (
+              <div className={`mt-3 p-3 rounded-lg border text-sm ${darkMode ? 'bg-red-900/20 border-red-800 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <p className="font-medium text-xs uppercase tracking-wide mb-1">Feedback</p>
+                {v.feedback}
+              </div>
+            )}
+
+            {/* Reject with feedback form */}
+            {rejecting && (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={feedback}
+                  onChange={e => setFeedback(e.target.value)}
+                  placeholder="What needs to change? Be specific so we can regenerate better copy..."
+                  rows={3}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { patchVariation({ status: 'rejected', feedback }); setRejecting(false); setFeedback('') }}
+                    disabled={!feedback.trim() || saving}
+                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-40"
+                  >
+                    {saving ? '...' : 'Reject with Notes'}
+                  </button>
+                  <button onClick={() => { setRejecting(false); setFeedback('') }} className={`px-3 py-1.5 text-xs ${sub} hover:underline`}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            {v.status !== 'published' && !rejecting && (
+              <div className="flex gap-2 mt-3">
+                {v.status !== 'approved' && (
+                  <button
+                    onClick={() => patchVariation({ status: 'approved' })}
+                    disabled={saving}
+                    className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+                  >
+                    {saving ? '...' : 'Approve'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditing(true)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  Edit
+                </button>
+                {v.status !== 'rejected' && (
+                  <button
+                    onClick={() => setRejecting(true)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    Reject
+                  </button>
+                )}
+                {v.status === 'approved' && (
+                  <button
+                    onClick={() => patchVariation({ status: 'draft' })}
+                    disabled={saving}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'} disabled:opacity-40`}
+                  >
+                    Unapprove
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Creative Tab ── */
+
+function CreativeTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
+  const [variations, setVariations] = useState<AdVariation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [regenFeedback, setRegenFeedback] = useState('')
+  const [showRegenInput, setShowRegenInput] = useState(false)
+
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const inputBg = darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+
+  useEffect(() => {
+    fetch(`/api/facility-creatives?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } })
+      .then(r => r.json())
+      .then(data => { if (data.variations) setVariations(data.variations) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [facility.id, adminKey])
+
+  async function generateCopy(feedbackText?: string) {
+    setGenerating(true)
+    try {
+      const body: Record<string, string> = { facilityId: facility.id }
+      if (feedbackText) body.feedback = feedbackText
+
+      const res = await fetch('/api/facility-creatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.variations) setVariations(prev => [...data.variations, ...prev])
+      setShowRegenInput(false)
+      setRegenFeedback('')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  function handleUpdate(updated: AdVariation) {
+    setVariations(prev => prev.map(v => v.id === updated.id ? updated : v))
+  }
+
+  const approved = variations.filter(v => v.status === 'approved' || v.status === 'published').length
+  const total = variations.length
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-emerald-500" /></div>
+
+  return (
+    <div className="space-y-5">
+      {/* Header with stats + generate button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className={`font-semibold ${text}`}>Ad Variations</h3>
+          {total > 0 && (
+            <p className={`text-sm ${sub}`}>{approved}/{total} approved</p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {showRegenInput ? (
+            <div className="flex items-end gap-2">
+              <textarea
+                value={regenFeedback}
+                onChange={e => setRegenFeedback(e.target.value)}
+                placeholder="Direction for new variations..."
+                rows={2}
+                className={`w-64 px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+              />
+              <button
+                onClick={() => generateCopy(regenFeedback || undefined)}
+                disabled={generating}
+                className="px-3 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 whitespace-nowrap"
+              >
+                {generating ? 'Generating...' : 'Generate'}
+              </button>
+              <button onClick={() => { setShowRegenInput(false); setRegenFeedback('') }} className={`text-xs ${sub} hover:underline whitespace-nowrap`}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              {total > 0 && (
+                <button
+                  onClick={() => setShowRegenInput(true)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  Regenerate with Notes
+                </button>
+              )}
+              <button
+                onClick={() => generateCopy()}
+                disabled={generating}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {generating ? 'Generating...' : total > 0 ? 'Generate More' : 'Generate Ad Copy'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Empty state */}
+      {total === 0 && !generating && (
+        <div className={`text-center py-16 rounded-xl border-2 border-dashed ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <Sparkles size={32} className={`mx-auto mb-3 ${sub}`} />
+          <p className={`font-medium ${text}`}>No ad variations yet</p>
+          <p className={`text-sm ${sub} mt-1`}>Click "Generate Ad Copy" to create Meta ad variations using Claude AI</p>
+        </div>
+      )}
+
+      {/* Version groups */}
+      {total > 0 && (() => {
+        const versions = [...new Set(variations.map(v => v.version))].sort((a, b) => b - a)
+        return versions.map(ver => {
+          const batch = variations.filter(v => v.version === ver)
+          return (
+            <div key={ver}>
+              <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-3`}>
+                Version {ver} · {new Date(batch[0].created_at).toLocaleDateString()}
+              </p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {batch.map(v => (
+                  <VariationCard key={v.id} v={v} darkMode={darkMode} adminKey={adminKey} onUpdate={handleUpdate} />
+                ))}
+              </div>
+            </div>
+          )
+        })
+      })()}
+    </div>
+  )
+}
+
+/* ── Facility Detail View ── */
+
+function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
+  facility: Facility
+  adminKey: string
+  darkMode: boolean
+  onBack: () => void
+  onStatusChange: (id: string, status: string) => void
+}) {
+  const [subTab, setSubTab] = useState<FacilitySubTab>('overview')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+
+  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+
+  async function updateStatus(status: string) {
+    setUpdatingStatus(true)
+    try {
+      await fetch('/api/admin-facilities', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id: facility.id, status }),
+      })
+      onStatusChange(facility.id, status)
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Back + facility header */}
+      <div className="flex items-start gap-4">
+        <button onClick={onBack} className={`mt-1 p-1 rounded-lg hover:bg-slate-100 ${darkMode ? 'hover:bg-slate-800' : ''}`}>
+          <ArrowLeft size={18} className={sub} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className={`text-xl font-bold ${text}`}>{facility.name}</h2>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${STATUS_COLORS[facility.status] || 'bg-slate-100 text-slate-600'}`}>
+              {facility.status}
+            </span>
+            {facility.google_rating && (
+              <span className="text-sm font-semibold text-amber-500">★ {facility.google_rating} ({facility.review_count})</span>
+            )}
+          </div>
+          <p className={`text-sm ${sub} mt-0.5`}>{facility.location}</p>
+        </div>
+        {/* Status dropdown */}
+        <select
+          value={facility.status}
+          onChange={e => updateStatus(e.target.value)}
+          disabled={updatingStatus}
+          className={`text-xs px-3 py-1.5 border rounded-lg ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} disabled:opacity-40`}
+        >
+          {FACILITY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Sub-tab bar */}
+      <div className={`flex gap-1 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        {([
+          ['overview', 'Overview'],
+          ['creative', 'Creative'],
+          ['assets', 'Assets'],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setSubTab(id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              subTab === id
+                ? `border-emerald-600 ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`
+                : `border-transparent ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sub-tab content */}
+      {subTab === 'overview' && (
+        <div className={`border rounded-xl ${card}`}>
+          <div className="p-5 space-y-5">
+            {/* Contact + facility info + Google */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Contact</p>
+                <div className="space-y-1">
+                  <p className={text}>{facility.contact_name}</p>
+                  <p className={`flex items-center gap-1.5 ${sub}`}><Mail size={13} />{facility.contact_email}</p>
+                  <p className={`flex items-center gap-1.5 ${sub}`}><Phone size={13} />{facility.contact_phone}</p>
+                </div>
+              </div>
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Facility Info</p>
+                <div className="space-y-1">
+                  <p className={text}>Occupancy: {facility.occupancy_range}</p>
+                  <p className={text}>Units: {facility.total_units}</p>
+                  <p className={text}>Issue: {facility.biggest_issue}</p>
+                </div>
+              </div>
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Google Data</p>
+                {facility.google_address ? (
+                  <div className="space-y-1">
+                    <p className={sub}>{facility.google_address}</p>
+                    <div className="flex gap-2">
+                      {facility.website && <a href={facility.website} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Website ↗</a>}
+                      {facility.google_maps_url && <a href={facility.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Maps ↗</a>}
+                    </div>
+                  </div>
+                ) : <p className={sub}>Not scraped yet</p>}
+              </div>
+            </div>
+
+            {/* Notes */}
+            {facility.notes && (
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Notes</p>
+                <p className={`text-sm ${text}`}>{facility.notes}</p>
+              </div>
+            )}
+
+            {/* Photos */}
+            {facility.photos && facility.photos.length > 0 && (
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Photos</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {facility.photos.map(photo => (
+                    <img key={photo.index} src={photo.url} alt="" className="h-24 w-36 object-cover rounded-lg shrink-0" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reviews */}
+            {facility.reviews && facility.reviews.length > 0 && (
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Top Reviews</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {facility.reviews.map((r, i) => (
+                    <div key={i} className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
+                        <span className={`font-medium ${text}`}>{r.author}</span>
+                        <span className={`text-xs ${sub}`}>{r.time}</span>
+                      </div>
+                      <p className={sub}>{r.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className={`text-xs ${sub}`}>Added {new Date(facility.created_at).toLocaleDateString()}</p>
+          </div>
+        </div>
+      )}
+
+      {subTab === 'creative' && (
+        <CreativeTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'assets' && (
+        <div className={`border rounded-xl p-8 text-center ${card}`}>
+          <p className={`font-medium ${text}`}>Asset management coming soon</p>
+          <p className={`text-sm ${sub} mt-1`}>Upload photos, manage AI-generated images, and organize media for campaigns</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Facilities List + Detail Router ── */
+
 function FacilitiesView({ adminKey, darkMode }: { adminKey: string; darkMode: boolean }) {
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [updatingId, setUpdatingId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
 
   useEffect(() => {
     fetch('/api/admin-facilities', { headers: { 'X-Admin-Key': adminKey } })
@@ -243,158 +825,78 @@ function FacilitiesView({ adminKey, darkMode }: { adminKey: string; darkMode: bo
       .finally(() => setLoading(false))
   }, [adminKey])
 
-  async function updateStatus(id: number, status: string) {
-    setUpdatingId(id)
-    try {
-      await fetch('/api/admin-facilities', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-        body: JSON.stringify({ id, status }),
-      })
-      setFacilities(prev => prev.map(f => f.id === id ? { ...f, status } : f))
-    } finally {
-      setUpdatingId(null)
-    }
+  function handleStatusChange(id: string, status: string) {
+    setFacilities(prev => prev.map(f => f.id === id ? { ...f, status } : f))
   }
 
-  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
-  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-emerald-500" /></div>
+  if (error) return <div className="text-center py-20 text-red-500">{error}</div>
+  if (facilities.length === 0) return <div className="text-center py-20 text-slate-400">No facilities yet. Submit an audit request to get started.</div>
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 size={24} className="animate-spin text-emerald-500" />
-    </div>
-  )
+  // Detail view
+  const selected = facilities.find(f => f.id === selectedId)
+  if (selected) {
+    return (
+      <FacilityDetail
+        facility={selected}
+        adminKey={adminKey}
+        darkMode={darkMode}
+        onBack={() => setSelectedId(null)}
+        onStatusChange={handleStatusChange}
+      />
+    )
+  }
 
-  if (error) return (
-    <div className="text-center py-20 text-red-500">{error}</div>
-  )
-
-  if (facilities.length === 0) return (
-    <div className="text-center py-20 text-slate-400">No facilities yet. Submit an audit request to get started.</div>
-  )
-
+  // List view
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className={`text-lg font-semibold ${text}`}>Facilities <span className={`text-sm font-normal ${sub}`}>({facilities.length})</span></h2>
       </div>
-      {facilities.map(f => {
-        const isOpen = expandedId === f.id
-        return (
-          <div key={f.id} className={`border rounded-xl overflow-hidden ${card}`}>
-            {/* Header row */}
-            <button
-              onClick={() => setExpandedId(isOpen ? null : f.id)}
-              className="w-full text-left px-5 py-4 flex items-start gap-4"
-            >
-              {/* Status badge */}
-              <span className={`mt-0.5 shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>
-                {f.status}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className={`font-semibold truncate ${text}`}>{f.name}</p>
-                <p className={`text-sm truncate ${sub}`}>{f.location}</p>
-              </div>
-              {f.google_rating && (
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-amber-500">★ {f.google_rating}</p>
-                  <p className={`text-xs ${sub}`}>{f.review_count} reviews</p>
-                </div>
-              )}
-              {isOpen ? <ChevronUp size={16} className={sub} /> : <ChevronDown size={16} className={sub} />}
-            </button>
 
-            {/* Expanded detail */}
-            {isOpen && (
-              <div className={`border-t px-5 py-4 space-y-4 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-                {/* Contact */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Contact</p>
-                    <p className={text}>{f.contact_name}</p>
-                    <p className={sub}>{f.contact_email}</p>
-                    <p className={sub}>{f.contact_phone}</p>
-                  </div>
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Facility Info</p>
-                    <p className={text}>Occupancy: {f.occupancy_range}</p>
-                    <p className={text}>Units: {f.total_units}</p>
-                    <p className={text}>Issue: {f.biggest_issue}</p>
-                  </div>
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Google Data</p>
-                    {f.google_address ? <p className={sub}>{f.google_address}</p> : <p className={sub}>Not scraped yet</p>}
-                    {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Website ↗</a>}
-                    {f.google_maps_url && <> · <a href={f.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Maps ↗</a></>}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {f.notes && (
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Notes</p>
-                    <p className={`text-sm ${text}`}>{f.notes}</p>
-                  </div>
-                )}
-
-                {/* Photos */}
-                {f.photos && f.photos.length > 0 && (
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Photos</p>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {f.photos.slice(0, 6).map(photo => (
-                        <img key={photo.index} src={photo.url} alt="" className="h-20 w-32 object-cover rounded-lg shrink-0" />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Reviews */}
-                {f.reviews && f.reviews.length > 0 && (
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Top Reviews</p>
-                    <div className="space-y-2">
-                      {f.reviews.map((r, i) => (
-                        <div key={i} className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
-                            <span className={`font-medium ${text}`}>{r.author}</span>
-                            <span className={`text-xs ${sub}`}>{r.time}</span>
-                          </div>
-                          <p className={sub}>{r.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Status update */}
-                <div className="flex items-center gap-3 pt-2">
-                  <p className={`text-xs font-medium uppercase tracking-wide ${sub}`}>Move to:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {FACILITY_STATUSES.filter(s => s !== f.status).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => updateStatus(f.id, s)}
-                        disabled={updatingId === f.id}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                          darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                        } disabled:opacity-40`}
-                      >
-                        {updatingId === f.id ? '…' : s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <p className={`text-xs ${sub}`}>Added {new Date(f.created_at).toLocaleDateString()}</p>
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {/* Summary table */}
+      <div className={`border rounded-xl overflow-hidden ${card}`}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className={darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}>
+              <th className={`text-left px-4 py-3 font-medium ${sub}`}>Facility</th>
+              <th className={`text-left px-4 py-3 font-medium ${sub} hidden sm:table-cell`}>Location</th>
+              <th className={`text-left px-4 py-3 font-medium ${sub}`}>Status</th>
+              <th className={`text-left px-4 py-3 font-medium ${sub} hidden md:table-cell`}>Rating</th>
+              <th className={`text-left px-4 py-3 font-medium ${sub} hidden lg:table-cell`}>Occupancy</th>
+              <th className={`text-left px-4 py-3 font-medium ${sub} hidden lg:table-cell`}>Units</th>
+              <th className={`text-right px-4 py-3 font-medium ${sub}`}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {facilities.map(f => (
+              <tr
+                key={f.id}
+                onClick={() => setSelectedId(f.id)}
+                className={`border-t cursor-pointer transition-colors ${
+                  darkMode ? 'border-slate-700 hover:bg-slate-700/50' : 'border-slate-100 hover:bg-slate-50'
+                }`}
+              >
+                <td className={`px-4 py-3 font-medium ${text}`}>{f.name}</td>
+                <td className={`px-4 py-3 ${sub} hidden sm:table-cell`}>{f.location}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>
+                    {f.status}
+                  </span>
+                </td>
+                <td className={`px-4 py-3 hidden md:table-cell ${f.google_rating ? 'text-amber-500 font-semibold' : sub}`}>
+                  {f.google_rating ? `★ ${f.google_rating}` : '—'}
+                </td>
+                <td className={`px-4 py-3 ${sub} hidden lg:table-cell`}>{f.occupancy_range || '—'}</td>
+                <td className={`px-4 py-3 ${sub} hidden lg:table-cell`}>{f.total_units || '—'}</td>
+                <td className="px-4 py-3 text-right">
+                  <ChevronRight size={16} className={sub} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
