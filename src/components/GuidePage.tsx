@@ -1,4 +1,4 @@
-import { Building2, ArrowLeft, BookOpen, Shield, Users, BarChart3, Mail, ClipboardList, Target, TrendingUp, MessageSquare, Bell, Download, CalendarClock, CheckSquare, Sparkles } from 'lucide-react'
+import { Building2, ArrowLeft, BookOpen, Shield, BarChart3, ClipboardList, MessageSquare, Target, TrendingUp, HelpCircle } from 'lucide-react'
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -45,22 +45,17 @@ function InfoBox({ children }: { children: React.ReactNode }) {
   )
 }
 
-function StatusBadge({ label, color }: { label: string; color: string }) {
-  return <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>{label}</span>
-}
-
 export default function GuidePage({ onBack }: { onBack: () => void }) {
   const tocItems = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'admin-getting-started', label: 'Admin: Getting Started' },
-    { id: 'admin-pipeline', label: 'Admin: Lead Pipeline' },
-    { id: 'admin-tools', label: 'Admin: Lead Tools' },
-    { id: 'admin-portfolio', label: 'Admin: Portfolio & Alerts' },
-    { id: 'admin-insights', label: 'Admin: Insights & Analytics' },
-    { id: 'client-login', label: 'Client Portal: Login' },
-    { id: 'client-dashboard', label: 'Client Portal: Dashboard' },
-    { id: 'client-onboarding', label: 'Client Portal: Onboarding' },
-    { id: 'client-messages', label: 'Client Portal: Messages' },
+    { id: 'welcome', label: 'Welcome to StowStack' },
+    { id: 'getting-started', label: 'Getting Started' },
+    { id: 'dashboard', label: 'Your Dashboard' },
+    { id: 'charts', label: 'Understanding Your Charts' },
+    { id: 'onboarding', label: 'Onboarding Wizard' },
+    { id: 'messages', label: 'Messages' },
+    { id: 'goals', label: 'Campaign Goals' },
+    { id: 'digest', label: 'Monthly Performance Digest' },
+    { id: 'faq', label: 'FAQ' },
   ]
 
   return (
@@ -76,18 +71,16 @@ export default function GuidePage({ onBack }: { onBack: () => void }) {
           <span className="text-sm font-bold tracking-tight font-['Space_Grotesk']">
             Stow<span className="text-emerald-600">Stack</span>
           </span>
-          <span className="text-xs text-slate-400 ml-1">/ Guide</span>
+          <span className="text-xs text-slate-400 ml-1">/ Client Guide</span>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-5 py-8">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">How to Use StowStack</h1>
-          <p className="text-slate-500 text-sm">Everything you need to know about managing leads, tracking campaigns, and getting the most out of the platform.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Client Guide</h1>
+          <p className="text-slate-500 text-sm">Everything you need to know about your StowStack portal — your dashboard, campaign data, and how to get the most out of your ad campaigns.</p>
         </div>
 
-        {/* Table of Contents */}
         <nav className="bg-white rounded-xl border border-slate-200 p-5 mb-8">
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
             <BookOpen size={14} /> Contents
@@ -102,249 +95,88 @@ export default function GuidePage({ onBack }: { onBack: () => void }) {
           </div>
         </nav>
 
-        {/* Sections */}
         <div className="space-y-6">
 
-          {/* Overview */}
-          <Section id="overview" icon={Building2} title="Platform Overview">
+          {/* Welcome */}
+          <Section id="welcome" icon={Building2} title="Welcome to StowStack">
             <p className="text-sm text-slate-600 leading-relaxed">
-              StowStack is a full-stack marketing platform built for self-storage operators. It connects three core tools:
+              StowStack is a marketing platform built specifically for self-storage operators. We run targeted Facebook and Instagram ad campaigns to fill your vacant units with qualified tenants.
             </p>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Admin Dashboard</p>
-                <p className="text-sm text-slate-700">Manage your entire lead pipeline, track client performance, generate audits, and send emails.</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Client Portal</p>
-                <p className="text-sm text-slate-700">Your clients see their own dashboard with campaign metrics, charts, onboarding progress, and messages.</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Marketing Site</p>
-                <p className="text-sm text-slate-700">The public-facing website at stowstack.co with the audit intake form that generates leads.</p>
-              </div>
-            </div>
-          </Section>
-
-          {/* Admin: Getting Started */}
-          <Section id="admin-getting-started" icon={Shield} title="Admin Dashboard: Getting Started">
-            <Step n={1}>
-              Navigate to <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">/admin</code> in your browser.
-            </Step>
-            <Step n={2}>
-              Enter your admin key to authenticate. This key is stored in your browser so you don't need to re-enter it each session.
-            </Step>
-            <Step n={3}>
-              You'll land on the <strong>Pipeline</strong> tab — your main workspace for managing leads.
-            </Step>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              As a StowStack client, you get access to your own portal where you can track campaign performance, see how many leads and move-ins your ads are generating, communicate with your account team, and monitor your return on investment — all in one place.
+            </p>
             <InfoBox>
-              The admin dashboard has three main tabs: <strong>Pipeline</strong> (lead management), <strong>Portfolio</strong> (client campaign performance), and <strong>Insights</strong> (analytics and activity feed).
+              Your portal updates as your StowStack team enters new campaign data each month. Check back regularly to see the latest numbers.
             </InfoBox>
           </Section>
 
-          {/* Admin: Pipeline */}
-          <Section id="admin-pipeline" icon={Users} title="Admin: Lead Pipeline">
-            <SubSection title="Lead Stages">
-              <p className="text-sm text-slate-600">Every lead moves through a 7-stage pipeline. Click any stage button on a lead card to advance it:</p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                <StatusBadge label="Submitted" color="bg-blue-100 text-blue-700" />
-                <span className="text-slate-300">→</span>
-                <StatusBadge label="Form Sent" color="bg-indigo-100 text-indigo-700" />
-                <span className="text-slate-300">→</span>
-                <StatusBadge label="Form Done" color="bg-purple-100 text-purple-700" />
-                <span className="text-slate-300">→</span>
-                <StatusBadge label="Audit Ready" color="bg-amber-100 text-amber-700" />
-                <span className="text-slate-300">→</span>
-                <StatusBadge label="Call Set" color="bg-emerald-100 text-emerald-700" />
-                <span className="text-slate-300">→</span>
-                <StatusBadge label="Signed" color="bg-green-100 text-green-800" />
-              </div>
-              <p className="text-sm text-slate-500 mt-2">Leads can also be marked <StatusBadge label="Lost" color="bg-red-100 text-red-700" /> at any point.</p>
+          {/* Getting Started */}
+          <Section id="getting-started" icon={Shield} title="Getting Started">
+            <SubSection title="How to Log In">
+              <Step n={1}>
+                Go to <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">stowstack.co/portal</code> or click "Client Login" in the website navigation.
+              </Step>
+              <Step n={2}>
+                Enter the email address associated with your StowStack account.
+              </Step>
+              <Step n={3}>
+                Enter the access code provided by your StowStack team. It looks like <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">A7K2MN9X</code> — a short combination of letters and numbers.
+              </Step>
             </SubSection>
-
-            <SubSection title="Lead Scoring">
-              <p className="text-sm text-slate-600">Each lead gets an automatic score (0–100) with a letter grade based on:</p>
-              <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1">
-                <li><strong>Facility size</strong> — larger facilities score higher (up to 20 pts)</li>
-                <li><strong>Occupancy</strong> — lower occupancy = more urgency (up to 25 pts)</li>
-                <li><strong>Primary issue</strong> — "filling units" scores highest (up to 15 pts)</li>
-                <li><strong>Pipeline progress</strong> — further along = more engaged (up to 15 pts)</li>
-                <li><strong>Recency</strong> — newer leads score higher (up to 10 pts)</li>
-                <li><strong>Engagement</strong> — notes, PMS upload, onboarding (up to 15 pts)</li>
-              </ul>
-            </SubSection>
-
-            <SubSection title="Bulk Actions">
-              <p className="text-sm text-slate-600">Use the checkboxes to select multiple leads, then choose a status from the bulk action bar to update them all at once. Great for batch-processing new submissions.</p>
-            </SubSection>
-
-            <SubSection title="Follow-Up Reminders">
-              <p className="text-sm text-slate-600">Set a follow-up date on any lead. Overdue follow-ups get a red badge and sort to the top of the list so nothing slips through the cracks. Use the "Overdue" filter to see only leads that need attention.</p>
-            </SubSection>
-
-            <SubSection title="Search & Filter">
-              <p className="text-sm text-slate-600">Use the search bar to find leads by name, facility, location, or email. Click the stage filter chips to view only leads at a specific pipeline stage.</p>
-            </SubSection>
-          </Section>
-
-          {/* Admin: Lead Tools */}
-          <Section id="admin-tools" icon={Sparkles} title="Admin: Lead Tools">
-            <SubSection title="Marketing Audit Report">
-              <Step n={1}>Expand a lead card and click <strong>"Generate Audit"</strong> next to the Marketing Audit header.</Step>
-              <Step n={2}>The system computes vacancy cost analysis, market opportunity score, projected campaign metrics (CPL, leads/mo, move-ins, ROAS), and generates 6 recommendations.</Step>
-              <Step n={3}>View the full report inline or click <strong>"Regenerate"</strong> to refresh with updated data.</Step>
-            </SubSection>
-
-            <SubSection title="Quick Email Templates">
-              <p className="text-sm text-slate-600">Six one-click email templates are available on every lead card:</p>
-              <div className="grid sm:grid-cols-2 gap-2 mt-1">
-                {[
-                  { name: 'Follow Up', desc: 'Warm follow-up after form submission' },
-                  { name: 'Audit Delivery', desc: 'Send the marketing audit' },
-                  { name: 'Proposal', desc: 'Send pricing and next steps' },
-                  { name: 'Check In', desc: 'Re-engage a quiet lead' },
-                  { name: 'Onboarding Reminder', desc: 'Remind client to complete setup' },
-                  { name: 'Campaign Update', desc: 'Share performance highlights' },
-                ].map(t => (
-                  <div key={t.name} className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                    <Mail size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-semibold">{t.name}</p>
-                      <p className="text-xs text-slate-500">{t.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SubSection>
-
-            <SubSection title="Campaign Data Management">
-              <p className="text-sm text-slate-600">For signed clients, you can add monthly campaign metrics (spend, leads, CPL, move-ins, ROAS) directly in the lead card. This data powers the client's portal dashboard and the Portfolio analytics.</p>
-            </SubSection>
-
-            <SubSection title="CSV Lead Export">
-              <p className="text-sm text-slate-600">Click the <strong>Download CSV</strong> button in the admin header to export all leads as a spreadsheet. Includes: name, email, phone, facility, location, status, score, dates, and notes count.</p>
-            </SubSection>
-
-            <SubSection title="Client Onboarding">
-              <p className="text-sm text-slate-600">When a lead is marked "Signed," they get a portal access code. The onboarding wizard collects facility details, target demographics, unit mix, competitor intel, and ad preferences. Track completion progress in the lead card.</p>
-            </SubSection>
-          </Section>
-
-          {/* Admin: Portfolio & Alerts */}
-          <Section id="admin-portfolio" icon={BarChart3} title="Admin: Portfolio & Campaign Alerts">
-            <SubSection title="Portfolio Dashboard">
-              <p className="text-sm text-slate-600">The <strong>Portfolio</strong> tab shows aggregate performance across all signed clients:</p>
-              <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1">
-                <li>Portfolio-wide KPIs: active clients, total spend, leads, move-ins, avg CPL, cost per move-in</li>
-                <li>Monthly lead and move-in charts aggregated across all clients</li>
-                <li>Budget allocation breakdown per client</li>
-                <li>Client performance cards with individual metrics</li>
-                <li>Rankings: top clients by move-ins and best CPL</li>
-              </ul>
-            </SubSection>
-
-            <SubSection title="Campaign Health Alerts">
-              <p className="text-sm text-slate-600">The alert system automatically monitors all client campaigns and flags issues:</p>
-              <div className="space-y-1.5 mt-1">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  <span className="font-semibold text-red-700">Critical:</span>
-                  <span className="text-slate-600">Zero leads, ROAS below 1.0x, CPL 2x above average</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span className="font-semibold text-amber-700">Warning:</span>
-                  <span className="text-slate-600">CPL spike, ROAS drop, low lead volume, spend changes</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span className="font-semibold text-blue-700">Info:</span>
-                  <span className="text-slate-600">Exceptional ROAS, move-in milestones, CPL improvements</span>
-                </div>
-              </div>
-            </SubSection>
-          </Section>
-
-          {/* Admin: Insights */}
-          <Section id="admin-insights" icon={TrendingUp} title="Admin: Insights & Analytics">
-            <p className="text-sm text-slate-600">The <strong>Insights</strong> tab provides pipeline-level analytics:</p>
-            <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1">
-              <li><strong>Conversion rate</strong> — percentage of leads that became signed clients</li>
-              <li><strong>Avg days to sign</strong> — how long leads take to convert</li>
-              <li><strong>Pipeline funnel</strong> — visual breakdown of leads at each stage</li>
-              <li><strong>Weekly velocity</strong> — lead volume over the past 8 weeks (bar chart)</li>
-              <li><strong>Lead quality overview</strong> — score distribution across your pipeline</li>
-              <li><strong>Activity feed</strong> — real-time log of all pipeline actions (status changes, notes, emails, uploads)</li>
-            </ul>
-          </Section>
-
-          {/* Client: Login */}
-          <Section id="client-login" icon={Shield} title="Client Portal: Logging In">
-            <Step n={1}>
-              Navigate to <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">/portal</code> or click "Client Login" in the site nav.
-            </Step>
-            <Step n={2}>
-              Enter the email address associated with your account.
-            </Step>
-            <Step n={3}>
-              Enter the access code provided by StowStack when you signed on. It's a short alphanumeric code (e.g., <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">A7K2MN9X</code>).
-            </Step>
             <InfoBox>
-              Your login session is saved in your browser. You won't need to re-enter credentials each visit unless you sign out.
+              Your login stays saved in your browser, so you won't need to re-enter your credentials each time you visit. If you lose your access code, contact your StowStack team and they'll send you a new one.
             </InfoBox>
           </Section>
 
-          {/* Client: Dashboard */}
-          <Section id="client-dashboard" icon={BarChart3} title="Client Portal: Dashboard">
+          {/* Dashboard */}
+          <Section id="dashboard" icon={BarChart3} title="Your Dashboard">
             <SubSection title="KPI Cards">
-              <p className="text-sm text-slate-600">At the top of your dashboard, you'll see four key metrics across all your campaigns:</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+              <p className="text-sm text-slate-600">At the top of your dashboard, you'll see your key campaign numbers at a glance:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                 {[
-                  { label: 'Total Leads', desc: 'All leads generated by your ads' },
-                  { label: 'Avg CPL', desc: 'Average cost per lead' },
-                  { label: 'Move-Ins', desc: 'Leads that became tenants' },
-                  { label: 'Latest ROAS', desc: 'Return on ad spend (most recent month)' },
+                  { label: 'Total Leads', desc: 'Everyone who filled out a form or called from your ads' },
+                  { label: 'Avg CPL', desc: 'How much each lead costs on average (lower is better)' },
+                  { label: 'Move-Ins', desc: 'Leads who actually signed a lease and moved in' },
+                  { label: 'Latest ROAS', desc: 'Your return on ad spend — how many dollars you earn per dollar spent on ads' },
                 ].map(k => (
-                  <div key={k.label} className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-center">
-                    <p className="text-xs font-semibold">{k.label}</p>
-                    <p className="text-[10px] text-slate-500">{k.desc}</p>
+                  <div key={k.label} className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-700">{k.label}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{k.desc}</p>
                   </div>
                 ))}
               </div>
-            </SubSection>
-
-            <SubSection title="Performance Charts">
-              <p className="text-sm text-slate-600">Below the KPIs, interactive charts show trends over time:</p>
-              <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1">
-                <li><strong>Cost Per Lead trend</strong> — lower is better; shows how ad efficiency improves over time</li>
-                <li><strong>Leads vs Move-Ins</strong> — monthly bar chart comparing lead volume to actual conversions</li>
-                <li><strong>ROAS trend</strong> — appears after 3+ months; tracks return on your ad investment</li>
-              </ul>
             </SubSection>
 
             <SubSection title="Monthly Performance Table">
-              <p className="text-sm text-slate-600">A detailed table shows every month's metrics: spend, leads, CPL, move-ins, and ROAS. The totals row at the bottom summarizes your entire campaign history.</p>
-            </SubSection>
-
-            <SubSection title="Monthly Digest">
-              <p className="text-sm text-slate-600">When you have 2+ months of data, a digest card highlights month-over-month changes with green/red arrows for each metric so you can quickly see what's improving.</p>
-            </SubSection>
-
-            <SubSection title="Campaign Goals">
-              <p className="text-sm text-slate-600">If your StowStack team has set a monthly move-in target, you'll see a progress bar showing how you're tracking against the goal.</p>
+              <p className="text-sm text-slate-600">Below your charts, a table breaks down each month's performance: how much was spent on ads, how many leads came in, what each lead cost, how many became move-ins, and your return on ad spend. The totals row at the bottom summarizes your entire campaign history.</p>
             </SubSection>
           </Section>
 
-          {/* Client: Onboarding */}
-          <Section id="client-onboarding" icon={ClipboardList} title="Client Portal: Onboarding Wizard">
-            <p className="text-sm text-slate-600">After signing on, complete the 5-step onboarding wizard to give us everything we need to build your campaigns:</p>
+          {/* Charts */}
+          <Section id="charts" icon={TrendingUp} title="Understanding Your Charts">
+            <SubSection title="Cost Per Lead (CPL) Trend">
+              <p className="text-sm text-slate-600">This line chart shows how much each lead costs over time. A downward trend means your ads are becoming more efficient — you're paying less for each inquiry. It's normal for CPL to start higher and improve as the campaigns optimize.</p>
+            </SubSection>
+
+            <SubSection title="Leads vs Move-Ins">
+              <p className="text-sm text-slate-600">This bar chart compares how many leads came in each month (blue bars) against how many actually became tenants (green bars). The gap between the two shows your conversion rate — a smaller gap means more of your leads are turning into real revenue.</p>
+            </SubSection>
+
+            <SubSection title="ROAS (Return on Ad Spend)">
+              <p className="text-sm text-slate-600">ROAS shows up after your third month of data. It tells you how many dollars of revenue your ads generate for each dollar spent. For example, a 3.2x ROAS means for every $1 you spend on ads, you get $3.20 back in lease revenue. Anything above 1.0x means your ads are profitable.</p>
+            </SubSection>
+          </Section>
+
+          {/* Onboarding */}
+          <Section id="onboarding" icon={ClipboardList} title="Onboarding Wizard">
+            <p className="text-sm text-slate-600">When you first sign on, you'll see a 5-step onboarding wizard. This collects the information we need to build effective ad campaigns for your specific facility.</p>
             <div className="space-y-2 mt-1">
               {[
-                { n: 1, title: 'Facility Details', desc: 'Brand description, colors, and unique selling points' },
-                { n: 2, title: 'Target Demographics', desc: 'Age range, radius, income level, renter/owner targeting' },
-                { n: 3, title: 'Unit Mix & Pricing', desc: 'Unit types, sizes, rates, and available counts' },
-                { n: 4, title: 'Competitor Intel', desc: 'Nearby competitors, their pricing, and how you differentiate' },
-                { n: 5, title: 'Ad Preferences', desc: 'Tone of voice, budget range, primary goal, past ad experience' },
+                { n: 1, title: 'Facility Details', desc: 'Your brand description, colors, and what makes your facility unique' },
+                { n: 2, title: 'Target Demographics', desc: 'Who your ideal tenants are — age range, location radius, and income level' },
+                { n: 3, title: 'Unit Mix & Pricing', desc: 'What unit types you have, their sizes, monthly rates, and how many are available' },
+                { n: 4, title: 'Competitor Intel', desc: 'Who your nearby competitors are, what they charge, and how you stand out' },
+                { n: 5, title: 'Ad Preferences', desc: 'Your preferred tone of voice, budget range, main goal, and any past ad experience' },
               ].map(s => (
                 <div key={s.n} className="flex items-start gap-3 bg-slate-50 rounded-lg px-4 py-3 border border-slate-100">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold shrink-0">{s.n}</div>
@@ -356,21 +188,72 @@ export default function GuidePage({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <InfoBox>
-              Your progress is saved automatically. You can close the wizard and return later — all entered data will be there when you come back.
+              Your progress saves automatically. You can close the wizard and come back later — everything you've entered will still be there.
             </InfoBox>
           </Section>
 
-          {/* Client: Messages */}
-          <Section id="client-messages" icon={MessageSquare} title="Client Portal: Messages">
-            <p className="text-sm text-slate-600">Use the Messages section on your dashboard to communicate directly with your StowStack team. Messages are checked regularly and you'll see replies next time you log in.</p>
+          {/* Messages */}
+          <Section id="messages" icon={MessageSquare} title="Messages">
+            <p className="text-sm text-slate-600">The Messages card on your dashboard lets you communicate directly with your StowStack account team. Use it to ask questions, share feedback, or request changes to your campaigns.</p>
             <Step n={1}>Scroll to the Messages card on your dashboard.</Step>
-            <Step n={2}>Type your message and click Send.</Step>
-            <Step n={3}>Replies from the StowStack team will appear in the same thread.</Step>
+            <Step n={2}>Type your message in the text box and click Send.</Step>
+            <Step n={3}>Replies from your StowStack team will appear in the same conversation thread.</Step>
+            <InfoBox>
+              Messages are checked regularly by your team. For urgent requests, you can also reach us by phone or email (see the bottom of this page).
+            </InfoBox>
+          </Section>
+
+          {/* Campaign Goals */}
+          <Section id="goals" icon={Target} title="Campaign Goals">
+            <p className="text-sm text-slate-600">Your StowStack team may set a monthly move-in target for your campaigns. When a goal is active, you'll see a progress bar on your dashboard showing how you're tracking against it.</p>
+            <SubSection title="How to Read the Progress Bar">
+              <p className="text-sm text-slate-600">The bar fills up as move-ins are recorded each month. If the bar is green, you're on track or ahead of your goal. The number on the right shows the target, and the number on the left shows where you are right now.</p>
+            </SubSection>
+            <InfoBox>
+              Goals are set collaboratively with your account team based on your facility's size, occupancy, and budget. If you'd like to adjust your target, send a message through the portal or contact your team directly.
+            </InfoBox>
+          </Section>
+
+          {/* Monthly Digest */}
+          <Section id="digest" icon={TrendingUp} title="Monthly Performance Digest">
+            <p className="text-sm text-slate-600">Once you have two or more months of campaign data, a digest card appears on your dashboard that compares your most recent month to the one before it.</p>
+            <SubSection title="What the Arrows Mean">
+              <div className="space-y-2 mt-1">
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold text-sm mt-0.5">↑</span>
+                  <p className="text-sm text-slate-600"><strong>Green up arrow</strong> — this metric improved compared to last month (more leads, more move-ins, better ROAS, or lower CPL).</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-red-600 font-bold text-sm mt-0.5">↓</span>
+                  <p className="text-sm text-slate-600"><strong>Red down arrow</strong> — this metric went the other direction. Don't worry about small dips — campaigns naturally fluctuate month to month. Your team watches these trends and adjusts accordingly.</p>
+                </div>
+              </div>
+            </SubSection>
+            <InfoBox>
+              The digest is a quick snapshot — for the full picture, check your charts and monthly table above.
+            </InfoBox>
+          </Section>
+
+          {/* FAQ */}
+          <Section id="faq" icon={HelpCircle} title="Frequently Asked Questions">
+            {[
+              { q: 'How often does my dashboard update?', a: 'Your StowStack team enters new campaign data monthly. You\'ll see updated numbers shortly after each month closes.' },
+              { q: 'What if my access code doesn\'t work?', a: 'Double-check for typos (codes are case-sensitive). If it still doesn\'t work, contact your StowStack team and they\'ll issue a new code.' },
+              { q: 'Who do I contact if I have questions?', a: 'Use the Messages feature in your portal, or reach out directly via email or phone (see below). Your account team checks messages regularly.' },
+              { q: 'Can I change my campaign budget?', a: 'Yes — send a message through the portal or call your account team. They\'ll adjust your ad spend and update your projected metrics.' },
+              { q: 'What counts as a "lead"?', a: 'A lead is anyone who submits a contact form, calls, or messages through one of your Facebook or Instagram ads. These are people actively looking for storage.' },
+              { q: 'What\'s the difference between a lead and a move-in?', a: 'A lead is someone who expressed interest. A move-in is a lead who actually signed a lease and started renting a unit. Move-ins are the number that matters most.' },
+              { q: 'How long before I see results?', a: 'Most clients see their first leads within the first two weeks. It typically takes 2-3 months for campaigns to fully optimize and reach peak performance.' },
+            ].map(faq => (
+              <div key={faq.q} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                <p className="text-sm font-semibold text-slate-800 mb-1">{faq.q}</p>
+                <p className="text-sm text-slate-600">{faq.a}</p>
+              </div>
+            ))}
           </Section>
 
         </div>
 
-        {/* Footer */}
         <div className="mt-12 mb-8 text-center">
           <p className="text-sm text-slate-400">
             Questions? Contact <a href="mailto:blake@storepawpaw.com" className="text-emerald-600 hover:text-emerald-700">blake@storepawpaw.com</a> or call <a href="tel:+12699298541" className="text-emerald-600 hover:text-emerald-700">(269) 929-8541</a>.
