@@ -1346,6 +1346,8 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
   const [selectedVariation, setSelectedVariation] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
@@ -1360,7 +1362,11 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
       fetch(`/api/publish-ad?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
     ]).then(([connData, creativeData, assetData, logData]) => {
       if (connData.platforms) setPlatforms(connData.platforms)
-      if (connData.connections) setConnections(connData.connections)
+      if (connData.connections) {
+        setConnections(connData.connections)
+        const firstConnected = connData.connections.find((c: PlatformConnection) => c.status === 'connected')
+        if (firstConnected) setSelectedConnection(firstConnected.id)
+      }
       if (creativeData.variations) {
         const approved = creativeData.variations.filter((v: AdVariation) => v.status === 'approved' || v.status === 'published')
         setVariations(approved)
@@ -1396,6 +1402,8 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
   async function publishAd() {
     if (!selectedVariation || !selectedConnection) return
     setPublishing(selectedVariation)
+    setPublishError(null)
+    setPublishSuccess(null)
     try {
       const res = await fetch('/api/publish-ad', {
         method: 'POST',
@@ -1408,12 +1416,17 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
       })
       const data = await res.json()
       if (data.success) {
+        setPublishSuccess(data.externalUrl ? `Ad published! View in Ads Manager →` : 'Ad published successfully!')
         // Refresh publish log
         const logRes = await fetch(`/api/publish-ad?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } })
         const logData = await logRes.json()
         if (logData.logs) setPublishLog(logData.logs)
+      } else {
+        setPublishError(data.details || data.error || 'Publishing failed — check Ads Manager for details.')
       }
-    } catch {} finally {
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Network error — could not reach publish API.')
+    } finally {
       setPublishing(null)
     }
   }
@@ -1573,6 +1586,17 @@ function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; admi
             <p className={`text-xs ${sub}`}>
               Ad will be created as <span className="font-semibold">PAUSED</span> in Ads Manager. Review targeting and budget there, then activate when ready.
             </p>
+            {publishError && (
+              <div className={`p-3 rounded-lg border text-sm ${darkMode ? 'bg-red-900/20 border-red-800 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <p className="font-medium text-xs mb-1">Publish Failed</p>
+                <p className="text-xs">{publishError}</p>
+              </div>
+            )}
+            {publishSuccess && (
+              <div className={`p-3 rounded-lg border text-sm ${darkMode ? 'bg-emerald-900/20 border-emerald-800 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                <p className="text-xs">{publishSuccess}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
