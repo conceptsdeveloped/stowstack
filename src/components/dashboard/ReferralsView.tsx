@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Plus, Loader2, Copy, CheckCircle2, Trophy, Gift,
-  DollarSign, ArrowUpRight, Send, QrCode, ChevronRight, ArrowLeft,
-  Star, Award, Crown, Sparkles, Clock, XCircle, UserPlus
+  DollarSign, Send, QrCode, ChevronRight, ArrowLeft,
+  Star, Award, Crown, UserPlus
 } from 'lucide-react'
 
 interface ReferralCode {

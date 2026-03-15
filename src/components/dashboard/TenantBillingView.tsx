@@ -180,7 +180,6 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
       return a.name.localeCompare(b.name)
     })
 
-  const dc = darkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const muted = darkMode ? 'text-slate-400' : 'text-slate-500'
   const inputCls = `w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-900'}`
@@ -353,8 +352,8 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {t.autopay_enabled && <CreditCard size={14} className="text-emerald-500" title="Autopay enabled" />}
-                    {t.has_insurance && <Shield size={14} className="text-blue-500" title="Insured" />}
+                    {t.autopay_enabled && <CreditCard size={14} className="text-emerald-500" />}
+                    {t.has_insurance && <Shield size={14} className="text-blue-500" />}
                   </div>
                 </div>
 
