@@ -54,6 +54,33 @@ html {
   animation: slide-up 0.3s ease-out;
 }
 
+/* Ken Burns animations for TikTok creator */
+@keyframes kenBurnsZoomIn {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+@keyframes kenBurnsZoomOut {
+  from { transform: scale(1.15); }
+  to { transform: scale(1); }
+}
+@keyframes kenBurnsPanLeft {
+  from { transform: translateX(0) scale(1.1); }
+  to { transform: translateX(-5%) scale(1.1); }
+}
+@keyframes kenBurnsPanRight {
+  from { transform: translateX(-5%) scale(1.1); }
+  to { transform: translateX(0) scale(1.1); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-kenBurnsZoomIn { animation: kenBurnsZoomIn ease-out forwards; }
+.animate-kenBurnsZoomOut { animation: kenBurnsZoomOut ease-out forwards; }
+.animate-kenBurnsPanLeft { animation: kenBurnsPanLeft ease-out forwards; }
+.animate-kenBurnsPanRight { animation: kenBurnsPanRight ease-out forwards; }
+.animate-fadeInUp { animation: fadeInUp 0.4s ease-out forwards; }
+
 /* Blog print styles */
 @media print {
   .print\:hidden {
