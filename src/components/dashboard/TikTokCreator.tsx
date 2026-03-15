@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Loader2, Plus, Trash2, Play, Pause, ChevronLeft, ChevronRight, Image, Send, Clock, Sparkles } from 'lucide-react'
+import { Loader2, Plus, Trash2, Play, Pause, ChevronLeft, ChevronRight, Image, Send, Clock, Sparkles, Download } from 'lucide-react'
 import { Facility, Asset, AdVariation } from './types'
+import { renderVideo, downloadBlob } from '../../utils/video-renderer'
 
 interface Slide {
   id: string
@@ -50,6 +51,8 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
   const [playing, setPlaying] = useState(false)
   const [caption, setCaption] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
@@ -202,6 +205,29 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
       setCaption(`${hookText}\n\n${HASHTAG_SETS[Math.floor(Math.random() * HASHTAG_SETS.length)]}`)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function exportVideo() {
+    if (slides.length === 0 || exporting) return
+    setExporting(true)
+    setExportProgress(0)
+    try {
+      const blob = await renderVideo(slides, {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        facilityName: facility.name,
+      }, (percent) => setExportProgress(percent))
+
+      const safeName = facility.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      downloadBlob(blob, `tiktok-${safeName}-${Date.now()}.webm`)
+    } catch (err) {
+      console.error('Video export failed:', err)
+      alert('Video export failed — some images may be blocked by CORS. Try using uploaded images instead of external URLs.')
+    } finally {
+      setExporting(false)
+      setExportProgress(0)
     }
   }
 
@@ -445,16 +471,34 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
               </div>
             </div>
 
-            {/* Publish button */}
-            <button
-              onClick={() => {
-                // Navigate to publish tab — we pass the slideshow data via the caption
-                alert(`Slideshow ready! ${slides.length} slides, ${totalDuration}s total.\n\nGo to the Publish tab and select TikTok to post this content.`)
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-lg hover:bg-slate-800"
-            >
-              <Send size={14} /> Ready to Publish ({slides.length} slides, {totalDuration.toFixed(0)}s)
-            </button>
+            {/* Export & Publish */}
+            <div className="space-y-2">
+              <button
+                onClick={exportVideo}
+                disabled={exporting || slides.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+              >
+                {exporting ? (
+                  <><Loader2 size={14} className="animate-spin" /> Rendering {Math.round(exportProgress)}%</>
+                ) : (
+                  <><Download size={14} /> Export Video ({totalDuration.toFixed(0)}s)</>
+                )}
+              </button>
+              {exporting && (
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <div className="h-full bg-emerald-500 transition-all duration-300 rounded-full" style={{ width: `${exportProgress}%` }} />
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  alert(`Slideshow ready! ${slides.length} slides, ${totalDuration}s total.\n\nGo to the Publish tab and select TikTok to post this content.`)
+                }}
+                disabled={slides.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-40"
+              >
+                <Send size={14} /> Publish as Carousel ({slides.length} slides)
+              </button>
+            </div>
           </div>
         </div>
       )}
