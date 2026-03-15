@@ -13,10 +13,10 @@ import {
   Star, Building2, DollarSign, Megaphone, Layers,
   Truck, Home, Heart, Package, GraduationCap, Hammer, Boxes,
   Car, Calendar, Users, Shield, Rocket, Search, Eye, RefreshCw,
-  Code, Headphones, BarChart2, Key, Calculator, ArrowUpRight,
+  Code, BarChart2, Key, Calculator, ArrowUpRight,
   XCircle, CheckCircle2, Crosshair, Timer, Cpu,
-  SlidersHorizontal, Sparkles, MousePointerClick, PhoneCall,
-  MessageSquare, UserCheck, Linkedin, Globe, Play
+  SlidersHorizontal, Sparkles,
+  Linkedin, Globe, Play
 } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════ */

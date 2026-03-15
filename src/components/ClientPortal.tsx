@@ -383,7 +383,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
                       <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
                       <Tooltip
-                        formatter={(v: number) => [`$${Number(v).toFixed(2)}`, 'CPL']}
+                        formatter={(v) => [`$${Number(v).toFixed(2)}`, 'CPL']}
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
                       />
                       <Area type="monotone" dataKey="cpl" stroke="#10b981" strokeWidth={2} fill="url(#cplGrad)" dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />

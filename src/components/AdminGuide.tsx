@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Building2, ArrowLeft, BookOpen, Shield, BarChart3, ClipboardList,
-  MessageSquare, Target, TrendingUp, HelpCircle, Users, Columns3,
-  CreditCard, Settings, Keyboard, Megaphone, Globe, Image,
-  Layers, Command, Zap, Search, ChevronDown, ChevronRight,
+  Building2, ArrowLeft, BookOpen, BarChart3, ClipboardList,
+  Users, Columns3,
+  CreditCard, Settings, Keyboard, Megaphone, Image,
+  Layers, Search, ChevronDown, ChevronRight,
   CheckSquare, Square, Play, ImageIcon, MapPin, X as XIcon,
   ExternalLink, Rocket, Eye, Printer, Bookmark, BookmarkCheck,
-  Sparkles, Clock, Star
+  Sparkles, Star
 } from 'lucide-react'
 
 /* ── Helper Components ── */
@@ -367,7 +367,6 @@ export default function AdminGuide({ onBack, darkMode, scrollToSection }: { onBa
     } catch { return new Set() }
   })
   const [showBookmarks, setShowBookmarks] = useState(false)
-  const printRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to a section when opened from a contextual help tooltip
   useEffect(() => {
