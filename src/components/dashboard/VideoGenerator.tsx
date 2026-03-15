@@ -28,6 +28,7 @@ const TEMPLATE_ICONS: Record<string, string> = {
   quick_cta: '⚡',
   educational_tip: '📦',
   before_after: '✨',
+  custom: '✏️',
 }
 
 const TEMPLATE_PREVIEWS: Record<string, string> = {
@@ -37,6 +38,7 @@ const TEMPLATE_PREVIEWS: Record<string, string> = {
   quick_cta: 'Dramatic gate-opening reveal of a pristine storage facility. 5 seconds, high impact.',
   educational_tip: 'Satisfying overhead shot of someone expertly packing and labeling boxes. Tutorial style.',
   before_after: 'Split-screen transformation from messy garage to perfectly organized storage unit.',
+  custom: 'Write exactly what you want to see. Describe the scene, camera movement, lighting, and subjects in detail.',
 }
 
 export default function VideoGenerator({ facility, adminKey, darkMode, onPublish }: {
@@ -198,7 +200,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
           {templates.map(template => (
             <button
               key={template.id}
-              onClick={() => { setSelectedTemplate(template.id); setPromptOverride(''); setShowPromptEditor(false) }}
+              onClick={() => { setSelectedTemplate(template.id); setPromptOverride(''); setShowPromptEditor(template.id === 'custom') }}
               className={`text-left p-4 border rounded-xl transition-all ${
                 selectedTemplate === template.id
                   ? darkMode ? 'border-emerald-500 bg-emerald-900/20' : 'border-emerald-500 bg-emerald-50'

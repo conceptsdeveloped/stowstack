@@ -65,27 +65,26 @@ const STORAGE_QUERIES = {
 
 // Fallback curated images — verified self-storage relevant Unsplash photos
 const CURATED_IMAGES = [
-  // Storage units and facilities
-  { id: 'curated-1', url: 'https://images.unsplash.com/photo-1565610222536-ef125c59da2e?w=800&q=80', alt: 'Row of storage unit doors', category: 'exterior' },
-  { id: 'curated-2', url: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=800&q=80', alt: 'Storage facility exterior', category: 'exterior' },
-  { id: 'curated-3', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80', alt: 'Storage hallway interior', category: 'interior' },
-  // Moving and packing
-  { id: 'curated-4', url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80', alt: 'Moving boxes packed', category: 'moving' },
-  { id: 'curated-5', url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80', alt: 'Person packing boxes', category: 'packing' },
-  { id: 'curated-6', url: 'https://images.unsplash.com/photo-1600566753376-12c8ab7a5a2e?w=800&q=80', alt: 'Moving truck loading', category: 'moving' },
-  { id: 'curated-7', url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&q=80', alt: 'Cardboard boxes stacked', category: 'packing' },
-  { id: 'curated-8', url: 'https://images.unsplash.com/photo-1603796846097-bee99e4a601f?w=800&q=80', alt: 'Family packing for move', category: 'moving' },
-  // Garage / decluttering
-  { id: 'curated-9', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80', alt: 'Clean organized space', category: 'interior' },
-  { id: 'curated-10', url: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&q=80', alt: 'Cluttered garage needing storage', category: 'lifestyle' },
-  { id: 'curated-11', url: 'https://images.unsplash.com/photo-1615876063860-d971f6dca5dc?w=800&q=80', alt: 'Home decluttering organization', category: 'lifestyle' },
-  { id: 'curated-12', url: 'https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80', alt: 'Organized storage space', category: 'interior' },
-  // Packing supplies
-  { id: 'curated-13', url: 'https://images.unsplash.com/photo-1607166452427-7e4477c3a3ad?w=800&q=80', alt: 'Packing supplies and tape', category: 'packing' },
-  { id: 'curated-14', url: 'https://images.unsplash.com/photo-1595079676339-1534801ad6cf?w=800&q=80', alt: 'Boxes ready for storage', category: 'packing' },
-  // Vehicle storage
-  { id: 'curated-15', url: 'https://images.unsplash.com/photo-1504215680853-026ed2a45def?w=800&q=80', alt: 'RV parked at storage', category: 'vehicle' },
-  { id: 'curated-16', url: 'https://images.unsplash.com/photo-1558449028-b53a39d100fc?w=800&q=80', alt: 'Boat storage outdoor', category: 'vehicle' },
+  // Storage units and facilities (actual storage facility photos)
+  { id: 'curated-1', url: 'https://images.unsplash.com/photo-1770720086655-22f3d1205dc2?w=800&q=80', alt: 'Self storage facility units', category: 'exterior' },
+  { id: 'curated-2', url: 'https://images.unsplash.com/photo-1759277700771-137173db0e5b?w=800&q=80', alt: 'Storage unit hallway', category: 'interior' },
+  { id: 'curated-3', url: 'https://images.unsplash.com/photo-1761511308689-f79162e3177a?w=800&q=80', alt: 'Row of storage unit doors', category: 'exterior' },
+  { id: 'curated-4', url: 'https://plus.unsplash.com/premium_photo-1666426211392-9d07aedc4e48?w=800&q=80', alt: 'Storage facility building', category: 'exterior' },
+  { id: 'curated-5', url: 'https://plus.unsplash.com/premium_photo-1682146262947-614e8920a36d?w=800&q=80', alt: 'Climate controlled storage interior', category: 'interior' },
+  { id: 'curated-6', url: 'https://plus.unsplash.com/premium_photo-1663041615054-7e8eb5701abb?w=800&q=80', alt: 'Storage units with roll-up doors', category: 'exterior' },
+  { id: 'curated-7', url: 'https://plus.unsplash.com/premium_photo-1682146414067-de169cd65ef6?w=800&q=80', alt: 'Indoor storage facility corridor', category: 'interior' },
+  // Moving and packing (actual moving/boxes photos)
+  { id: 'curated-8', url: 'https://plus.unsplash.com/premium_photo-1661286609628-909e94dd55ca?w=800&q=80', alt: 'Moving boxes and packing', category: 'moving' },
+  { id: 'curated-9', url: 'https://images.unsplash.com/photo-1700165644892-3dd6b67b25bc?w=800&q=80', alt: 'Cardboard boxes for moving', category: 'moving' },
+  { id: 'curated-10', url: 'https://images.unsplash.com/photo-1600725935160-f67ee4f6084a?w=800&q=80', alt: 'Stacked moving boxes', category: 'moving' },
+  { id: 'curated-11', url: 'https://images.unsplash.com/photo-1573376671096-e1fce2d1f19d?w=800&q=80', alt: 'Person carrying moving box', category: 'moving' },
+  // Packing
+  { id: 'curated-12', url: 'https://images.unsplash.com/photo-1631010231931-d2c396b444ec?w=800&q=80', alt: 'Packing boxes with tape', category: 'packing' },
+  { id: 'curated-13', url: 'https://images.unsplash.com/photo-1680034977375-3d83ee017e52?w=800&q=80', alt: 'Packing supplies organized', category: 'packing' },
+  { id: 'curated-14', url: 'https://images.unsplash.com/photo-1624137308591-43f03e6d64c3?w=800&q=80', alt: 'Boxes packed and labeled', category: 'packing' },
+  // Lifestyle / decluttering
+  { id: 'curated-15', url: 'https://images.unsplash.com/photo-1556227996-370b60576b84?w=800&q=80', alt: 'Home needing decluttering', category: 'lifestyle' },
+  { id: 'curated-16', url: 'https://images.unsplash.com/photo-1631010231888-777b6285ef84?w=800&q=80', alt: 'Organized storage space', category: 'lifestyle' },
 ]
 
 export default async function handler(req, res) {

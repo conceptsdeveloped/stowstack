@@ -69,6 +69,13 @@ const VIDEO_TEMPLATES = {
     promptTemplate: (facility) =>
       `Split screen transformation: On the left, a messy, overflowing garage with boxes stacked haphazardly, bikes, holiday decorations everywhere. The scene smoothly transitions/morphs into the right side showing the same items perfectly organized inside a clean, well-lit storage unit with shelving and labeled boxes. Satisfying transformation. Before and after reveal.`,
   },
+  custom: {
+    name: 'Custom Prompt',
+    description: 'Write your own prompt — full creative control over the generated video',
+    mode: 'text_to_video',
+    promptTemplate: (facility) =>
+      `A professional, cinematic video related to self-storage. ${facility.name} in ${facility.location}. High quality, commercial grade.`,
+  },
 }
 
 // Generate a custom prompt using Claude based on template + facility data
