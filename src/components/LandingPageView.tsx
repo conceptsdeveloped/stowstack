@@ -635,12 +635,31 @@ export default function LandingPageView({ slug }: { slug: string }) {
 
   const handleExitSubmit = useCallback((email: string) => {
     onFieldBlur('email', email)
+
+    // Convert partial lead to full consumer lead for attribution
+    const sessionId = sessionStorage.getItem('stowstack_session_id')
+    if (sessionId && page) {
+      fetch('/api/consumer-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          email,
+          facilityId: page.facility_id,
+          landingPageId: page.id,
+          fbclid: sessionStorage.getItem('stowstack_fbclid') || undefined,
+          gclid: sessionStorage.getItem('stowstack_gclid') || undefined,
+        }),
+        keepalive: true,
+      }).catch(() => {})
+    }
+
     // Auto-dismiss after 2 seconds
     setTimeout(() => {
       setShowExitPopup(false)
       sessionStorage.setItem('stowstack_exit_dismissed', '1')
     }, 2000)
-  }, [onFieldBlur])
+  }, [onFieldBlur, page])
 
   useEffect(() => {
     async function fetchPage() {

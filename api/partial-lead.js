@@ -122,6 +122,7 @@ export default async function handler(req, res) {
         fieldsCompleted, totalFields,
         scrollDepth, timeOnPage, exitIntent,
         utmSource, utmMedium, utmCampaign, utmContent,
+        fbclid, gclid,
         referrer, userAgent
       } = req.body || {}
 
@@ -154,12 +155,13 @@ export default async function handler(req, res) {
           fields_completed, total_fields,
           scroll_depth, time_on_page, exit_intent,
           utm_source, utm_medium, utm_campaign, utm_content,
+          fbclid, gclid,
           referrer, user_agent, ip_hash,
           lead_score, next_recovery_at,
           recovery_status, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-          $13, $14, $15, $16, $17, $18, $19, $20, $21,
+          $13, $14, $15, $16, $22, $23, $17, $18, $19, $20, $21,
           CASE WHEN $4 IS NOT NULL THEN 'pending' ELSE 'no_email' END,
           NOW()
         )
@@ -173,6 +175,8 @@ export default async function handler(req, res) {
           scroll_depth = GREATEST(EXCLUDED.scroll_depth, partial_leads.scroll_depth),
           time_on_page = GREATEST(EXCLUDED.time_on_page, partial_leads.time_on_page),
           exit_intent = partial_leads.exit_intent OR EXCLUDED.exit_intent,
+          fbclid = COALESCE(EXCLUDED.fbclid, partial_leads.fbclid),
+          gclid = COALESCE(EXCLUDED.gclid, partial_leads.gclid),
           lead_score = GREATEST(EXCLUDED.lead_score, partial_leads.lead_score),
           next_recovery_at = CASE
             WHEN partial_leads.recovery_status = 'pending' AND EXCLUDED.email IS NOT NULL
@@ -193,6 +197,7 @@ export default async function handler(req, res) {
           utmSource || null, utmMedium || null, utmCampaign || null, utmContent || null,
           referrer || null, userAgent || null, ipHash,
           score, nextRecoveryAt,
+          fbclid || null, gclid || null,
         ]
       )
 

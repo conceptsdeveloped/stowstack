@@ -142,6 +142,11 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
   const [messages, setMessages] = useState<{ id: string; from: string; text: string; timestamp: string }[]>([])
   const [msgText, setMsgText] = useState('')
   const [msgSending, setMsgSending] = useState(false)
+  const [liveAttribution, setLiveAttribution] = useState<{
+    hasData: boolean
+    totals: { spend: number; leads: number; move_ins: number; revenue: number; cpl: number; cost_per_move_in: number; roas: number }
+    campaigns: { campaign: string; spend: number; leads: number; move_ins: number; cpl: number; roas: number }[]
+  } | null>(null)
 
   const fetchMessages = async () => {
     try {
@@ -167,6 +172,17 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
     }
     fetchOnboarding()
     fetchMessages()
+    // Fetch live attribution data
+    const fetchAttribution = async () => {
+      try {
+        const res = await fetch(`/api/attribution?accessCode=${encodeURIComponent(client.accessCode)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.hasData) setLiveAttribution(data)
+        }
+      } catch { /* silent */ }
+    }
+    fetchAttribution()
     // Poll messages every 30s
     const interval = setInterval(fetchMessages, 30000)
     return () => clearInterval(interval)
@@ -341,6 +357,39 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             </div>
           )
         })()}
+
+        {/* Live Attribution Section — shows real tracked data */}
+        {liveAttribution && liveAttribution.hasData && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="font-semibold text-sm">Live Attribution</h3>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-xs text-slate-500 mb-1">Tracked Leads</div>
+                <div className="text-xl font-bold text-slate-900">{liveAttribution.totals.leads}</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-xs text-slate-500 mb-1">Move-Ins</div>
+                <div className="text-xl font-bold text-emerald-600">{liveAttribution.totals.move_ins}</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-xs text-slate-500 mb-1">Cost / Move-In</div>
+                <div className="text-xl font-bold text-slate-900">${liveAttribution.totals.cost_per_move_in.toFixed(0)}</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-xs text-slate-500 mb-1">ROAS</div>
+                <div className={`text-xl font-bold ${liveAttribution.totals.roas >= 3 ? 'text-emerald-600' : liveAttribution.totals.roas >= 1 ? 'text-amber-600' : 'text-red-600'}`}>
+                  {liveAttribution.totals.roas.toFixed(1)}x
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400">Tracked end-to-end: ad click → landing page → lead → move-in. Revenue annualized for ROAS calculation.</p>
+          </div>
+        )}
 
         {hasCampaigns ? (
           <>

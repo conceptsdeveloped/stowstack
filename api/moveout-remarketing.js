@@ -29,7 +29,6 @@ export default async function handler(req, res) {
   if (!checkAuth(req)) return res.status(401).json({ error: 'Unauthorized' })
 
   try {
-    // GET: list remarketing sequences
     if (req.method === 'GET') {
       const { facilityId, status } = req.query
 
@@ -43,14 +42,8 @@ export default async function handler(req, res) {
         WHERE 1=1
       `
       const params = []
-      if (facilityId) {
-        params.push(facilityId)
-        sql += ` AND mr.facility_id = $${params.length}`
-      }
-      if (status) {
-        params.push(status)
-        sql += ` AND mr.sequence_status = $${params.length}`
-      }
+      if (facilityId) { params.push(facilityId); sql += ` AND mr.facility_id = $${params.length}` }
+      if (status) { params.push(status); sql += ` AND mr.sequence_status = $${params.length}` }
       sql += ` ORDER BY mr.moved_out_date DESC`
 
       const sequences = await query(sql, params)
@@ -63,26 +56,65 @@ export default async function handler(req, res) {
           COUNT(*) FILTER (WHERE converted = true) as converted_count,
           SUM(opened_count) as total_opens,
           SUM(clicked_count) as total_clicks,
-          ROUND(COUNT(*) FILTER (WHERE converted = true)::NUMERIC / NULLIF(COUNT(*) FILTER (WHERE sequence_status IN ('completed', 'converted')), 0) * 100, 1) as conversion_rate
+          ROUND(COUNT(*) FILTER (WHERE converted = true)::NUMERIC / NULLIF(COUNT(*) FILTER (WHERE sequence_status IN ('completed', 'converted')), 0) * 100, 1) as conversion_rate,
+          COUNT(DISTINCT move_out_reason) as reason_count,
+          AVG(current_step)::NUMERIC(3,1) as avg_steps_completed
         FROM moveout_remarketing
         ${facilityId ? 'WHERE facility_id = $1' : ''}
       `, facilityId ? [facilityId] : [])
 
-      return res.json({ sequences, stats })
+      // Reason breakdown
+      const reasonBreakdown = await query(`
+        SELECT move_out_reason as reason,
+               COUNT(*) as count,
+               COUNT(*) FILTER (WHERE converted = true) as converted,
+               ROUND(COUNT(*) FILTER (WHERE converted = true)::NUMERIC / NULLIF(COUNT(*), 0) * 100, 1) as conv_rate
+        FROM moveout_remarketing
+        ${facilityId ? 'WHERE facility_id = $1' : ''}
+        GROUP BY move_out_reason
+        ORDER BY count DESC
+      `, facilityId ? [facilityId] : [])
+
+      return res.json({ sequences, stats, reasonBreakdown })
     }
 
-    // POST: enroll a moved-out tenant or batch-enroll
     if (req.method === 'POST') {
-      const { tenantId, facilityId, offer_type, offer_value } = req.body
+      const { tenantId, facilityId, offer_type, offer_value, move_out_reason_filter, days_since_moveout } = req.body
 
-      // Batch enroll: find all recently moved-out tenants not yet enrolled
+      // Batch enroll with filters
       if (facilityId && !tenantId) {
-        const unenrolled = await query(`
+        const maxDays = days_since_moveout || 90
+        let enrollSql = `
           SELECT t.* FROM tenants t
           LEFT JOIN moveout_remarketing mr ON mr.tenant_id = t.id
-          WHERE t.facility_id = $1 AND t.status = 'moved_out' AND mr.id IS NULL
-          AND t.moved_out_date >= NOW() - INTERVAL '90 days'
-        `, [facilityId])
+          WHERE t.status = 'moved_out' AND mr.id IS NULL
+          AND t.moved_out_date >= NOW() - ($2 || ' days')::INTERVAL
+        `
+        const params = [facilityId, maxDays.toString()]
+
+        if (facilityId !== 'all') {
+          enrollSql = `
+            SELECT t.* FROM tenants t
+            LEFT JOIN moveout_remarketing mr ON mr.tenant_id = t.id
+            WHERE t.facility_id = $1 AND t.status = 'moved_out' AND mr.id IS NULL
+            AND t.moved_out_date >= NOW() - ($2 || ' days')::INTERVAL
+          `
+        } else {
+          enrollSql = `
+            SELECT t.* FROM tenants t
+            LEFT JOIN moveout_remarketing mr ON mr.tenant_id = t.id
+            WHERE t.status = 'moved_out' AND mr.id IS NULL
+            AND t.moved_out_date >= NOW() - ($1 || ' days')::INTERVAL
+          `
+          params.splice(0, params.length, maxDays.toString())
+        }
+
+        if (move_out_reason_filter && move_out_reason_filter !== 'all') {
+          params.push(move_out_reason_filter)
+          enrollSql += ` AND t.move_out_reason = $${params.length}`
+        }
+
+        const unenrolled = await query(enrollSql, params)
 
         let enrolled = 0
         for (const t of unenrolled) {
@@ -119,28 +151,60 @@ export default async function handler(req, res) {
       return res.json({ sequence: seq })
     }
 
-    // PATCH: update sequence status, mark conversion, advance step
     if (req.method === 'PATCH') {
-      const { id, action, ...updates } = req.body
-      if (!id) return res.status(400).json({ error: 'id required' })
+      const { id, ids, action, ...updates } = req.body
+
+      // Batch operations
+      if (Array.isArray(ids) && ids.length > 0) {
+        if (action === 'batch_pause') {
+          await query(`UPDATE moveout_remarketing SET sequence_status = 'paused', updated_at = NOW() WHERE id = ANY($1::uuid[])`, [ids])
+          return res.json({ updated: ids.length })
+        }
+        if (action === 'batch_resume') {
+          await query(`UPDATE moveout_remarketing SET sequence_status = 'active', next_send_at = NOW() + INTERVAL '1 day', updated_at = NOW() WHERE id = ANY($1::uuid[])`, [ids])
+          return res.json({ updated: ids.length })
+        }
+        if (action === 'batch_advance') {
+          await query(`
+            UPDATE moveout_remarketing SET
+              current_step = current_step + 1,
+              last_sent_at = NOW(),
+              next_send_at = NOW() + INTERVAL '7 days',
+              sequence_status = CASE WHEN current_step + 1 >= total_steps THEN 'completed' ELSE sequence_status END,
+              updated_at = NOW()
+            WHERE id = ANY($1::uuid[]) AND sequence_status = 'active'
+          `, [ids])
+          return res.json({ updated: ids.length })
+        }
+        return res.status(400).json({ error: 'Unknown batch action' })
+      }
+
+      if (!id) return res.status(400).json({ error: 'id or ids required' })
 
       if (action === 'advance') {
         const seq = await queryOne(`
           UPDATE moveout_remarketing SET
-            current_step = current_step + 1,
-            last_sent_at = NOW(),
+            current_step = current_step + 1, last_sent_at = NOW(),
             next_send_at = NOW() + INTERVAL '7 days',
             sequence_status = CASE WHEN current_step + 1 >= total_steps THEN 'completed' ELSE sequence_status END,
             updated_at = NOW()
           WHERE id = $1 RETURNING *
         `, [id])
+
+        // Log communication
+        if (seq) {
+          await query(`
+            INSERT INTO tenant_communications (tenant_id, facility_id, channel, type, subject, related_id, status)
+            VALUES ($1, $2, 'email', 'remarketing', $3, $4, 'sent')
+          `, [seq.tenant_id, seq.facility_id, `Welcome back step ${seq.current_step}`, id])
+        }
+
         return res.json({ sequence: seq })
       }
 
       if (action === 'convert') {
         const seq = await queryOne(`
-          UPDATE moveout_remarketing SET
-            converted = true, converted_at = NOW(), sequence_status = 'converted', updated_at = NOW()
+          UPDATE moveout_remarketing SET converted = true, converted_at = NOW(), sequence_status = 'converted', updated_at = NOW()
           WHERE id = $1 RETURNING *
         `, [id])
         return res.json({ sequence: seq })
@@ -156,23 +220,14 @@ export default async function handler(req, res) {
         return res.json({ ok: true })
       }
 
-      // Generic status update
+      // Generic status/offer update
       const { sequence_status, offer_type, offer_value } = updates
       const sets = ['updated_at = NOW()']
       const params = [id]
 
-      if (sequence_status) {
-        params.push(sequence_status)
-        sets.push(`sequence_status = $${params.length}`)
-      }
-      if (offer_type) {
-        params.push(offer_type)
-        sets.push(`offer_type = $${params.length}`)
-      }
-      if (offer_value !== undefined) {
-        params.push(offer_value)
-        sets.push(`offer_value = $${params.length}`)
-      }
+      if (sequence_status) { params.push(sequence_status); sets.push(`sequence_status = $${params.length}`) }
+      if (offer_type) { params.push(offer_type); sets.push(`offer_type = $${params.length}`) }
+      if (offer_value !== undefined) { params.push(offer_value); sets.push(`offer_value = $${params.length}`) }
 
       const seq = await queryOne(`UPDATE moveout_remarketing SET ${sets.join(', ')} WHERE id = $1 RETURNING *`, params)
       return res.json({ sequence: seq })

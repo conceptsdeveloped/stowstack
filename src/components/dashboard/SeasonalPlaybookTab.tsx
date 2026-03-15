@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Calendar, Sun, Snowflake, Leaf, Flower2, CloudRain, GraduationCap,
   Home, Heart, Shield, TrendingUp, TrendingDown, Zap, Users,
   ChevronRight, ChevronDown, Play, Pause, Settings, BarChart3,
-  Thermometer, DollarSign,
-  Target, MessageSquare
+  Thermometer, DollarSign, Copy, Check, AlertTriangle, Clock,
+  Target, MessageSquare, ArrowRight, Layers, Tag,
+  Lightbulb, ArrowUpRight, Percent, Bell, Eye
 } from 'lucide-react'
 
 /* ── Types ── */
@@ -35,10 +36,147 @@ interface PlaybookOverride {
   notes?: string
 }
 
+interface PricingRec {
+  unitType: string
+  adjustment: number // percentage, e.g. +10 or -5
+  reason: string
+}
+
+interface CompetitorInsight {
+  action: string
+  timing: string
+  response: string
+}
+
+interface PerformanceData {
+  estimatedLeads: number
+  estimatedCPL: number
+  avgRentalDuration: string
+  conversionLift: string
+  historicalROAS: number
+}
+
 /* ── Trigger Data ── */
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+/* ── Pricing Recommendations by Trigger ── */
+const PRICING_RECS: Record<string, PricingRec[]> = {
+  'spring-cleaning': [
+    { unitType: '5×5', adjustment: 8, reason: 'High demand for small declutter units' },
+    { unitType: '5×10', adjustment: 10, reason: 'Most popular spring cleaning size' },
+    { unitType: '10×10', adjustment: 5, reason: 'Moderate demand increase' },
+  ],
+  'summer-moves': [
+    { unitType: '10×10', adjustment: 15, reason: 'Peak moving season — highest demand' },
+    { unitType: '10×15', adjustment: 18, reason: 'Family-sized units at premium' },
+    { unitType: '10×20', adjustment: 20, reason: 'Whole-home storage premium pricing' },
+    { unitType: '10×30', adjustment: 15, reason: 'Large moves willing to pay more' },
+  ],
+  'college-move': [
+    { unitType: '5×5', adjustment: 12, reason: 'Student storage surge near campuses' },
+    { unitType: '5×10', adjustment: 15, reason: 'Dorm room contents — peak demand' },
+    { unitType: 'Climate-controlled', adjustment: 8, reason: 'Electronics and valuables' },
+  ],
+  'holiday-storage': [
+    { unitType: '5×5', adjustment: 5, reason: 'Decoration overflow' },
+    { unitType: 'Climate-controlled', adjustment: 8, reason: 'Protect decorations and gifts' },
+  ],
+  'new-year-declutter': [
+    { unitType: '5×5', adjustment: 5, reason: 'Resolution-driven declutter' },
+    { unitType: '5×10', adjustment: 8, reason: 'Garage cleanout size' },
+  ],
+  'fall-transition': [
+    { unitType: 'Vehicle/RV/Boat', adjustment: 20, reason: 'End-of-season rush for covered storage' },
+    { unitType: '10×20', adjustment: 12, reason: 'Seasonal gear swap' },
+    { unitType: 'Outdoor parking', adjustment: 15, reason: 'Winterization storage demand' },
+  ],
+  'home-renovation': [
+    { unitType: '10×15', adjustment: 10, reason: 'Room-clearing for remodels' },
+    { unitType: '10×20', adjustment: 12, reason: 'Whole-floor furniture storage' },
+    { unitType: 'Climate-controlled', adjustment: 8, reason: 'Protecting furniture from dust/damage' },
+  ],
+  'hurricane-season': [
+    { unitType: 'Climate-controlled', adjustment: 25, reason: 'Premium for elevated, protected units' },
+    { unitType: '2nd floor units', adjustment: 30, reason: 'Flood-proof demand surge' },
+  ],
+  'extreme-heat': [
+    { unitType: 'Climate-controlled', adjustment: 15, reason: 'Heat-sensitive item protection' },
+  ],
+  'military-deployment': [
+    { unitType: '10×20', adjustment: -5, reason: 'Military discount offsets — long-term value' },
+    { unitType: 'Vehicle/RV/Boat', adjustment: -5, reason: 'Military vehicle storage — loyalty pricing' },
+  ],
+  'downsizing': [
+    { unitType: '10×10', adjustment: 5, reason: 'Heirloom and furniture overflow' },
+    { unitType: 'Climate-controlled', adjustment: 10, reason: 'Premium for sentimental items' },
+  ],
+}
+
+/* ── Competitor Insights ── */
+const COMPETITOR_INSIGHTS: Record<string, CompetitorInsight[]> = {
+  'spring-cleaning': [
+    { action: 'Competitors run "first month free" promos', timing: 'March–April', response: 'Counter with "free lock + first month 50% off" — higher perceived value, lower actual cost' },
+    { action: 'National chains increase Google Ads spend 30%', timing: 'March', response: 'Shift budget to Meta where CPCs are 40% lower during spring' },
+  ],
+  'summer-moves': [
+    { action: 'Price wars on large units', timing: 'June–August', response: 'Don\'t discount — emphasize convenience, location, and availability instead' },
+    { action: 'Competitors partner with moving companies', timing: 'May–July', response: 'Create referral program with local realtors — higher quality leads' },
+    { action: 'Extra Space / Public Storage run national TV ads', timing: 'June', response: 'Hyper-local targeting: "Your neighbors trust us" social proof angle' },
+  ],
+  'college-move': [
+    { action: 'Competitors offer student-specific plans', timing: 'April–May', response: 'Bundle with pickup/delivery service — students value convenience over price' },
+    { action: 'Campus bulletin board saturation', timing: 'April', response: 'Instagram/TikTok ads geo-fenced to campus — meet students where they are' },
+  ],
+  'fall-transition': [
+    { action: 'RV/boat storage fills up early', timing: 'September', response: 'Open reservations August 1 — first-mover advantage, early-bird pricing' },
+    { action: 'Competitors drop prices on small units', timing: 'October', response: 'Hold rates — fall is value season for seasonal gear swap messaging' },
+  ],
+  'hurricane-season': [
+    { action: 'Price gouging complaints spike', timing: 'After storms', response: 'Keep pre-storm rates — PR win + community goodwill = long-term occupancy' },
+    { action: 'Insurance companies refer policyholders', timing: 'After events', response: 'Build relationships with local insurance agents before storm season' },
+  ],
+  'home-renovation': [
+    { action: 'PODS and portable storage compete hard', timing: 'Year-round', response: 'Emphasize climate-control and security — PODS can\'t match indoor facilities' },
+  ],
+}
+
+/* ── Simulated Performance Data ── */
+const PERFORMANCE_DATA: Record<string, PerformanceData> = {
+  'spring-cleaning': { estimatedLeads: 35, estimatedCPL: 28, avgRentalDuration: '3.2 months', conversionLift: '+18%', historicalROAS: 4.2 },
+  'summer-moves': { estimatedLeads: 65, estimatedCPL: 32, avgRentalDuration: '2.8 months', conversionLift: '+24%', historicalROAS: 5.1 },
+  'college-move': { estimatedLeads: 45, estimatedCPL: 22, avgRentalDuration: '3.5 months', conversionLift: '+30%', historicalROAS: 4.8 },
+  'holiday-storage': { estimatedLeads: 20, estimatedCPL: 35, avgRentalDuration: '4.5 months', conversionLift: '+8%', historicalROAS: 3.2 },
+  'new-year-declutter': { estimatedLeads: 25, estimatedCPL: 30, avgRentalDuration: '5.2 months', conversionLift: '+12%', historicalROAS: 3.8 },
+  'fall-transition': { estimatedLeads: 30, estimatedCPL: 38, avgRentalDuration: '6.0 months', conversionLift: '+15%', historicalROAS: 4.5 },
+  'home-renovation': { estimatedLeads: 28, estimatedCPL: 42, avgRentalDuration: '2.5 months', conversionLift: '+10%', historicalROAS: 3.5 },
+  'divorce-separation': { estimatedLeads: 15, estimatedCPL: 45, avgRentalDuration: '7.8 months', conversionLift: '+5%', historicalROAS: 4.0 },
+  'military-deployment': { estimatedLeads: 12, estimatedCPL: 38, avgRentalDuration: '11.2 months', conversionLift: '+6%', historicalROAS: 5.5 },
+  'downsizing': { estimatedLeads: 18, estimatedCPL: 40, avgRentalDuration: '14.0 months', conversionLift: '+8%', historicalROAS: 6.2 },
+  'estate-death': { estimatedLeads: 8, estimatedCPL: 50, avgRentalDuration: '8.5 months', conversionLift: '+3%', historicalROAS: 3.0 },
+  'hurricane-season': { estimatedLeads: 40, estimatedCPL: 25, avgRentalDuration: '4.0 months', conversionLift: '+35%', historicalROAS: 5.8 },
+  'extreme-heat': { estimatedLeads: 22, estimatedCPL: 32, avgRentalDuration: '5.5 months', conversionLift: '+12%', historicalROAS: 3.9 },
+  'tax-season': { estimatedLeads: 10, estimatedCPL: 48, avgRentalDuration: '8.0 months', conversionLift: '+4%', historicalROAS: 2.8 },
+  'small-biz-inventory': { estimatedLeads: 14, estimatedCPL: 55, avgRentalDuration: '18.0 months', conversionLift: '+6%', historicalROAS: 7.2 },
+}
+
+/* ── Weather Alerts (simulated) ── */
+interface WeatherAlert {
+  id: string
+  type: 'storm' | 'heat' | 'cold' | 'flood'
+  severity: 'watch' | 'warning' | 'advisory'
+  title: string
+  description: string
+  region: string
+  activatesPlaybook: string
+  expiresIn: string
+}
+
+const SIMULATED_ALERTS: WeatherAlert[] = [
+  { id: 'wa1', type: 'storm', severity: 'watch', title: 'Severe Thunderstorm Watch', description: 'NWS issued watch for heavy rain and high winds through Wednesday. Potential for localized flooding.', region: 'Central Region', activatesPlaybook: 'hurricane-season', expiresIn: '2 days' },
+  { id: 'wa2', type: 'heat', severity: 'advisory', title: 'Heat Advisory', description: 'Temperatures expected to reach 95°F+. Climate-controlled unit demand may increase.', region: 'Southern Markets', activatesPlaybook: 'extreme-heat', expiresIn: '5 days' },
+]
 
 const TRIGGERS: SeasonalTrigger[] = [
   // ── Seasonal ──
@@ -442,11 +580,33 @@ export default function SeasonalPlaybookTab({ darkMode }: { adminKey: string; da
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, PlaybookOverride>>({})
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+  const [showActionPlan, setShowActionPlan] = useState(true)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['performance', 'pricing', 'competitors']))
 
   const currentMonth = new Date().getMonth()
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+
+  const copyToClipboard = useCallback((content: string, id: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    })
+  }, [])
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(section)) next.delete(section)
+      else next.add(section)
+      return next
+    })
+  }
+
+  const visibleAlerts = SIMULATED_ALERTS.filter(a => !dismissedAlerts.has(a.id))
 
   const categories = [
     { id: 'all', label: 'All Triggers', count: TRIGGERS.length },
@@ -526,6 +686,329 @@ export default function SeasonalPlaybookTab({ darkMode }: { adminKey: string; da
           <p className={`text-xs ${sub}`}>emphasized unit categories</p>
         </div>
       </div>
+
+      {/* Weather Alerts */}
+      {visibleAlerts.length > 0 && (
+        <div className="space-y-2">
+          {visibleAlerts.map(alert => (
+            <div key={alert.id} className={`rounded-xl border p-4 flex items-start gap-3 ${
+              alert.severity === 'warning'
+                ? darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'
+                : alert.severity === 'watch'
+                  ? darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'
+                  : darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'
+            }`}>
+              <AlertTriangle size={18} className={
+                alert.severity === 'warning' ? 'text-red-500' : alert.severity === 'watch' ? 'text-amber-500' : 'text-blue-500'
+              } />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-sm font-semibold ${text}`}>{alert.title}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
+                    alert.severity === 'warning'
+                      ? darkMode ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-700'
+                      : alert.severity === 'watch'
+                        ? darkMode ? 'bg-amber-900/40 text-amber-400' : 'bg-amber-100 text-amber-700'
+                        : darkMode ? 'bg-blue-900/40 text-blue-400' : 'bg-blue-100 text-blue-700'
+                  }`}>{alert.severity}</span>
+                  <span className={`text-[10px] ${sub}`}>{alert.region}</span>
+                </div>
+                <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{alert.description}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className={`text-[10px] flex items-center gap-1 ${sub}`}>
+                    <Clock size={10} /> Expires in {alert.expiresIn}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setExpandedId(alert.activatesPlaybook)
+                      setSelectedCategory('all')
+                    }}
+                    className="text-[10px] text-emerald-600 hover:text-emerald-500 font-medium flex items-center gap-1"
+                  >
+                    <ArrowRight size={10} /> View playbook
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => setDismissedAlerts(prev => new Set([...prev, alert.id]))}
+                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-white'}`}
+              >
+                <span className={`text-xs ${sub}`}>Dismiss</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* This Month's Action Plan */}
+      <div className={`rounded-xl border overflow-hidden ${card}`}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowActionPlan(!showActionPlan)}
+          className="flex items-center justify-between px-5 py-4 cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
+            <Lightbulb size={16} className="text-amber-500" />
+            <h3 className={`text-sm font-semibold ${text}`}>This Month&apos;s Action Plan</h3>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${darkMode ? 'bg-emerald-900/40 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
+              {activeTriggers.length} triggers active
+            </span>
+          </div>
+          {showActionPlan ? <ChevronDown size={16} className={sub} /> : <ChevronRight size={16} className={sub} />}
+        </div>
+        {showActionPlan && (
+          <div className={`border-t px-5 py-5 space-y-5 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+            {/* Priority Actions */}
+            <div>
+              <h4 className={`text-xs font-semibold mb-3 flex items-center gap-1.5 ${text}`}>
+                <Zap size={13} /> Priority Actions for {MONTH_FULL[currentMonth]}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {activeTriggers
+                  .sort((a, b) => {
+                    const impact = { high: 3, medium: 2, low: 1 }
+                    return impact[b.demandImpact] - impact[a.demandImpact]
+                  })
+                  .slice(0, 6)
+                  .map((trigger, i) => {
+                    const colors = getColors(trigger.color, darkMode)
+                    const perf = PERFORMANCE_DATA[trigger.id]
+                    return (
+                      <div key={trigger.id} className={`rounded-lg border p-3 ${darkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>#{i + 1}</span>
+                          <trigger.icon size={14} className={colors.text} />
+                          <span className={`text-xs font-semibold ${text}`}>{trigger.name}</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className="font-medium">Push:</span> {trigger.unitEmphasis.slice(0, 2).join(', ')}
+                          </p>
+                          <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className="font-medium">Budget:</span> +{Math.round((trigger.budgetModifier - 1) * 100)}% above baseline
+                          </p>
+                          {perf && (
+                            <p className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className="font-medium">Est:</span> ~{perf.estimatedLeads} leads at ${perf.estimatedCPL} CPL
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => { setExpandedId(trigger.id); setSelectedCategory('all'); setViewMode('list') }}
+                          className="text-[10px] text-emerald-600 hover:text-emerald-500 font-medium flex items-center gap-1 mt-2"
+                        >
+                          View full playbook <ArrowRight size={10} />
+                        </button>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+
+            {/* Combined Unit Pricing Strategy */}
+            <div>
+              <h4 className={`text-xs font-semibold mb-3 flex items-center gap-1.5 ${text}`}>
+                <Tag size={13} /> Recommended Pricing Adjustments
+              </h4>
+              {(() => {
+                const allRecs: Record<string, { adjustments: number[]; reasons: string[] }> = {}
+                activeTriggers.forEach(t => {
+                  const recs = PRICING_RECS[t.id] || []
+                  recs.forEach(r => {
+                    if (!allRecs[r.unitType]) allRecs[r.unitType] = { adjustments: [], reasons: [] }
+                    allRecs[r.unitType].adjustments.push(r.adjustment)
+                    allRecs[r.unitType].reasons.push(r.reason)
+                  })
+                })
+                const combined = Object.entries(allRecs).map(([unitType, data]) => ({
+                  unitType,
+                  adjustment: Math.round(data.adjustments.reduce((a, b) => a + b, 0) / data.adjustments.length),
+                  reasons: data.reasons,
+                })).sort((a, b) => b.adjustment - a.adjustment)
+
+                if (combined.length === 0) return <p className={`text-xs ${sub}`}>No pricing recommendations for active triggers.</p>
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {combined.map(rec => (
+                      <div key={rec.unitType} className={`rounded-lg border p-3 text-center ${darkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`} title={rec.reasons.join('; ')}>
+                        <p className={`text-xs font-medium mb-1 ${sub}`}>{rec.unitType}</p>
+                        <p className={`text-lg font-bold ${rec.adjustment > 0 ? 'text-emerald-600' : rec.adjustment < 0 ? 'text-blue-600' : sub}`}>
+                          {rec.adjustment > 0 ? '+' : ''}{rec.adjustment}%
+                        </p>
+                        <p className={`text-[10px] mt-0.5 ${sub}`}>
+                          {rec.adjustment > 0 ? 'raise rate' : rec.adjustment < 0 ? 'discount' : 'hold'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Messaging Theme Summary */}
+            <div>
+              <h4 className={`text-xs font-semibold mb-3 flex items-center gap-1.5 ${text}`}>
+                <MessageSquare size={13} /> Top Messaging Themes This Month
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {[...new Set(activeTriggers.flatMap(t => t.messagingAngles))].slice(0, 8).map(angle => (
+                  <div
+                    key={angle}
+                    className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}
+                  >
+                    <span className={darkMode ? 'text-slate-300' : 'text-slate-600'}>&ldquo;{angle}&rdquo;</span>
+                    <button
+                      onClick={() => copyToClipboard(angle, `theme-${angle}`)}
+                      className={`p-0.5 rounded transition-colors ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-slate-200'}`}
+                      title="Copy to clipboard"
+                    >
+                      {copiedId === `theme-${angle}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className={sub} />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Upcoming Triggers Timeline */}
+      {(() => {
+        const upcoming = TRIGGERS
+          .filter(t => {
+            const status = getStatus(t)
+            return status === 'scheduled'
+          })
+          .map(t => {
+            const nextMonth = (currentMonth + 1) % 12
+            const startsIn = t.months.includes(nextMonth) ? 1 : 2
+            return { ...t, startsIn }
+          })
+          .sort((a, b) => a.startsIn - b.startsIn)
+
+        if (upcoming.length === 0) return null
+
+        return (
+          <div className={`rounded-xl border p-5 ${card}`}>
+            <h3 className={`text-sm font-semibold mb-4 flex items-center gap-2 ${text}`}>
+              <Clock size={16} className="text-blue-500" />
+              Upcoming Triggers (Next 60 Days)
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {upcoming.map(trigger => {
+                const colors = getColors(trigger.color, darkMode)
+                return (
+                  <div
+                    key={trigger.id}
+                    className={`flex-shrink-0 w-56 rounded-lg border p-3 cursor-pointer transition-all hover:scale-[1.02] ${darkMode ? 'bg-slate-700/30 border-slate-600 hover:border-slate-500' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                    onClick={() => { setExpandedId(trigger.id); setSelectedCategory('all'); setViewMode('list') }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-7 h-7 rounded-lg ${colors.bg} ${colors.border} border flex items-center justify-center`}>
+                        <trigger.icon size={14} className={colors.text} />
+                      </div>
+                      <div>
+                        <p className={`text-xs font-semibold ${text}`}>{trigger.name}</p>
+                        <p className={`text-[10px] ${sub}`}>Starts in ~{trigger.startsIn * 30} days</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className={`text-[10px] ${sub}`}>
+                        <span className="font-medium">Impact:</span> {trigger.demandImpact} · Budget +{Math.round((trigger.budgetModifier - 1) * 100)}%
+                      </p>
+                      <p className={`text-[10px] ${sub}`}>
+                        <span className="font-medium">Prep:</span> Update creatives, review landing pages
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 mt-2 text-[10px] text-emerald-600 font-medium">
+                      <Bell size={10} /> Prep now <ArrowRight size={10} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Trigger Stacking Analysis */}
+      {(() => {
+        const overlapping = activeTriggers.filter(t => t.demandImpact === 'high' || t.demandImpact === 'medium')
+        if (overlapping.length < 2) return null
+
+        const allUnits = [...new Set(overlapping.flatMap(t => t.unitEmphasis))]
+        const unitOverlap = allUnits.filter(u => overlapping.filter(t => t.unitEmphasis.includes(u)).length > 1)
+
+        return (
+          <div className={`rounded-xl border p-5 ${card}`}>
+            <h3 className={`text-sm font-semibold mb-1 flex items-center gap-2 ${text}`}>
+              <Layers size={16} className="text-violet-500" />
+              Trigger Stacking — {overlapping.length} Overlapping Playbooks
+            </h3>
+            <p className={`text-xs mb-4 ${sub}`}>
+              Multiple demand triggers are active simultaneously. Coordinate messaging to avoid audience fatigue.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className={`text-xs font-semibold mb-2 ${text}`}>Overlapping Unit Demand</h4>
+                {unitOverlap.length > 0 ? (
+                  <div className="space-y-2">
+                    {unitOverlap.map(unit => {
+                      const triggers = overlapping.filter(t => t.unitEmphasis.includes(unit))
+                      return (
+                        <div key={unit} className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                          <span className={`font-medium ${text}`}>{unit}</span>
+                          <div className="flex items-center gap-1">
+                            {triggers.map(t => {
+                              const c = getColors(t.color, darkMode)
+                              return <span key={t.id} className={`px-1.5 py-0.5 rounded text-[10px] ${c.badge}`}>{t.name.split(' ')[0]}</span>
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className={`text-xs ${sub}`}>No overlapping unit demand detected.</p>
+                )}
+              </div>
+              <div>
+                <h4 className={`text-xs font-semibold mb-2 ${text}`}>Combined Budget Impact</h4>
+                <div className={`rounded-lg px-4 py-3 ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-xs ${sub}`}>Aggregate modifier</span>
+                    <span className={`text-lg font-bold text-emerald-600`}>
+                      +{Math.round(overlapping.reduce((sum, t) => sum + (t.budgetModifier - 1), 0) * 100 / overlapping.length)}%
+                    </span>
+                  </div>
+                  <p className={`text-[10px] ${sub}`}>
+                    Tip: When triggers stack, allocate budget proportionally to demand impact. High-impact triggers should get 60% of incremental budget.
+                  </p>
+                </div>
+                <h4 className={`text-xs font-semibold mt-3 mb-2 ${text}`}>Recommended Strategy</h4>
+                <ul className="space-y-1">
+                  <li className={`text-xs flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <ArrowUpRight size={12} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                    Rotate ad creatives every 7 days to prevent fatigue
+                  </li>
+                  <li className={`text-xs flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <ArrowUpRight size={12} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                    Use audience exclusions to prevent overlap between trigger campaigns
+                  </li>
+                  <li className={`text-xs flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <ArrowUpRight size={12} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                    Prioritize {overlapping.filter(t => t.demandImpact === 'high').map(t => t.name.split(' ')[0]).join(', ') || 'highest-impact'} triggers for landing page variations
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -744,18 +1227,144 @@ export default function SeasonalPlaybookTab({ darkMode }: { adminKey: string; da
                       </div>
                     </div>
 
-                    {/* Ad Copy Suggestions */}
+                    {/* Performance Estimates */}
+                    {PERFORMANCE_DATA[trigger.id] && (
+                      <div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleSection(`perf-${trigger.id}`)}
+                          className="flex items-center gap-1.5 cursor-pointer mb-2"
+                        >
+                          <BarChart3 size={13} className={text} />
+                          <h4 className={`text-xs font-semibold ${text}`}>Performance Estimates</h4>
+                          {expandedSections.has(`perf-${trigger.id}`) || expandedSections.has('performance')
+                            ? <ChevronDown size={12} className={sub} />
+                            : <ChevronRight size={12} className={sub} />}
+                        </div>
+                        {(expandedSections.has(`perf-${trigger.id}`) || expandedSections.has('performance')) && (() => {
+                          const perf = PERFORMANCE_DATA[trigger.id]
+                          return (
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <p className={`text-lg font-bold ${text}`}>~{perf.estimatedLeads}</p>
+                                <p className={`text-[10px] ${sub}`}>Est. Leads/mo</p>
+                              </div>
+                              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <p className={`text-lg font-bold ${text}`}>${perf.estimatedCPL}</p>
+                                <p className={`text-[10px] ${sub}`}>Est. CPL</p>
+                              </div>
+                              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <p className={`text-lg font-bold ${text}`}>{perf.avgRentalDuration}</p>
+                                <p className={`text-[10px] ${sub}`}>Avg Duration</p>
+                              </div>
+                              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <p className={`text-lg font-bold text-emerald-600`}>{perf.conversionLift}</p>
+                                <p className={`text-[10px] ${sub}`}>Conv. Lift</p>
+                              </div>
+                              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <p className={`text-lg font-bold text-emerald-600`}>{perf.historicalROAS}x</p>
+                                <p className={`text-[10px] ${sub}`}>Hist. ROAS</p>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Pricing Recommendations */}
+                    {PRICING_RECS[trigger.id] && (
+                      <div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleSection(`price-${trigger.id}`)}
+                          className="flex items-center gap-1.5 cursor-pointer mb-2"
+                        >
+                          <Percent size={13} className={text} />
+                          <h4 className={`text-xs font-semibold ${text}`}>Pricing Recommendations</h4>
+                          {expandedSections.has(`price-${trigger.id}`) || expandedSections.has('pricing')
+                            ? <ChevronDown size={12} className={sub} />
+                            : <ChevronRight size={12} className={sub} />}
+                        </div>
+                        {(expandedSections.has(`price-${trigger.id}`) || expandedSections.has('pricing')) && (
+                          <div className="space-y-1.5">
+                            {PRICING_RECS[trigger.id].map(rec => (
+                              <div key={rec.unitType} className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${darkMode ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-medium ${text}`}>{rec.unitType}</span>
+                                  <span className={`${sub}`}>—</span>
+                                  <span className={sub}>{rec.reason}</span>
+                                </div>
+                                <span className={`font-bold ${rec.adjustment > 0 ? 'text-emerald-600' : rec.adjustment < 0 ? 'text-blue-600' : sub}`}>
+                                  {rec.adjustment > 0 ? '+' : ''}{rec.adjustment}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Competitor Intelligence */}
+                    {COMPETITOR_INSIGHTS[trigger.id] && (
+                      <div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleSection(`comp-${trigger.id}`)}
+                          className="flex items-center gap-1.5 cursor-pointer mb-2"
+                        >
+                          <Eye size={13} className={text} />
+                          <h4 className={`text-xs font-semibold ${text}`}>Competitive Intelligence</h4>
+                          {expandedSections.has(`comp-${trigger.id}`) || expandedSections.has('competitors')
+                            ? <ChevronDown size={12} className={sub} />
+                            : <ChevronRight size={12} className={sub} />}
+                        </div>
+                        {(expandedSections.has(`comp-${trigger.id}`) || expandedSections.has('competitors')) && (
+                          <div className="space-y-2">
+                            {COMPETITOR_INSIGHTS[trigger.id].map((insight, i) => (
+                              <div key={i} className={`rounded-lg border p-3 ${darkMode ? 'bg-slate-700/30 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle size={12} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className={`text-xs font-medium ${text}`}>{insight.action}</p>
+                                    <p className={`text-[10px] ${sub} mb-1`}>Timing: {insight.timing}</p>
+                                    <div className="flex items-start gap-1.5">
+                                      <ArrowRight size={10} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                      <p className={`text-xs ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{insight.response}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Ad Copy Suggestions — with copy button */}
                     <div>
                       <h4 className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${text}`}>
                         <Zap size={13} /> Ready-to-Use Ad Copy
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {trigger.adCopy.map((ad, i) => (
-                          <div key={i} className={`rounded-lg border p-3 ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
-                            <p className={`text-sm font-semibold mb-1 ${text}`}>{ad.headline}</p>
-                            <p className={`text-xs ${sub}`}>{ad.body}</p>
-                          </div>
-                        ))}
+                        {trigger.adCopy.map((ad, i) => {
+                          const copyKey = `${trigger.id}-ad-${i}`
+                          return (
+                            <div key={i} className={`rounded-lg border p-3 relative group ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                              <p className={`text-sm font-semibold mb-1 ${text}`}>{ad.headline}</p>
+                              <p className={`text-xs ${sub}`}>{ad.body}</p>
+                              <button
+                                onClick={() => copyToClipboard(`${ad.headline}\n${ad.body}`, copyKey)}
+                                className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${darkMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-white hover:bg-slate-100'} shadow-sm`}
+                                title="Copy ad copy"
+                              >
+                                {copiedId === copyKey ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className={sub} />}
+                              </button>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 

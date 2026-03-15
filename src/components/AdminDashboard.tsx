@@ -4,7 +4,8 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   Download, CalendarClock, CheckSquare,
   Settings, Columns3, CreditCard, Moon, Sun,
-  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame, CalendarRange, Target
+  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame, CalendarRange, Target, Gift,
+  Wallet, ShieldAlert, TrendingDown, RotateCcw
 } from 'lucide-react'
 
 import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
@@ -29,6 +30,12 @@ import PortfolioOptimizerView from './dashboard/PortfolioOptimizerView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
 import SeasonalPlaybookTab from './dashboard/SeasonalPlaybookTab'
+import ReferralsView from './dashboard/ReferralsView'
+import TenantBillingView from './dashboard/TenantBillingView'
+import ChurnPredictionView from './dashboard/ChurnPredictionView'
+import UpsellEngineView from './dashboard/UpsellEngineView'
+import MoveOutRemarketingView from './dashboard/MoveOutRemarketingView'
+import AttributionView from './dashboard/AttributionView'
 
 /* ── Admin Auth Gate ── */
 
@@ -367,8 +374,14 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['sequences', 'Sequences', CalendarClock],
             ['shared-audits', 'Shared Audits', Share2],
             ['recovery', 'Recovery', Flame],
+            ['attribution', 'Attribution', Target],
             ['partners', 'Partners', Building2],
+            ['referrals', 'Referrals', Gift],
             ['playbooks', 'Playbooks', CalendarRange],
+            ['tenants', 'Tenants', Wallet],
+            ['churn', 'Churn', ShieldAlert],
+            ['upsell', 'Upsell', TrendingDown],
+            ['remarketing', 'Remarketing', RotateCcw],
             ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -483,12 +496,36 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           <RecoveryView adminKey={adminKey} darkMode={darkMode} />
         )}
 
+        {activeTab === 'attribution' && (
+          <AttributionView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
         {activeTab === 'partners' && (
           <PartnersView adminKey={adminKey} darkMode={darkMode} />
         )}
 
+        {activeTab === 'referrals' && (
+          <ReferralsView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
         {activeTab === 'playbooks' && (
           <SeasonalPlaybookTab adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'tenants' && (
+          <TenantBillingView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'churn' && (
+          <ChurnPredictionView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'upsell' && (
+          <UpsellEngineView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'remarketing' && (
+          <MoveOutRemarketingView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'whats-new' && (

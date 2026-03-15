@@ -787,6 +787,206 @@ CREATE TABLE IF NOT EXISTS referral_credits (
 );
 CREATE INDEX IF NOT EXISTS idx_referral_credits_code ON referral_credits(referral_code_id);
 CREATE INDEX IF NOT EXISTS idx_referral_credits_type ON referral_credits(type);
+
+-- ============================================================
+-- Google Business Profile automation
+-- ============================================================
+
+-- GBP connections: OAuth credentials per facility
+CREATE TABLE IF NOT EXISTS gbp_connections (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  google_account_id TEXT,
+  location_id       TEXT,                -- GBP location resource name
+  location_name     TEXT,
+  access_token      TEXT,
+  refresh_token     TEXT,
+  token_expires_at  TIMESTAMPTZ,
+  status            TEXT DEFAULT 'disconnected',  -- connected | disconnected | expired | error
+  last_sync_at      TIMESTAMPTZ,
+  sync_config       JSONB DEFAULT '{"auto_post": false, "auto_respond": false, "sync_hours": true, "sync_photos": true}',
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id)
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_connections_facility ON gbp_connections(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_connections_status ON gbp_connections(status);
+
+-- GBP posts: updates published or scheduled to Google Business Profile
+CREATE TABLE IF NOT EXISTS gbp_posts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  gbp_connection_id UUID REFERENCES gbp_connections(id) ON DELETE CASCADE,
+  post_type         TEXT NOT NULL DEFAULT 'update',  -- update | offer | event | availability
+  title             TEXT,
+  body              TEXT NOT NULL,
+  cta_type          TEXT,                -- BOOK | CALL | LEARN_MORE | SIGN_UP
+  cta_url           TEXT,
+  image_url         TEXT,
+  offer_code        TEXT,
+  start_date        DATE,
+  end_date          DATE,
+  status            TEXT DEFAULT 'draft',  -- draft | scheduled | published | failed | deleted
+  scheduled_at      TIMESTAMPTZ,
+  published_at      TIMESTAMPTZ,
+  external_post_id  TEXT,                -- GBP post resource name
+  error_message     TEXT,
+  ai_generated      BOOLEAN DEFAULT FALSE,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_posts_facility ON gbp_posts(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_posts_status ON gbp_posts(status);
+CREATE INDEX IF NOT EXISTS idx_gbp_posts_scheduled ON gbp_posts(scheduled_at) WHERE status = 'scheduled';
+
+-- GBP reviews: cached reviews with AI response tracking
+CREATE TABLE IF NOT EXISTS gbp_reviews (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id         UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  gbp_connection_id   UUID REFERENCES gbp_connections(id) ON DELETE CASCADE,
+  external_review_id  TEXT UNIQUE,
+  author_name         TEXT,
+  rating              INTEGER NOT NULL,    -- 1-5
+  review_text         TEXT,
+  review_time         TIMESTAMPTZ,
+  response_text       TEXT,                -- published reply
+  response_status     TEXT DEFAULT 'pending',  -- pending | ai_drafted | approved | published | skipped
+  ai_draft            TEXT,                -- AI-generated response draft
+  responded_at        TIMESTAMPTZ,
+  synced_at           TIMESTAMPTZ DEFAULT NOW(),
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_reviews_facility ON gbp_reviews(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_reviews_rating ON gbp_reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_gbp_reviews_response ON gbp_reviews(response_status);
+
+-- GBP profile sync log: audit trail of profile updates
+CREATE TABLE IF NOT EXISTS gbp_profile_sync_log (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  sync_type     TEXT NOT NULL,           -- hours | photos | attributes | specials | full
+  status        TEXT DEFAULT 'success',  -- success | failed | partial
+  changes       JSONB DEFAULT '{}',
+  error_message TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_sync_log_facility ON gbp_profile_sync_log(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_sync_log_created ON gbp_profile_sync_log(created_at DESC);
+
+-- GBP Q&A: questions posted on Google Business Profile
+CREATE TABLE IF NOT EXISTS gbp_questions (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id         UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  gbp_connection_id   UUID REFERENCES gbp_connections(id) ON DELETE CASCADE,
+  external_question_id TEXT UNIQUE,
+  author_name         TEXT,
+  question_text       TEXT NOT NULL,
+  question_time       TIMESTAMPTZ,
+  answer_text         TEXT,
+  answer_status       TEXT DEFAULT 'pending',  -- pending | ai_drafted | published | skipped
+  ai_draft            TEXT,
+  answered_at         TIMESTAMPTZ,
+  upvote_count        INTEGER DEFAULT 0,
+  synced_at           TIMESTAMPTZ DEFAULT NOW(),
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_questions_facility ON gbp_questions(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_questions_status ON gbp_questions(answer_status);
+
+-- GBP Insights: cached performance metrics from GBP Insights API
+CREATE TABLE IF NOT EXISTS gbp_insights (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  period_start    DATE NOT NULL,
+  period_end      DATE NOT NULL,
+  search_views    INTEGER DEFAULT 0,     -- times listed in search results
+  maps_views      INTEGER DEFAULT 0,     -- times listed on Google Maps
+  website_clicks  INTEGER DEFAULT 0,
+  direction_clicks INTEGER DEFAULT 0,
+  phone_calls     INTEGER DEFAULT 0,
+  photo_views     INTEGER DEFAULT 0,
+  post_views      INTEGER DEFAULT 0,
+  post_clicks     INTEGER DEFAULT 0,
+  total_searches  INTEGER DEFAULT 0,     -- direct + discovery + branded
+  direct_searches INTEGER DEFAULT 0,
+  discovery_searches INTEGER DEFAULT 0,
+  raw_data        JSONB DEFAULT '{}',
+  synced_at       TIMESTAMPTZ DEFAULT NOW(),
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, period_start, period_end)
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_insights_facility ON gbp_insights(facility_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_insights_period ON gbp_insights(period_start DESC);
+
+-- ============================================================
+-- Attribution pipeline: extend partial_leads + campaign spend
+-- ============================================================
+
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS lead_status TEXT DEFAULT 'partial';
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS monthly_revenue NUMERIC(10,2);
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS move_in_date DATE;
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS fbclid TEXT;
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS gclid TEXT;
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ;
+ALTER TABLE partial_leads ADD COLUMN IF NOT EXISTS lead_notes TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_partial_leads_lead_status ON partial_leads(lead_status);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_facility_status ON partial_leads(facility_id, lead_status);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_utm_campaign ON partial_leads(utm_campaign);
+
+-- Campaign spend: daily spend data pulled from ad platforms
+CREATE TABLE IF NOT EXISTS campaign_spend (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  platform        TEXT NOT NULL,        -- meta | google_ads
+  date            DATE NOT NULL,
+  campaign_name   TEXT,
+  campaign_id     TEXT,
+  utm_campaign    TEXT,
+  spend           NUMERIC(10,2) NOT NULL DEFAULT 0,
+  impressions     INTEGER DEFAULT 0,
+  clicks          INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, platform, campaign_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_spend_facility ON campaign_spend(facility_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_spend_utm ON campaign_spend(utm_campaign);
+
+-- ============================================================
+-- Delinquency escalation pipeline
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS delinquency_escalations (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  stage           TEXT NOT NULL,  -- late_notice | second_notice | pre_lien | lien_filed | auction_scheduled | auction_complete
+  stage_entered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  next_stage_at   TIMESTAMPTZ,
+  notes           TEXT,
+  automated       BOOLEAN DEFAULT TRUE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_delinquency_escalations_tenant ON delinquency_escalations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_delinquency_escalations_facility ON delinquency_escalations(facility_id);
+CREATE INDEX IF NOT EXISTS idx_delinquency_escalations_stage ON delinquency_escalations(stage);
+
+-- Tenant communication log: all outreach across tabs
+CREATE TABLE IF NOT EXISTS tenant_communications (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  channel         TEXT NOT NULL,  -- email | sms | call | in_person | mail
+  type            TEXT NOT NULL,  -- payment_reminder | retention | upsell | remarketing | escalation | general
+  subject         TEXT,
+  body            TEXT,
+  status          TEXT DEFAULT 'sent',  -- sent | delivered | opened | clicked | bounced | failed
+  related_id      UUID,          -- links to upsell_opportunities.id, moveout_remarketing.id, etc.
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_comms_tenant ON tenant_communications(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_comms_facility ON tenant_communications(facility_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_comms_type ON tenant_communications(type);
 `
 
 async function migrate() {

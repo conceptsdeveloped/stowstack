@@ -270,9 +270,149 @@ export interface Invoice {
   pdfUrl?: string
 }
 
-export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'optimizer' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'whats-new' | 'partners' | 'playbooks' | 'referrals'
+export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'optimizer' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'attribution' | 'whats-new' | 'partners' | 'playbooks' | 'referrals' | 'tenants' | 'churn' | 'upsell' | 'remarketing'
 
-export type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'landing-pages' | 'utm-links' | 'calls' | 'publish'
+export type ConsumerLeadStatus = 'new' | 'contacted' | 'toured' | 'reserved' | 'moved_in' | 'lost'
+
+export interface ConsumerLead {
+  id: string
+  email: string | null
+  phone: string | null
+  name: string | null
+  unit_size: string | null
+  lead_status: ConsumerLeadStatus
+  monthly_revenue: number | null
+  move_in_date: string | null
+  lead_notes: string | null
+  utm_source: string | null
+  utm_medium: string | null
+  utm_campaign: string | null
+  utm_content: string | null
+  fbclid: string | null
+  gclid: string | null
+  lead_score: number
+  scroll_depth: number
+  time_on_page: number
+  facility_id: string | null
+  landing_page_id: string | null
+  created_at: string
+  converted_at: string | null
+  status_updated_at: string | null
+  page_title: string | null
+  page_slug: string | null
+}
+
+export const CONSUMER_LEAD_STATUSES: { value: ConsumerLeadStatus; label: string; color: string }[] = [
+  { value: 'new', label: 'New', color: 'bg-blue-100 text-blue-700' },
+  { value: 'contacted', label: 'Contacted', color: 'bg-indigo-100 text-indigo-700' },
+  { value: 'toured', label: 'Toured', color: 'bg-purple-100 text-purple-700' },
+  { value: 'reserved', label: 'Reserved', color: 'bg-amber-100 text-amber-700' },
+  { value: 'moved_in', label: 'Moved In', color: 'bg-green-100 text-green-700' },
+  { value: 'lost', label: 'Lost', color: 'bg-red-100 text-red-700' },
+]
+
+export interface GBPConnection {
+  id: string
+  facility_id: string
+  google_account_id: string | null
+  location_id: string | null
+  location_name: string | null
+  status: string
+  last_sync_at: string | null
+  sync_config: {
+    auto_post: boolean
+    auto_respond: boolean
+    sync_hours: boolean
+    sync_photos: boolean
+  }
+  created_at: string
+  updated_at: string
+}
+
+export interface GBPPost {
+  id: string
+  facility_id: string
+  gbp_connection_id: string | null
+  post_type: string
+  title: string | null
+  body: string
+  cta_type: string | null
+  cta_url: string | null
+  image_url: string | null
+  offer_code: string | null
+  start_date: string | null
+  end_date: string | null
+  status: string
+  scheduled_at: string | null
+  published_at: string | null
+  external_post_id: string | null
+  error_message: string | null
+  ai_generated: boolean
+  created_at: string
+}
+
+export interface GBPReview {
+  id: string
+  facility_id: string
+  gbp_connection_id: string | null
+  external_review_id: string | null
+  author_name: string | null
+  rating: number
+  review_text: string | null
+  review_time: string | null
+  response_text: string | null
+  response_status: string
+  ai_draft: string | null
+  responded_at: string | null
+  synced_at: string | null
+  created_at: string
+}
+
+export interface GBPSyncLog {
+  id: string
+  facility_id: string
+  sync_type: string
+  status: string
+  changes: Record<string, unknown>
+  error_message: string | null
+  created_at: string
+}
+
+export interface GBPQuestion {
+  id: string
+  facility_id: string
+  gbp_connection_id: string | null
+  external_question_id: string | null
+  author_name: string | null
+  question_text: string
+  question_time: string | null
+  answer_text: string | null
+  answer_status: string
+  ai_draft: string | null
+  answered_at: string | null
+  upvote_count: number
+  created_at: string
+}
+
+export interface GBPInsights {
+  id: string
+  facility_id: string
+  period_start: string
+  period_end: string
+  search_views: number
+  maps_views: number
+  website_clicks: number
+  direction_clicks: number
+  phone_calls: number
+  photo_views: number
+  post_views: number
+  post_clicks: number
+  total_searches: number
+  direct_searches: number
+  discovery_searches: number
+}
+
+export type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
 export type AdFormat = 'instagram_post' | 'instagram_story' | 'google_display' | 'facebook_feed'
 

@@ -39,6 +39,13 @@ function getUtmParams() {
   }
 }
 
+function getClickIds() {
+  return {
+    fbclid: sessionStorage.getItem('stowstack_fbclid') || undefined,
+    gclid: sessionStorage.getItem('stowstack_gclid') || undefined,
+  }
+}
+
 function getPrefillParams(): FieldData {
   const params = new URLSearchParams(window.location.search)
   return {
@@ -71,6 +78,7 @@ export function usePartialCapture(config: PartialCaptureConfig = {}) {
 
     const timeOnPage = Math.round((Date.now() - startTime.current) / 1000)
     const utm = getUtmParams()
+    const clickIds = getClickIds()
 
     try {
       await fetch('/api/partial-lead', {
@@ -87,6 +95,7 @@ export function usePartialCapture(config: PartialCaptureConfig = {}) {
           timeOnPage,
           exitIntent: extra.exitIntent || exitIntentFired.current,
           ...utm,
+          ...clickIds,
           referrer: document.referrer || null,
           userAgent: navigator.userAgent,
         }),

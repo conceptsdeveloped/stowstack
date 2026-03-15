@@ -17,12 +17,14 @@ function getCorsHeaders(origin) {
 }
 
 // Credit amounts per referral milestone
+// Aggressive referral credits — willing to pay 1-2 months revenue ($99/facility/mo) to acquire
 const CREDIT_TIERS = {
-  signed_up: 50,    // $50 when referral signs up
-  active: 150,      // $150 when referral goes live (first month billed)
-  bonus_5: 250,     // $250 bonus at 5 successful referrals
-  bonus_10: 500,    // $500 bonus at 10 successful referrals
-  bonus_25: 1000,   // $1000 bonus at 25 successful referrals
+  signed_up: 99,     // $99 = 1 full month free when referral signs up
+  active: 99,        // $99 = another month free when referral goes live (2 months total per referral)
+  bonus_3: 200,      // $200 bonus at 3 successful referrals (low bar to hit first bonus)
+  bonus_5: 500,      // $500 bonus at 5 — that's a free quarter of StowStack
+  bonus_10: 1000,    // $1000 bonus at 10 — conference champions
+  bonus_25: 2500,    // $2500 bonus at 25 — top-tier network builders
 }
 
 function generateCode(name) {
@@ -192,6 +194,7 @@ export default async function handler(req, res) {
           const cnt = parseInt(totalActive.cnt)
           let bonus = 0
           let bonusLabel = ''
+          if (cnt === 3) { bonus = CREDIT_TIERS.bonus_3; bonusLabel = '3-referral milestone bonus' }
           if (cnt === 5) { bonus = CREDIT_TIERS.bonus_5; bonusLabel = '5-referral milestone bonus' }
           if (cnt === 10) { bonus = CREDIT_TIERS.bonus_10; bonusLabel = '10-referral milestone bonus' }
           if (cnt === 25) { bonus = CREDIT_TIERS.bonus_25; bonusLabel = '25-referral milestone bonus' }

@@ -10,8 +10,9 @@ import PublishTab from './PublishTab'
 import CallTrackingTab from './CallTrackingTab'
 import TikTokCreator from './TikTokCreator'
 import VideoGenerator from './VideoGenerator'
+import GBPTab from './GBPTab'
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'publish'
+type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
   facility: Facility
@@ -83,6 +84,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
           ['landing-pages', 'Landing Pages'],
           ['utm-links', 'UTM Links'],
           ['calls', 'Calls'],
+          ['gbp', 'GBP'],
           ['publish', 'Publish'],
         ] as const).map(([id, label]) => (
           <button
@@ -209,6 +211,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {subTab === 'calls' && (
         <CallTrackingTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'gbp' && (
+        <GBPTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'publish' && (

@@ -22,37 +22,27 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
-// Identify upsell opportunities for a tenant
 function identifyUpsells(tenant) {
   const opportunities = []
 
-  // Insurance upsell
   if (!tenant.has_insurance) {
     opportunities.push({
       type: 'insurance',
       title: 'Add tenant protection plan',
       description: `${tenant.name} has no insurance on unit ${tenant.unit_number}. Recommend adding coverage.`,
-      current_value: 0,
-      proposed_value: 12,
-      monthly_uplift: 12,
-      confidence: 75,
+      current_value: 0, proposed_value: 12, monthly_uplift: 12, confidence: 75,
     })
   }
 
-  // Autopay enrollment
   if (!tenant.autopay_enabled) {
     opportunities.push({
       type: 'autopay',
       title: 'Enroll in autopay',
       description: `${tenant.name} pays manually. Autopay reduces delinquency risk and improves retention.`,
-      current_value: 0,
-      proposed_value: 0,
-      monthly_uplift: 0,
-      confidence: 60,
+      current_value: 0, proposed_value: 0, monthly_uplift: 0, confidence: 60,
     })
   }
 
-  // Unit size upgrade (tenants in small units for > 6 months)
   const tenureMonths = Math.floor((Date.now() - new Date(tenant.move_in_date).getTime()) / (30 * 86400000))
   const smallSizes = ['5x5', '5x10', '5x15']
   if (tenant.unit_size && smallSizes.some(s => tenant.unit_size.includes(s)) && tenureMonths > 6) {
@@ -62,14 +52,10 @@ function identifyUpsells(tenant) {
       type: 'unit_upgrade',
       title: 'Upgrade to larger unit',
       description: `${tenant.name} has been in a ${tenant.unit_size} for ${tenureMonths} months. May need more space.`,
-      current_value: currentRate,
-      proposed_value: proposedRate,
-      monthly_uplift: proposedRate - currentRate,
-      confidence: 45,
+      current_value: currentRate, proposed_value: proposedRate, monthly_uplift: proposedRate - currentRate, confidence: 45,
     })
   }
 
-  // Climate upgrade (standard unit tenants with high rates = storing valuable items)
   if (tenant.unit_type === 'standard' && parseFloat(tenant.monthly_rate) > 100) {
     const currentRate = parseFloat(tenant.monthly_rate) || 0
     const proposedRate = Math.round(currentRate * 1.25)
@@ -77,10 +63,18 @@ function identifyUpsells(tenant) {
       type: 'climate_upgrade',
       title: 'Upgrade to climate-controlled',
       description: `${tenant.name} stores in a standard unit at $${currentRate}/mo. Climate protection adds value.`,
-      current_value: currentRate,
-      proposed_value: proposedRate,
-      monthly_uplift: proposedRate - currentRate,
-      confidence: 40,
+      current_value: currentRate, proposed_value: proposedRate, monthly_uplift: proposedRate - currentRate, confidence: 40,
+    })
+  }
+
+  // Longer term discount for month-to-month tenants with good payment history
+  if (!tenant.lease_end_date && tenureMonths >= 6) {
+    const currentRate = parseFloat(tenant.monthly_rate) || 0
+    opportunities.push({
+      type: 'longer_term',
+      title: 'Lock in annual lease',
+      description: `${tenant.name} is month-to-month after ${tenureMonths} months. Offer 5% discount for 12-month commitment.`,
+      current_value: currentRate, proposed_value: Math.round(currentRate * 0.95), monthly_uplift: 0, confidence: 55,
     })
   }
 
@@ -94,7 +88,6 @@ export default async function handler(req, res) {
   if (!checkAuth(req)) return res.status(401).json({ error: 'Unauthorized' })
 
   try {
-    // GET: fetch opportunities
     if (req.method === 'GET') {
       const { facilityId, type, status } = req.query
 
@@ -108,18 +101,9 @@ export default async function handler(req, res) {
         WHERE 1=1
       `
       const params = []
-      if (facilityId) {
-        params.push(facilityId)
-        sql += ` AND uo.facility_id = $${params.length}`
-      }
-      if (type) {
-        params.push(type)
-        sql += ` AND uo.type = $${params.length}`
-      }
-      if (status) {
-        params.push(status)
-        sql += ` AND uo.status = $${params.length}`
-      }
+      if (facilityId) { params.push(facilityId); sql += ` AND uo.facility_id = $${params.length}` }
+      if (type) { params.push(type); sql += ` AND uo.type = $${params.length}` }
+      if (status) { params.push(status); sql += ` AND uo.status = $${params.length}` }
       sql += ` ORDER BY uo.monthly_uplift DESC, uo.confidence DESC`
 
       const opportunities = await query(sql, params)
@@ -133,7 +117,8 @@ export default async function handler(req, res) {
           COUNT(*) FILTER (WHERE status = 'declined') as declined_count,
           SUM(monthly_uplift) FILTER (WHERE status = 'identified') as potential_mrr,
           SUM(monthly_uplift) FILTER (WHERE status = 'accepted') as captured_mrr,
-          COUNT(DISTINCT type) as type_count
+          COUNT(DISTINCT type) as type_count,
+          ROUND(COUNT(*) FILTER (WHERE status = 'accepted')::NUMERIC / NULLIF(COUNT(*) FILTER (WHERE status IN ('accepted','declined')), 0) * 100, 1) as acceptance_rate
         FROM upsell_opportunities
         ${facilityId ? 'WHERE facility_id = $1' : ''}
       `, facilityId ? [facilityId] : [])
@@ -141,16 +126,12 @@ export default async function handler(req, res) {
       return res.json({ opportunities, stats })
     }
 
-    // POST: scan tenants and generate upsell opportunities
     if (req.method === 'POST') {
       const { facilityId } = req.body
 
       let tenantsSql = `SELECT * FROM tenants WHERE status = 'active'`
       const params = []
-      if (facilityId) {
-        params.push(facilityId)
-        tenantsSql += ` AND facility_id = $1`
-      }
+      if (facilityId) { params.push(facilityId); tenantsSql += ` AND facility_id = $1` }
 
       const tenants = await query(tenantsSql, params)
       let created = 0
@@ -158,7 +139,6 @@ export default async function handler(req, res) {
       for (const tenant of tenants) {
         const upsells = identifyUpsells(tenant)
         for (const u of upsells) {
-          // Only create if not already identified for this tenant+type
           const existing = await queryOne(
             `SELECT id FROM upsell_opportunities WHERE tenant_id = $1 AND type = $2 AND status IN ('identified', 'queued', 'sent')`,
             [tenant.id, u.type]
@@ -178,10 +158,39 @@ export default async function handler(req, res) {
       return res.json({ created, message: `Found ${created} new upsell opportunities` })
     }
 
-    // PATCH: update opportunity status
     if (req.method === 'PATCH') {
-      const { id, status, outreach_method } = req.body
-      if (!id) return res.status(400).json({ error: 'id required' })
+      const { id, ids, action, status, outreach_method } = req.body
+
+      // Batch operations
+      if (Array.isArray(ids) && ids.length > 0) {
+        if (action === 'batch_send') {
+          const method = outreach_method || 'email'
+          await query(`
+            UPDATE upsell_opportunities SET status = 'sent', outreach_method = $2, sent_at = NOW(), updated_at = NOW()
+            WHERE id = ANY($1::uuid[]) AND status = 'identified'
+          `, [ids, method])
+          // Log communications
+          for (const oid of ids) {
+            const opp = await queryOne(`SELECT tenant_id, facility_id, title FROM upsell_opportunities WHERE id = $1`, [oid])
+            if (opp) {
+              await query(`
+                INSERT INTO tenant_communications (tenant_id, facility_id, channel, type, subject, related_id, status)
+                VALUES ($1, $2, $3, 'upsell', $4, $5, 'sent')
+              `, [opp.tenant_id, opp.facility_id, method, opp.title, oid])
+            }
+          }
+          return res.json({ updated: ids.length })
+        }
+        if (action === 'batch_status' && status) {
+          const sets = [`status = $2`, `updated_at = NOW()`]
+          if (['accepted', 'declined'].includes(status)) sets.push(`responded_at = NOW()`)
+          await query(`UPDATE upsell_opportunities SET ${sets.join(', ')} WHERE id = ANY($1::uuid[])`, [ids, status])
+          return res.json({ updated: ids.length })
+        }
+        return res.status(400).json({ error: 'Unknown batch action' })
+      }
+
+      if (!id) return res.status(400).json({ error: 'id or ids required' })
 
       const sets = ['updated_at = NOW()']
       const params = [id]
@@ -198,6 +207,15 @@ export default async function handler(req, res) {
       }
 
       const opp = await queryOne(`UPDATE upsell_opportunities SET ${sets.join(', ')} WHERE id = $1 RETURNING *`, params)
+
+      // Log communication on send
+      if (status === 'sent' && opp) {
+        await query(`
+          INSERT INTO tenant_communications (tenant_id, facility_id, channel, type, subject, related_id, status)
+          VALUES ($1, $2, $3, 'upsell', $4, $5, 'sent')
+        `, [opp.tenant_id, opp.facility_id, outreach_method || 'email', opp.title, id])
+      }
+
       return res.json({ opportunity: opp })
     }
 
