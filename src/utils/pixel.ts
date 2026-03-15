@@ -58,7 +58,7 @@ export interface PixelConfig {
  * Pixel manager class for unified tracking.
  */
 class PixelManager {
-  private config: PixelConfig
+  private _config: PixelConfig
   private metaPixelId: string | null = null
   private googleConversionId: string | null = null
   private googleConversionLabel: string | null = null
@@ -67,7 +67,7 @@ class PixelManager {
   private googleConversionEndpoint: string
 
   constructor(config: PixelConfig = {}) {
-    this.config = config
+    this._config = config
     this.metaPixelId = config.metaPixelId || null
     this.googleConversionId = config.googleConversionId || null
     this.googleConversionLabel = config.googleConversionLabel || null
