@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Building2, TrendingUp, DollarSign, Users, BarChart3,
-  ArrowLeft, Target, Phone, Clock, Zap, ArrowUpRight,
-  CheckCircle2, MapPin, Calendar, Play, Pause,
-  ChevronRight, Eye, Megaphone, Home
+  Building2, TrendingUp, DollarSign, Users,
+  ArrowLeft, Target, Zap, ArrowUpRight,
+  MapPin, Calendar, Play, Pause,
+  ChevronRight, Eye, Megaphone
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -170,7 +170,7 @@ function OccupancyChart({ data }: { data: typeof MONTHS }) {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
           <YAxis domain={[55, 100]} tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
           <Tooltip
-            formatter={(v: number) => [`${v}%`, 'Occupancy']}
+            formatter={(v: number | string) => [`${v}%`, 'Occupancy'] as [string, string]}
             contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
           />
           <Area type="monotone" dataKey="occupancy" stroke="#10b981" strokeWidth={2.5} fill="url(#occGrad)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
