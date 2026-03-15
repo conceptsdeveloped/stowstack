@@ -7,10 +7,11 @@ import AdPreviewTab from './AdPreviewTab'
 import LandingPagesTab from './LandingPagesTab'
 import UTMLinksTab from './UTMLinksTab'
 import PublishTab from './PublishTab'
+import CallTrackingTab from './CallTrackingTab'
 import TikTokCreator from './TikTokCreator'
 import VideoGenerator from './VideoGenerator'
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'publish'
+type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
   facility: Facility
@@ -81,6 +82,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
           ['video', 'Video AI'],
           ['landing-pages', 'Landing Pages'],
           ['utm-links', 'UTM Links'],
+          ['calls', 'Calls'],
           ['publish', 'Publish'],
         ] as const).map(([id, label]) => (
           <button
@@ -203,6 +205,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {subTab === 'video' && (
         <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
+      )}
+
+      {subTab === 'calls' && (
+        <CallTrackingTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'publish' && (

@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   Download, CalendarClock, CheckSquare,
   Settings, Columns3, CreditCard, Moon, Sun,
-  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame
+  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame, CalendarRange, Target
 } from 'lucide-react'
 
 import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
@@ -25,8 +25,10 @@ import SequencesView from './dashboard/SequencesView'
 import SharedAuditsView from './dashboard/SharedAuditsView'
 import RecoveryView from './dashboard/RecoveryView'
 import PartnersView from './dashboard/PartnersView'
+import PortfolioOptimizerView from './dashboard/PortfolioOptimizerView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
+import SeasonalPlaybookTab from './dashboard/SeasonalPlaybookTab'
 
 /* ── Admin Auth Gate ── */
 
@@ -357,6 +359,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['pipeline', 'Pipeline', Users],
             ['kanban', 'Kanban', Columns3],
             ['portfolio', 'Portfolio', BarChart3],
+            ['optimizer', 'Optimizer', Target],
             ['insights', 'Insights', TrendingUp],
             ['billing', 'Billing', CreditCard],
             ['settings', 'Settings', Settings],
@@ -365,6 +368,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['shared-audits', 'Shared Audits', Share2],
             ['recovery', 'Recovery', Flame],
             ['partners', 'Partners', Building2],
+            ['playbooks', 'Playbooks', CalendarRange],
             ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -396,6 +400,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             if (action === 'pipeline') setActiveTab('pipeline')
             if (action === 'kanban') setActiveTab('kanban')
             if (action === 'portfolio') setActiveTab('portfolio')
+            if (action === 'optimizer') setActiveTab('optimizer')
             if (action === 'insights') setActiveTab('insights')
             if (action === 'billing') setActiveTab('billing')
             if (action === 'settings') setActiveTab('settings')
@@ -422,6 +427,13 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             <HelpTooltip text="View client campaign data, monthly performance metrics, and manage your client portfolio." guideSection="portfolio" onOpenGuide={openGuideToSection} darkMode={darkMode} />
           </div>
           <PortfolioView leads={leads} adminKey={adminKey} loading={loading} darkMode={darkMode} />
+        </>)}
+
+        {activeTab === 'optimizer' && (<>
+          <div className="flex items-center gap-2 mb-4">
+            <HelpTooltip text="Recommends which facilities to push ad spend toward based on vacancy, margin efficiency, local demand, and campaign momentum." guideSection="portfolio" onOpenGuide={openGuideToSection} darkMode={darkMode} />
+          </div>
+          <PortfolioOptimizerView leads={leads} adminKey={adminKey} darkMode={darkMode} />
         </>)}
 
         {activeTab === 'insights' && (<>
@@ -473,6 +485,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'partners' && (
           <PartnersView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'playbooks' && (
+          <SeasonalPlaybookTab adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'whats-new' && (

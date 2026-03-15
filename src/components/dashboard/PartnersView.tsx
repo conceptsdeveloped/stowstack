@@ -3,7 +3,7 @@ import {
   Building2, Plus, Users, Loader2, Palette, ChevronRight, ArrowLeft,
   Link2, Unlink, Search, TrendingUp, DollarSign, Target,
   CheckCircle2, AlertTriangle, BarChart3, Trophy, ArrowUpRight, ArrowDownRight, Minus,
-  CreditCard, Receipt, Mail
+  CreditCard, Receipt, Mail, BadgeDollarSign, Star, Award, Crown, Sparkles
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -48,6 +48,19 @@ interface UnassignedFacility {
   total_units: string
 }
 
+const REV_SHARE_TIERS = [
+  { name: 'Bronze', min: 1, max: 10, pct: 20, icon: Star, color: '#cd7f32' },
+  { name: 'Silver', min: 11, max: 25, pct: 25, icon: Award, color: '#94a3b8' },
+  { name: 'Gold', min: 26, max: 50, pct: 30, icon: Crown, color: '#eab308' },
+  { name: 'Platinum', min: 51, max: Infinity, pct: 35, icon: Sparkles, color: '#8b5cf6' },
+]
+
+const PER_FACILITY_MRR = 99
+
+function getRevShareTier(facilityCount: number) {
+  return REV_SHARE_TIERS.find(t => facilityCount >= t.min && facilityCount <= t.max) || REV_SHARE_TIERS[0]
+}
+
 const PLAN_COLORS: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
   growth: 'bg-blue-100 text-blue-700',
@@ -81,7 +94,7 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
   const [searchFilter, setSearchFilter] = useState('')
   const [assigning, setAssigning] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
-  const [activeSubTab, setActiveSubTab] = useState<'facilities' | 'benchmarks' | 'billing' | 'activity'>('facilities')
+  const [activeSubTab, setActiveSubTab] = useState<'facilities' | 'benchmarks' | 'billing' | 'revshare' | 'activity'>('facilities')
 
   const dm = darkMode
 
@@ -217,7 +230,7 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
 
       {/* Sub-tabs */}
       <div className={`flex gap-1 mb-5 border-b ${dm ? 'border-slate-700' : 'border-slate-200'}`}>
-        {(['facilities', 'benchmarks', 'billing', 'activity'] as const).map(tab => (
+        {(['facilities', 'benchmarks', 'billing', 'revshare', 'activity'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
@@ -426,30 +439,55 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
       )}
 
       {/* Billing Sub-tab */}
-      {activeSubTab === 'billing' && (
+      {activeSubTab === 'billing' && (() => {
+        const tier = getRevShareTier(facilities.length)
+        const revShareAmount = facilities.length * PER_FACILITY_MRR * (tier.pct / 100)
+        const grossRevenue = baseFee + perFacilityFee * facilities.length
+        const netRevenue = grossRevenue - revShareAmount
+        return (
         <div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+          {/* Rev share summary banner */}
+          <div className={`rounded-xl border p-4 mb-5 flex items-center justify-between ${dm ? 'bg-emerald-900/30 border-emerald-800' : 'bg-emerald-50 border-emerald-200'}`}>
+            <div className="flex items-center gap-3">
+              <BadgeDollarSign size={20} className="text-emerald-500" />
+              <div>
+                <div className={`text-sm font-bold ${dm ? 'text-emerald-300' : 'text-emerald-800'}`}>Revenue Share: {tier.name} Tier ({tier.pct}%)</div>
+                <div className={`text-xs ${dm ? 'text-emerald-400' : 'text-emerald-600'}`}>{facilities.length} facilities — partner earns ${revShareAmount.toLocaleString()}/mo</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={`text-lg font-bold ${dm ? 'text-emerald-400' : 'text-emerald-600'}`}>Net: ${netRevenue.toLocaleString()}/mo</div>
+              <div className={`text-[10px] ${dm ? 'text-emerald-500' : 'text-emerald-500'}`}>StowStack retains after rev share</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             <div className={`rounded-xl border p-4 ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-2 mb-1"><CreditCard size={14} className="text-indigo-500" /><span className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>Monthly Base Fee</span></div>
               <div className={`text-xl font-bold ${dm ? 'text-white' : ''}`}>${baseFee.toLocaleString()}</div>
               <div className={`text-[10px] mt-0.5 ${dm ? 'text-slate-500' : 'text-slate-400'}`}>{org.plan} plan</div>
             </div>
             <div className={`rounded-xl border p-4 ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-              <div className="flex items-center gap-2 mb-1"><Building2 size={14} className="text-emerald-500" /><span className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>Per-Facility Fee</span></div>
+              <div className="flex items-center gap-2 mb-1"><Building2 size={14} className="text-emerald-500" /><span className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>Facility Fees</span></div>
               <div className={`text-xl font-bold ${dm ? 'text-white' : ''}`}>${(perFacilityFee * facilities.length).toLocaleString()}</div>
               <div className={`text-[10px] mt-0.5 ${dm ? 'text-slate-500' : 'text-slate-400'}`}>{facilities.length} x ${perFacilityFee}/facility</div>
             </div>
+            <div className={`rounded-xl border p-4 ${dm ? 'bg-red-900/20 border-red-800/50' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex items-center gap-2 mb-1"><BadgeDollarSign size={14} className="text-red-500" /><span className={`text-xs ${dm ? 'text-red-400' : 'text-red-500'}`}>Rev Share Payout</span></div>
+              <div className={`text-xl font-bold ${dm ? 'text-red-400' : 'text-red-600'}`}>-${revShareAmount.toLocaleString()}</div>
+              <div className={`text-[10px] mt-0.5 ${dm ? 'text-red-500' : 'text-red-400'}`}>{tier.pct}% to partner</div>
+            </div>
             <div className={`rounded-xl border p-4 ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-              <div className="flex items-center gap-2 mb-1"><Receipt size={14} className="text-purple-500" /><span className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>Est. Monthly Total</span></div>
-              <div className={`text-xl font-bold ${dm ? 'text-white' : ''}`}>${(baseFee + perFacilityFee * facilities.length).toLocaleString()}</div>
-              <div className={`text-[10px] mt-0.5 ${dm ? 'text-slate-500' : 'text-slate-400'}`}>excl. ad spend</div>
+              <div className="flex items-center gap-2 mb-1"><Receipt size={14} className="text-purple-500" /><span className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>Net Revenue</span></div>
+              <div className={`text-xl font-bold ${dm ? 'text-white' : ''}`}>${netRevenue.toLocaleString()}</div>
+              <div className={`text-[10px] mt-0.5 ${dm ? 'text-slate-500' : 'text-slate-400'}`}>StowStack keeps</div>
             </div>
           </div>
 
           {/* Monthly ad spend breakdown */}
           <div className={`rounded-xl border overflow-hidden ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
             <h3 className={`text-sm font-semibold px-4 py-3 border-b ${dm ? 'text-white border-slate-700' : 'border-slate-100'}`}>
-              Monthly Ad Spend History
+              Monthly Revenue & Payout History
             </h3>
             {monthlyData.length === 0 ? (
               <p className={`px-4 py-6 text-sm text-center ${dm ? 'text-slate-500' : 'text-slate-400'}`}>No billing data yet</p>
@@ -459,10 +497,9 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
                   <tr className={`border-b ${dm ? 'border-slate-700 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
                     <th className={`text-left px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Month</th>
                     <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Ad Spend</th>
-                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Leads</th>
-                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Move-Ins</th>
                     <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Platform Fee</th>
-                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Total</th>
+                    <th className={`text-right px-4 py-2 font-medium text-red-500`}>Rev Share</th>
+                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Net to SS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -472,10 +509,9 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
                       <tr key={m.month} className={`border-b ${dm ? 'border-slate-700/50' : 'border-slate-50'}`}>
                         <td className={`px-4 py-2.5 font-medium ${dm ? 'text-white' : ''}`}>{m.month}</td>
                         <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>${m.spend.toLocaleString()}</td>
-                        <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>{m.leads}</td>
-                        <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>{m.moveIns}</td>
                         <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>${platformFee.toLocaleString()}</td>
-                        <td className={`px-4 py-2.5 text-right font-semibold ${dm ? 'text-white' : ''}`}>${(m.spend + platformFee).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-red-500">-${revShareAmount.toLocaleString()}</td>
+                        <td className={`px-4 py-2.5 text-right font-semibold ${dm ? 'text-white' : ''}`}>${(platformFee - revShareAmount).toLocaleString()}</td>
                       </tr>
                     )
                   })}
@@ -484,7 +520,105 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
+
+      {/* Rev Share Sub-tab (admin view) */}
+      {activeSubTab === 'revshare' && (() => {
+        const tier = getRevShareTier(facilities.length)
+        const TierIcon = tier.icon
+        const monthlyPayout = facilities.length * PER_FACILITY_MRR * (tier.pct / 100)
+        const annualPayout = monthlyPayout * 12
+        return (
+          <div>
+            {/* Partner's tier and earnings */}
+            <div className={`rounded-xl border p-5 mb-5 ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: tier.color + '20' }}>
+                    <TierIcon size={24} style={{ color: tier.color }} />
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${dm ? 'text-white' : ''}`}>{tier.name} Tier — {tier.pct}% Revenue Share</h3>
+                    <p className={`text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {facilities.length} facilities ({tier.max === Infinity ? `${tier.min}+` : `${tier.min}–${tier.max}`} range)
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-2xl font-black ${dm ? 'text-emerald-400' : 'text-emerald-600'}`}>${monthlyPayout.toLocaleString()}<span className="text-sm font-medium opacity-60">/mo</span></div>
+                  <div className={`text-xs ${dm ? 'text-slate-500' : 'text-slate-400'}`}>${annualPayout.toLocaleString()}/year to partner</div>
+                </div>
+              </div>
+
+              {/* Tier breakdown */}
+              <div className="grid grid-cols-4 gap-2">
+                {REV_SHARE_TIERS.map(t => {
+                  const isActive = tier.name === t.name
+                  const TIcon = t.icon
+                  return (
+                    <div key={t.name} className={`rounded-lg border p-3 text-center ${isActive ? (dm ? 'border-emerald-500 bg-emerald-900/30' : 'border-emerald-500 bg-emerald-50') : (dm ? 'border-slate-700 bg-slate-900/50' : 'border-slate-200')}`}>
+                      <TIcon size={16} className="mx-auto mb-1" style={{ color: t.color }} />
+                      <div className={`text-xs font-bold ${dm ? 'text-white' : ''}`} style={{ color: t.color }}>{t.name}</div>
+                      <div className={`text-lg font-black ${isActive ? 'text-emerald-600' : dm ? 'text-slate-400' : 'text-slate-500'}`}>{t.pct}%</div>
+                      <div className={`text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>{t.max === Infinity ? `${t.min}+` : `${t.min}–${t.max}`} facilities</div>
+                      {isActive && <div className="mt-1 text-[9px] font-bold text-emerald-600 bg-emerald-200 rounded-full px-1.5 py-0.5 inline-block">CURRENT</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Per-facility payout table */}
+            <div className={`rounded-xl border overflow-hidden ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+              <h3 className={`text-sm font-semibold px-4 py-3 border-b flex items-center justify-between ${dm ? 'text-white border-slate-700' : 'border-slate-100'}`}>
+                <span>Per-Facility Rev Share Payout</span>
+                <span className={`text-xs font-normal ${dm ? 'text-slate-400' : 'text-slate-500'}`}>${PER_FACILITY_MRR}/facility x {tier.pct}% = ${(PER_FACILITY_MRR * tier.pct / 100).toFixed(2)}/facility</span>
+              </h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={`border-b ${dm ? 'border-slate-700 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
+                    <th className={`text-left px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Facility</th>
+                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>MRR</th>
+                    <th className={`text-right px-4 py-2 font-medium text-red-500`}>Partner Payout</th>
+                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>SS Keeps</th>
+                    <th className={`text-right px-4 py-2 font-medium ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {facilities.map(f => {
+                    const payout = PER_FACILITY_MRR * (tier.pct / 100)
+                    const ssKeeps = PER_FACILITY_MRR - payout
+                    return (
+                      <tr key={f.id} className={`border-b ${dm ? 'border-slate-700/50 hover:bg-slate-700/30' : 'border-slate-50 hover:bg-slate-50/50'}`}>
+                        <td className={`px-4 py-2.5 font-medium ${dm ? 'text-white' : ''}`}>
+                          {f.name}
+                          <span className={`block text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>{f.location}</span>
+                        </td>
+                        <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>${PER_FACILITY_MRR}/mo</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-red-500">-${payout.toFixed(2)}/mo</td>
+                        <td className={`px-4 py-2.5 text-right ${dm ? 'text-slate-300' : ''}`}>${ssKeeps.toFixed(2)}/mo</td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>{f.status}</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className={`font-semibold ${dm ? 'bg-slate-900/50' : 'bg-slate-50'}`}>
+                    <td className={`px-4 py-3 ${dm ? 'text-white' : ''}`}>{facilities.length} Facilities</td>
+                    <td className={`px-4 py-3 text-right ${dm ? 'text-white' : ''}`}>${(facilities.length * PER_FACILITY_MRR).toLocaleString()}/mo</td>
+                    <td className="px-4 py-3 text-right text-red-500">-${monthlyPayout.toLocaleString()}/mo</td>
+                    <td className={`px-4 py-3 text-right ${dm ? 'text-white' : ''}`}>${(facilities.length * PER_FACILITY_MRR - monthlyPayout).toLocaleString()}/mo</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Activity Sub-tab */}
       {activeSubTab === 'activity' && (
@@ -702,7 +836,11 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
         </div>
       ) : (
         <div className="space-y-2">
-          {orgs.map(o => (
+          {orgs.map(o => {
+            const tier = getRevShareTier(o.facility_count)
+            const TIcon = tier.icon
+            const monthlyPayout = o.facility_count * PER_FACILITY_MRR * (tier.pct / 100)
+            return (
             <button
               key={o.id}
               onClick={() => setSelectedOrg(o)}
@@ -718,12 +856,16 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
                       <h3 className={`text-sm font-semibold ${dm ? 'text-white' : ''}`}>{o.name}</h3>
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${PLAN_COLORS[o.plan] || 'bg-slate-100 text-slate-600'}`}>{o.plan}</span>
                       {o.white_label && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700"><Palette size={8} className="inline mr-0.5" /> White-label</span>}
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium inline-flex items-center gap-0.5" style={{ background: tier.color + '20', color: tier.color }}>
+                        <TIcon size={8} /> {tier.name} {tier.pct}%
+                      </span>
                     </div>
                     <div className={`flex items-center gap-3 text-xs mt-0.5 ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
                       <span className="font-mono">{o.slug}</span>
                       {o.contact_email && <span>{o.contact_email}</span>}
                       <span className="flex items-center gap-1"><Building2 size={10} /> {o.facility_count} facilities</span>
                       <span className="flex items-center gap-1"><Users size={10} /> {o.user_count} users</span>
+                      <span className="flex items-center gap-1 text-emerald-600 font-medium"><BadgeDollarSign size={10} /> ${monthlyPayout.toLocaleString()}/mo payout</span>
                     </div>
                   </div>
                 </div>
@@ -736,7 +878,8 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
                 </div>
               </div>
             </button>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

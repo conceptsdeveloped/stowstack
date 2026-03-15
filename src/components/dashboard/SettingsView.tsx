@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Bell, Settings, Sun, Moon, Loader2 } from 'lucide-react'
+import { Building2, Bell, Settings, Sun, Moon, Loader2, Phone } from 'lucide-react'
 
 export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
   adminKey: string; darkMode: boolean; onToggleDarkMode: () => void
@@ -14,6 +14,8 @@ export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
     notifyAlerts: true,
     emailSignature: '',
     defaultFollowUpDays: 3,
+    twilioAccountSid: '',
+    twilioAuthToken: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -141,6 +143,30 @@ export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
               {darkMode ? <Sun size={14} /> : <Moon size={14} />}
               {darkMode ? 'Light Mode' : 'Dark Mode'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Call Tracking (Twilio) */}
+      <div className={`rounded-xl border p-5 ${cardClass}`}>
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Phone size={16} /> Call Tracking (Twilio)</h3>
+        <p className={`text-xs mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Connect your Twilio account to provision tracking phone numbers and attribute inbound calls to campaigns.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass}>Account SID</label>
+            <input type="text" value={settings.twilioAccountSid}
+              onChange={e => setSettings({ ...settings, twilioAccountSid: e.target.value })}
+              placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 font-mono ${inputClass}`} />
+          </div>
+          <div>
+            <label className={labelClass}>Auth Token</label>
+            <input type="password" value={settings.twilioAuthToken}
+              onChange={e => setSettings({ ...settings, twilioAuthToken: e.target.value })}
+              placeholder="Your Twilio auth token"
+              className={`w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 font-mono ${inputClass}`} />
           </div>
         </div>
       </div>

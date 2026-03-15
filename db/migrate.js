@@ -234,6 +234,12 @@ CREATE TABLE IF NOT EXISTS organizations (
   facility_limit    INTEGER DEFAULT 10,
   white_label       BOOLEAN DEFAULT FALSE,
   status            TEXT DEFAULT 'active',   -- active | suspended | cancelled
+  rev_share_enabled BOOLEAN DEFAULT TRUE,
+  rev_share_pct     NUMERIC(5,2),            -- NULL = auto-tiered, or manual override
+  rev_share_tier    TEXT DEFAULT 'auto',      -- auto | custom
+  lifetime_earnings NUMERIC(12,2) DEFAULT 0,
+  payout_method     TEXT DEFAULT 'bank_transfer', -- bank_transfer | paypal | check
+  payout_email      TEXT,
   settings          JSONB DEFAULT '{}',
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()
@@ -540,6 +546,247 @@ CREATE TABLE IF NOT EXISTS call_logs (
 CREATE INDEX IF NOT EXISTS idx_call_logs_tracking ON call_logs(tracking_number_id);
 CREATE INDEX IF NOT EXISTS idx_call_logs_facility ON call_logs(facility_id);
 CREATE INDEX IF NOT EXISTS idx_call_logs_created ON call_logs(created_at DESC);
+
+-- ============================================================
+-- Revenue share for partner organizations
+-- ============================================================
+
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS rev_share_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS rev_share_pct NUMERIC(5,2);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS rev_share_tier TEXT DEFAULT 'auto';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS lifetime_earnings NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payout_method TEXT DEFAULT 'bank_transfer';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payout_email TEXT;
+
+-- Revenue share payouts: monthly payout records per org
+CREATE TABLE IF NOT EXISTS rev_share_payouts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  month             TEXT NOT NULL,
+  facility_count    INTEGER NOT NULL DEFAULT 0,
+  gross_mrr         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  rev_share_pct     NUMERIC(5,2) NOT NULL,
+  payout_amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status            TEXT DEFAULT 'pending',  -- pending | approved | paid | failed
+  paid_at           TIMESTAMPTZ,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(organization_id, month)
+);
+CREATE INDEX IF NOT EXISTS idx_rev_share_payouts_org ON rev_share_payouts(organization_id);
+CREATE INDEX IF NOT EXISTS idx_rev_share_payouts_month ON rev_share_payouts(month);
+CREATE INDEX IF NOT EXISTS idx_rev_share_payouts_status ON rev_share_payouts(status);
+
+-- Revenue share referrals: track which facilities were referred by which org
+CREATE TABLE IF NOT EXISTS rev_share_referrals (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  referred_at       TIMESTAMPTZ DEFAULT NOW(),
+  first_revenue_at  TIMESTAMPTZ,
+  status            TEXT DEFAULT 'active',  -- active | churned | paused
+  total_earned      NUMERIC(10,2) DEFAULT 0,
+  UNIQUE(organization_id, facility_id)
+);
+CREATE INDEX IF NOT EXISTS idx_rev_share_referrals_org ON rev_share_referrals(organization_id);
+
+-- ============================================================
+-- Tenant management & billing integration
+-- ============================================================
+
+-- Tenants: individual storage unit renters synced from PMS
+CREATE TABLE IF NOT EXISTS tenants (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  external_id       TEXT,                -- PMS tenant ID
+  name              TEXT NOT NULL,
+  email             TEXT,
+  phone             TEXT,
+  unit_number       TEXT NOT NULL,
+  unit_size         TEXT,                -- e.g. '10x10', '5x15'
+  unit_type         TEXT,                -- standard | climate | drive_up | vehicle_rv
+  monthly_rate      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  move_in_date      DATE NOT NULL,
+  lease_end_date    DATE,
+  autopay_enabled   BOOLEAN DEFAULT FALSE,
+  has_insurance     BOOLEAN DEFAULT FALSE,
+  insurance_monthly NUMERIC(10,2) DEFAULT 0,
+  balance           NUMERIC(10,2) DEFAULT 0,
+  status            TEXT DEFAULT 'active',  -- active | delinquent | moved_out | reserved
+  days_delinquent   INTEGER DEFAULT 0,
+  last_payment_date DATE,
+  moved_out_date    DATE,
+  move_out_reason   TEXT,                -- voluntary | eviction | relocation | downsizing | other
+  metadata          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tenants_facility ON tenants(facility_id);
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
+CREATE INDEX IF NOT EXISTS idx_tenants_delinquent ON tenants(days_delinquent) WHERE days_delinquent > 0;
+CREATE INDEX IF NOT EXISTS idx_tenants_external ON tenants(facility_id, external_id);
+
+-- Tenant payment history: individual payment records
+CREATE TABLE IF NOT EXISTS tenant_payments (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  amount          NUMERIC(10,2) NOT NULL,
+  payment_date    DATE NOT NULL,
+  due_date        DATE NOT NULL,
+  method          TEXT,                  -- autopay | manual | cash | check | card
+  status          TEXT DEFAULT 'paid',   -- paid | pending | failed | refunded | late
+  days_late       INTEGER DEFAULT 0,
+  external_ref    TEXT,                  -- PMS payment reference
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_payments_tenant ON tenant_payments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_payments_facility ON tenant_payments(facility_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_payments_date ON tenant_payments(payment_date DESC);
+
+-- Churn predictions: ML-scored risk assessments per tenant
+CREATE TABLE IF NOT EXISTS churn_predictions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  risk_score        INTEGER NOT NULL,    -- 0-100, higher = more likely to churn
+  risk_level        TEXT NOT NULL,        -- low | medium | high | critical
+  predicted_vacate  DATE,                -- estimated move-out date
+  factors           JSONB NOT NULL,      -- [{factor, weight, detail}]
+  recommended_actions JSONB DEFAULT '[]', -- [{action, priority, description}]
+  retention_campaign_id UUID,
+  retention_status  TEXT DEFAULT 'none', -- none | enrolled | contacted | retained | churned
+  last_scored_at    TIMESTAMPTZ DEFAULT NOW(),
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tenant_id)
+);
+CREATE INDEX IF NOT EXISTS idx_churn_predictions_facility ON churn_predictions(facility_id);
+CREATE INDEX IF NOT EXISTS idx_churn_predictions_risk ON churn_predictions(risk_score DESC);
+CREATE INDEX IF NOT EXISTS idx_churn_predictions_level ON churn_predictions(risk_level);
+
+-- Upsell opportunities: identified revenue expansion per tenant
+CREATE TABLE IF NOT EXISTS upsell_opportunities (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  type              TEXT NOT NULL,        -- unit_upgrade | insurance | climate_upgrade | longer_term | autopay
+  title             TEXT NOT NULL,
+  description       TEXT,
+  current_value     NUMERIC(10,2) DEFAULT 0,
+  proposed_value    NUMERIC(10,2) DEFAULT 0,
+  monthly_uplift    NUMERIC(10,2) DEFAULT 0,
+  confidence        INTEGER DEFAULT 50,  -- 0-100 confidence score
+  status            TEXT DEFAULT 'identified', -- identified | queued | sent | accepted | declined | expired
+  outreach_method   TEXT,                -- email | sms | call | in_person
+  sent_at           TIMESTAMPTZ,
+  responded_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_upsell_facility ON upsell_opportunities(facility_id);
+CREATE INDEX IF NOT EXISTS idx_upsell_tenant ON upsell_opportunities(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_upsell_status ON upsell_opportunities(status);
+CREATE INDEX IF NOT EXISTS idx_upsell_type ON upsell_opportunities(type);
+
+-- Move-out remarketing: welcome-back campaigns for departed tenants
+CREATE TABLE IF NOT EXISTS moveout_remarketing (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  moved_out_date    DATE NOT NULL,
+  move_out_reason   TEXT,
+  sequence_status   TEXT DEFAULT 'pending', -- pending | active | paused | completed | converted | unsubscribed
+  current_step      INTEGER DEFAULT 0,
+  total_steps       INTEGER DEFAULT 5,
+  last_sent_at      TIMESTAMPTZ,
+  next_send_at      TIMESTAMPTZ,
+  opened_count      INTEGER DEFAULT 0,
+  clicked_count     INTEGER DEFAULT 0,
+  converted         BOOLEAN DEFAULT FALSE,
+  converted_at      TIMESTAMPTZ,
+  new_tenant_id     UUID REFERENCES tenants(id) ON DELETE SET NULL,
+  offer_type        TEXT,                -- discount | free_month | waived_fee | none
+  offer_value       NUMERIC(10,2) DEFAULT 0,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tenant_id)
+);
+CREATE INDEX IF NOT EXISTS idx_moveout_remarketing_facility ON moveout_remarketing(facility_id);
+CREATE INDEX IF NOT EXISTS idx_moveout_remarketing_status ON moveout_remarketing(sequence_status);
+CREATE INDEX IF NOT EXISTS idx_moveout_remarketing_next ON moveout_remarketing(next_send_at) WHERE sequence_status = 'active';
+
+-- Retention campaigns: automated outreach triggered by churn predictions
+CREATE TABLE IF NOT EXISTS retention_campaigns (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  trigger_risk_level TEXT DEFAULT 'high', -- medium | high | critical
+  sequence_steps    JSONB NOT NULL,      -- [{step, delayDays, channel, subject, body, offer}]
+  active            BOOLEAN DEFAULT TRUE,
+  enrolled_count    INTEGER DEFAULT 0,
+  retained_count    INTEGER DEFAULT 0,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_retention_campaigns_facility ON retention_campaigns(facility_id);
+
+-- ============================================================
+-- Operator referral network
+-- ============================================================
+
+-- Referral codes: one per facility/operator, shareable at conferences
+CREATE TABLE IF NOT EXISTS referral_codes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  code            VARCHAR(20) NOT NULL UNIQUE,
+  referrer_name   TEXT NOT NULL,
+  referrer_email  TEXT NOT NULL,
+  credit_balance  NUMERIC(10,2) DEFAULT 0,
+  total_earned    NUMERIC(10,2) DEFAULT 0,
+  referral_count  INTEGER DEFAULT 0,
+  status          TEXT DEFAULT 'active',  -- active | paused | revoked
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_referral_codes_facility ON referral_codes(facility_id);
+CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
+CREATE INDEX IF NOT EXISTS idx_referral_codes_email ON referral_codes(referrer_email);
+
+-- Referrals: each referred operator tracked from invite to conversion
+CREATE TABLE IF NOT EXISTS referrals (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referral_code_id  UUID NOT NULL REFERENCES referral_codes(id) ON DELETE CASCADE,
+  referred_name     TEXT NOT NULL,
+  referred_email    TEXT NOT NULL,
+  referred_phone    TEXT,
+  facility_name     TEXT,
+  facility_location TEXT,
+  status            TEXT DEFAULT 'invited',  -- invited | signed_up | onboarding | active | churned
+  credit_amount     NUMERIC(10,2) DEFAULT 0,
+  credit_issued     BOOLEAN DEFAULT FALSE,
+  credit_issued_at  TIMESTAMPTZ,
+  signed_up_at      TIMESTAMPTZ,
+  activated_at      TIMESTAMPTZ,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_status ON referrals(status);
+CREATE INDEX IF NOT EXISTS idx_referrals_email ON referrals(referred_email);
+
+-- Referral credit ledger: tracks every credit earned/redeemed
+CREATE TABLE IF NOT EXISTS referral_credits (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referral_code_id  UUID NOT NULL REFERENCES referral_codes(id) ON DELETE CASCADE,
+  referral_id       UUID REFERENCES referrals(id) ON DELETE SET NULL,
+  type              TEXT NOT NULL,  -- earned | redeemed | expired | bonus
+  amount            NUMERIC(10,2) NOT NULL,
+  description       TEXT NOT NULL,
+  balance_after     NUMERIC(10,2) NOT NULL,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_referral_credits_code ON referral_credits(referral_code_id);
+CREATE INDEX IF NOT EXISTS idx_referral_credits_type ON referral_credits(type);
 `
 
 async function migrate() {
