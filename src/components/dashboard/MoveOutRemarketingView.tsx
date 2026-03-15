@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   UserPlus, MousePointer, RotateCcw, CheckCircle2,
   Search, RefreshCw, ChevronDown, ChevronRight, Play, Pause,
-  Gift, TrendingUp, Users, Clock, Send, Eye
+  Gift, TrendingUp, Users, Clock, Send, Eye, X, Save,
+  BarChart3, SlidersHorizontal, Square, CheckSquare, Minus
 } from 'lucide-react'
 
 interface RemarketingSequence {
@@ -41,6 +42,14 @@ interface RemarketingStats {
   total_opens: number
   total_clicks: number
   conversion_rate: number
+  avg_steps_completed: number
+}
+
+interface ReasonBreakdownItem {
+  reason: string
+  count: number
+  converted: number
+  conversion_rate: number
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -67,6 +76,13 @@ const OFFER_LABELS: Record<string, string> = {
   none: 'No Offer',
 }
 
+const OFFER_TYPES = [
+  { value: 'discount', label: 'Discount' },
+  { value: 'free_month', label: 'Free Month' },
+  { value: 'waived_fee', label: 'Waived Fee' },
+  { value: 'none', label: 'No Offer' },
+]
+
 const WELCOME_BACK_STEPS = [
   { step: 1, delay: '3 days', subject: 'We miss you!', description: 'Friendly check-in after move-out' },
   { step: 2, delay: '10 days', subject: 'Need storage again?', description: 'Soft reminder with available units' },
@@ -75,13 +91,48 @@ const WELCOME_BACK_STEPS = [
   { step: 5, delay: '90 days', subject: 'Last chance offer', description: 'Final touchpoint with best offer' },
 ]
 
+function renderOfferPreview(offerType: string, offerValue: number): string {
+  switch (offerType) {
+    case 'discount':
+      return offerValue > 0 ? `First month ${offerValue}% off` : 'Discount (set value)'
+    case 'free_month':
+      return 'Free month on return'
+    case 'waived_fee':
+      return offerValue > 0 ? `$${offerValue} admin fee waived` : 'Admin fee waived'
+    case 'none':
+      return 'No offer attached'
+    default:
+      return 'Select an offer type'
+  }
+}
+
 export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKey: string; darkMode: boolean }) {
   const [sequences, setSequences] = useState<RemarketingSequence[]>([])
   const [stats, setStats] = useState<RemarketingStats | null>(null)
+  const [reasonBreakdown, setReasonBreakdown] = useState<ReasonBreakdownItem[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // Offer editor state per sequence
+  const [editingOffer, setEditingOffer] = useState<Record<string, { offer_type: string; offer_value: number }>>({})
+  const [savingOffer, setSavingOffer] = useState<string | null>(null)
+
+  // Batch enrollment modal
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [batchFacility, setBatchFacility] = useState<string>('all')
+  const [batchOfferType, setBatchOfferType] = useState('discount')
+  const [batchOfferValue, setBatchOfferValue] = useState(10)
+  const [batchReasonFilter, setBatchReasonFilter] = useState('all')
+  const [batchDaysSince, setBatchDaysSince] = useState(90)
+  const [batchPreviewCount, setBatchPreviewCount] = useState<number | null>(null)
+  const [batchLoading, setBatchLoading] = useState(false)
+  const [batchPreviewLoading, setBatchPreviewLoading] = useState(false)
+
+  // Batch selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchActionLoading, setBatchActionLoading] = useState(false)
 
   const fetchSequences = useCallback(async () => {
     try {
@@ -93,22 +144,51 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
         const data = await res.json()
         setSequences(data.sequences || [])
         setStats(data.stats || null)
+        setReasonBreakdown(data.reasonBreakdown || [])
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [adminKey, statusFilter])
 
   useEffect(() => { fetchSequences() }, [fetchSequences])
 
+  // Fetch batch preview count when modal params change
+  useEffect(() => {
+    if (!showBatchModal) return
+    const fetchPreview = async () => {
+      try {
+        setBatchPreviewLoading(true)
+        const params = new URLSearchParams()
+        params.set('preview', '1')
+        if (batchFacility !== 'all') params.set('facilityId', batchFacility)
+        if (batchReasonFilter !== 'all') params.set('reason', batchReasonFilter)
+        params.set('days_since', String(batchDaysSince))
+        const res = await fetch(`/api/moveout-remarketing?${params}`, { headers: { 'X-Admin-Key': adminKey } })
+        if (res.ok) {
+          const data = await res.json()
+          setBatchPreviewCount(data.eligibleCount ?? null)
+        }
+      } catch { /* silent */ } finally { setBatchPreviewLoading(false) }
+    }
+    fetchPreview()
+  }, [showBatchModal, batchFacility, batchReasonFilter, batchDaysSince, adminKey])
+
   const batchEnroll = async () => {
     try {
-      // Enroll across all facilities
+      setBatchLoading(true)
       await fetch('/api/moveout-remarketing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-        body: JSON.stringify({ facilityId: null, offer_type: 'discount', offer_value: 10 }),
+        body: JSON.stringify({
+          facilityId: batchFacility === 'all' ? null : batchFacility,
+          offer_type: batchOfferType,
+          offer_value: batchOfferValue,
+          reason_filter: batchReasonFilter === 'all' ? null : batchReasonFilter,
+          days_since: batchDaysSince,
+        }),
       })
+      setShowBatchModal(false)
       fetchSequences()
-    } catch { /* silent */ }
+    } catch { /* silent */ } finally { setBatchLoading(false) }
   }
 
   const updateSequence = async (id: string, action: string) => {
@@ -130,6 +210,75 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
     } catch { /* silent */ }
   }
 
+  const saveOffer = async (id: string) => {
+    const offerData = editingOffer[id]
+    if (!offerData) return
+    try {
+      setSavingOffer(id)
+      await fetch('/api/moveout-remarketing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id, offer_type: offerData.offer_type, offer_value: offerData.offer_value }),
+      })
+      setEditingOffer(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      fetchSequences()
+    } catch { /* silent */ } finally { setSavingOffer(null) }
+  }
+
+  const initOfferEdit = (s: RemarketingSequence) => {
+    if (!editingOffer[s.id]) {
+      setEditingOffer(prev => ({
+        ...prev,
+        [s.id]: { offer_type: s.offer_type || 'none', offer_value: s.offer_value || 0 },
+      }))
+    }
+  }
+
+  // Batch selection handlers
+  const batchAction = async (action: 'pause' | 'resume' | 'advance') => {
+    if (selectedIds.size === 0) return
+    try {
+      setBatchActionLoading(true)
+      const ids = Array.from(selectedIds)
+      if (action === 'pause' || action === 'resume') {
+        await fetch('/api/moveout-remarketing', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ ids, sequence_status: action === 'pause' ? 'paused' : 'active' }),
+        })
+      } else {
+        await fetch('/api/moveout-remarketing', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ ids, action }),
+        })
+      }
+      setSelectedIds(new Set())
+      fetchSequences()
+    } catch { /* silent */ } finally { setBatchActionLoading(false) }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(s => s.id)))
+    }
+  }
+
   const filtered = sequences.filter(s => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -137,6 +286,14 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
     }
     return true
   })
+
+  const facilityOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    sequences.forEach(s => {
+      if (s.facility_id && s.facility_name) map.set(s.facility_id, s.facility_name)
+    })
+    return Array.from(map.entries())
+  }, [sequences])
 
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const muted = darkMode ? 'text-slate-400' : 'text-slate-500'
@@ -150,15 +307,21 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
     .filter(s => s.converted)
     .reduce((sum, s) => sum + (s.monthly_rate || 0), 0)
 
+  const maxReasonCount = reasonBreakdown.length > 0 ? Math.max(...reasonBreakdown.map(r => r.count)) : 1
+
+  const allSelected = filtered.length > 0 && selectedIds.size === filtered.length
+  const someSelected = selectedIds.size > 0 && selectedIds.size < filtered.length
+
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
           { icon: Users, label: 'Active Sequences', value: stats?.active_sequences || 0, color: 'text-blue-500' },
           { icon: RotateCcw, label: 'Converted', value: stats?.converted_count || 0, color: 'text-green-500' },
           { icon: TrendingUp, label: 'Recovered Revenue', value: `$${recoveredRevenue.toLocaleString()}/mo`, color: 'text-emerald-500' },
           { icon: CheckCircle2, label: 'Conversion Rate', value: `${stats?.conversion_rate || 0}%`, color: 'text-purple-500' },
+          { icon: SlidersHorizontal, label: 'Avg Steps Completed', value: stats?.avg_steps_completed != null ? stats.avg_steps_completed.toFixed(1) : '—', color: 'text-indigo-500' },
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} className={`rounded-xl border p-4 ${card}`}>
             <div className="flex items-center gap-2 mb-1">
@@ -187,6 +350,37 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
           </div>
         ))}
       </div>
+
+      {/* Move-out Reason Breakdown */}
+      {reasonBreakdown.length > 0 && (
+        <div className={`rounded-xl border p-4 ${card}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 size={16} className="text-indigo-500" />
+            <h3 className="font-semibold text-sm">Move-Out Reason Breakdown</h3>
+          </div>
+          <div className="space-y-2">
+            {reasonBreakdown.map(r => (
+              <div key={r.reason} className="flex items-center gap-3">
+                <div className="w-24 text-xs font-medium truncate">
+                  {REASON_LABELS[r.reason] || r.reason || 'Unknown'}
+                </div>
+                <div className={`flex-1 h-6 rounded-md overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                  <div
+                    className="h-full rounded-md bg-indigo-500/70 flex items-center px-2"
+                    style={{ width: `${Math.max((r.count / maxReasonCount) * 100, 8)}%` }}
+                  >
+                    <span className="text-xs font-medium text-white whitespace-nowrap">{r.count}</span>
+                  </div>
+                </div>
+                <div className="w-28 text-right">
+                  <span className={`text-xs ${muted}`}>{r.converted} converted</span>
+                  <span className="text-xs font-semibold text-green-600 ml-1">({r.conversion_rate}%)</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Welcome back sequence template */}
       <div className={`rounded-xl border p-4 ${card}`}>
@@ -236,19 +430,66 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
           <option value="converted">Converted</option>
         </select>
         <button
-          onClick={batchEnroll}
+          onClick={() => setShowBatchModal(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
         >
-          <UserPlus size={14} /> Auto-Enroll Recent
+          <UserPlus size={14} /> Batch Enroll
         </button>
         <button onClick={fetchSequences} className={`p-2 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <div className={`rounded-xl border p-3 flex items-center gap-3 ${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={() => batchAction('pause')}
+              disabled={batchActionLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs text-yellow-600 border-yellow-300 hover:bg-yellow-50 disabled:opacity-50"
+            >
+              <Pause size={12} /> Pause {selectedIds.size}
+            </button>
+            <button
+              onClick={() => batchAction('resume')}
+              disabled={batchActionLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs text-green-600 border-green-300 hover:bg-green-50 disabled:opacity-50"
+            >
+              <Play size={12} /> Resume {selectedIds.size}
+            </button>
+            <button
+              onClick={() => batchAction('advance')}
+              disabled={batchActionLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Send size={12} /> Send Next to {selectedIds.size}
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sequences list */}
       <div className={`rounded-xl border overflow-hidden ${card}`}>
-        <div className={`px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        <div className={`px-4 py-3 border-b flex items-center gap-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          {filtered.length > 0 && (
+            <button onClick={toggleSelectAll} className="flex-shrink-0">
+              {allSelected ? (
+                <CheckSquare size={16} className="text-blue-500" />
+              ) : someSelected ? (
+                <Minus size={16} className="text-blue-500" />
+              ) : (
+                <Square size={16} className={muted} />
+              )}
+            </button>
+          )}
           <h3 className="font-semibold text-sm">Remarketing Sequences ({filtered.length})</h3>
         </div>
         {loading ? (
@@ -258,7 +499,7 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
         ) : filtered.length === 0 ? (
           <div className={`text-center py-12 ${muted}`}>
             <RotateCcw size={32} className="mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No sequences yet. Move-out tenants are automatically enrolled, or click "Auto-Enroll Recent".</p>
+            <p className="text-sm">No sequences yet. Move-out tenants are automatically enrolled, or click "Batch Enroll".</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -268,6 +509,18 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
                   className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}
                   onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
                 >
+                  {/* Checkbox */}
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleSelect(s.id) }}
+                    className="flex-shrink-0"
+                  >
+                    {selectedIds.has(s.id) ? (
+                      <CheckSquare size={16} className="text-blue-500" />
+                    ) : (
+                      <Square size={16} className={muted} />
+                    )}
+                  </button>
+
                   {expandedId === s.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
 
                   <div className="flex-1 min-w-0">
@@ -345,6 +598,86 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
                       </div>
                     </div>
 
+                    {/* Offer Editor */}
+                    <div className={`mb-4 p-3 rounded-lg border ${darkMode ? 'border-slate-600 bg-slate-750' : 'border-slate-200 bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Gift size={14} className="text-purple-500" />
+                        <h4 className={`text-xs font-semibold ${muted} uppercase`}>Offer</h4>
+                      </div>
+                      {editingOffer[s.id] ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <select
+                              value={editingOffer[s.id].offer_type}
+                              onChange={e => setEditingOffer(prev => ({
+                                ...prev,
+                                [s.id]: { ...prev[s.id], offer_type: e.target.value },
+                              }))}
+                              onClick={e => e.stopPropagation()}
+                              className={`px-3 py-1.5 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-300'}`}
+                            >
+                              {OFFER_TYPES.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                            {editingOffer[s.id].offer_type !== 'none' && editingOffer[s.id].offer_type !== 'free_month' && (
+                              <div className="flex items-center gap-1">
+                                <span className={`text-sm ${muted}`}>$</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={editingOffer[s.id].offer_value}
+                                  onChange={e => setEditingOffer(prev => ({
+                                    ...prev,
+                                    [s.id]: { ...prev[s.id], offer_value: Number(e.target.value) },
+                                  }))}
+                                  onClick={e => e.stopPropagation()}
+                                  className={`w-20 px-2 py-1.5 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-300'}`}
+                                />
+                              </div>
+                            )}
+                            <button
+                              onClick={e => { e.stopPropagation(); saveOffer(s.id) }}
+                              disabled={savingOffer === s.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs hover:bg-purple-700 disabled:opacity-50"
+                            >
+                              <Save size={12} /> Save Offer
+                            </button>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                setEditingOffer(prev => {
+                                  const next = { ...prev }
+                                  delete next[s.id]
+                                  return next
+                                })
+                              }}
+                              className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-200'}`}
+                            >
+                              <X size={14} className={muted} />
+                            </button>
+                          </div>
+                          <div className={`text-xs ${muted} italic`}>
+                            Preview: {renderOfferPreview(editingOffer[s.id].offer_type, editingOffer[s.id].offer_value)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm">
+                            {s.offer_type && s.offer_type !== 'none'
+                              ? renderOfferPreview(s.offer_type, s.offer_value)
+                              : 'No offer attached'}
+                          </span>
+                          <button
+                            onClick={e => { e.stopPropagation(); initOfferEdit(s) }}
+                            className={`text-xs px-2 py-1 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'}`}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Contact info */}
                     <div className="grid grid-cols-3 gap-3 text-sm mb-3">
                       <div><span className={muted}>Email:</span> {s.tenant_email || '—'}</div>
@@ -399,6 +732,140 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
           </div>
         )}
       </div>
+
+      {/* Batch Enrollment Modal */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBatchModal(false)}>
+          <div
+            className={`w-full max-w-lg mx-4 rounded-2xl border shadow-xl p-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">Batch Enroll Tenants</h2>
+              <button
+                onClick={() => setShowBatchModal(false)}
+                className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Facility */}
+              <div>
+                <label className={`text-xs font-medium ${muted} block mb-1`}>Facility</label>
+                <select
+                  value={batchFacility}
+                  onChange={e => setBatchFacility(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="all">All Facilities</option>
+                  {facilityOptions.map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Offer */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`text-xs font-medium ${muted} block mb-1`}>Offer Type</label>
+                  <select
+                    value={batchOfferType}
+                    onChange={e => setBatchOfferType(e.target.value)}
+                    className={inputCls}
+                  >
+                    {OFFER_TYPES.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={`text-xs font-medium ${muted} block mb-1`}>Offer Value ($)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={batchOfferValue}
+                    onChange={e => setBatchOfferValue(Number(e.target.value))}
+                    className={inputCls}
+                    disabled={batchOfferType === 'none' || batchOfferType === 'free_month'}
+                  />
+                </div>
+              </div>
+
+              {/* Reason filter */}
+              <div>
+                <label className={`text-xs font-medium ${muted} block mb-1`}>Move-Out Reason</label>
+                <select
+                  value={batchReasonFilter}
+                  onChange={e => setBatchReasonFilter(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="all">All Reasons</option>
+                  <option value="voluntary">Voluntary</option>
+                  <option value="relocation">Relocation</option>
+                  <option value="downsizing">Downsizing</option>
+                  <option value="eviction">Eviction</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Days since move-out */}
+              <div>
+                <label className={`text-xs font-medium ${muted} block mb-1`}>
+                  Days Since Move-Out: <span className="font-bold text-sm">{batchDaysSince}</span>
+                </label>
+                <input
+                  type="range"
+                  min={7}
+                  max={365}
+                  value={batchDaysSince}
+                  onChange={e => setBatchDaysSince(Number(e.target.value))}
+                  className="w-full accent-blue-600"
+                />
+                <div className={`flex justify-between text-xs ${muted}`}>
+                  <span>7 days</span>
+                  <span>365 days</span>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className={`rounded-lg p-3 text-center ${darkMode ? 'bg-slate-750 border border-slate-600' : 'bg-slate-50 border border-slate-200'}`}>
+                {batchPreviewLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <RefreshCw size={14} className="animate-spin text-blue-500" />
+                    <span className={`text-sm ${muted}`}>Calculating...</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{batchPreviewCount ?? '—'}</div>
+                    <div className={`text-xs ${muted}`}>tenants eligible for enrollment</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Offer preview */}
+              <div className={`text-xs ${muted} italic`}>
+                Offer preview: {renderOfferPreview(batchOfferType, batchOfferValue)}
+              </div>
+
+              {/* Submit */}
+              <button
+                onClick={batchEnroll}
+                disabled={batchLoading || batchPreviewCount === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {batchLoading ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <UserPlus size={14} />
+                )}
+                Enroll {batchPreviewCount ?? '—'} Tenants
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

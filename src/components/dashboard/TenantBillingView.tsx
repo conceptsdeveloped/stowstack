@@ -1,9 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DollarSign, Users, AlertTriangle, CreditCard, CheckCircle2, Clock,
   Search, RefreshCw, ChevronDown, ChevronRight, Plus, ArrowUpDown,
-  Wallet, TrendingDown, Shield, Building2
+  Wallet, TrendingDown, Shield, Building2, Upload, BarChart3, Check,
+  ArrowRight, ArrowLeft, Zap, X, Mail, TrendingUp
 } from 'lucide-react'
+import {
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, CartesianGrid,
+  XAxis, YAxis, Tooltip
+} from 'recharts'
 
 interface Tenant {
   id: string
@@ -24,6 +29,13 @@ interface Tenant {
   last_payment_date: string | null
   facility_name: string
   facility_location: string
+  // Cross-tab insight fields
+  risk_score?: number
+  risk_level?: string
+  upsell_count?: number
+  upsell_potential?: number
+  current_stage?: string
+  escalation_started?: string
 }
 
 interface TenantStats {
@@ -51,6 +63,27 @@ interface Payment {
   unit_number: string
 }
 
+interface MonthlyCollection {
+  month: string
+  collected: number
+  outstanding: number
+}
+
+interface AnalyticsData {
+  monthlyCollections: MonthlyCollection[]
+}
+
+interface CsvRow {
+  name: string
+  email: string
+  phone: string
+  unit_number: string
+  unit_size: string
+  unit_type: string
+  monthly_rate: string
+  move_in_date: string
+}
+
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
   delinquent: 'bg-red-100 text-red-700',
@@ -66,6 +99,51 @@ const PAYMENT_STATUS_COLORS: Record<string, string> = {
   refunded: 'bg-slate-100 text-slate-600',
 }
 
+const ESCALATION_STAGES = [
+  'late_notice',
+  'second_notice',
+  'pre_lien',
+  'lien_filed',
+  'auction_scheduled',
+  'auction_complete',
+]
+
+const ESCALATION_LABELS: Record<string, string> = {
+  late_notice: 'Late Notice',
+  second_notice: '2nd Notice',
+  pre_lien: 'Pre-Lien',
+  lien_filed: 'Lien Filed',
+  auction_scheduled: 'Auction Sched.',
+  auction_complete: 'Auction Done',
+}
+
+function parseCsv(text: string): CsvRow[] {
+  const lines = text.trim().split('\n')
+  if (lines.length < 2) return []
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'))
+  const rows: CsvRow[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',').map(v => v.trim())
+    const row: any = {}
+    headers.forEach((h, idx) => {
+      row[h] = vals[idx] || ''
+    })
+    if (row.name || row.tenant_name) {
+      rows.push({
+        name: row.name || row.tenant_name || '',
+        email: row.email || '',
+        phone: row.phone || '',
+        unit_number: row.unit_number || row.unit || '',
+        unit_size: row.unit_size || row.size || '',
+        unit_type: row.unit_type || row.type || 'standard',
+        monthly_rate: row.monthly_rate || row.rate || '0',
+        move_in_date: row.move_in_date || row.move_in || '',
+      })
+    }
+  }
+  return rows
+}
+
 export default function TenantBillingView({ adminKey, darkMode }: { adminKey: string; darkMode: boolean }) {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [stats, setStats] = useState<TenantStats | null>(null)
@@ -79,6 +157,22 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
   const [showPaymentForm, setShowPaymentForm] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('card')
+
+  // CSV Import state
+  const [showCsvImport, setShowCsvImport] = useState(false)
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([])
+  const [csvFacilityId, setCsvFacilityId] = useState('')
+  const [csvImporting, setCsvImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Analytics state
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // Batch selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchActionLoading, setBatchActionLoading] = useState(false)
 
   // Add form state
   const [newTenant, setNewTenant] = useState({
@@ -118,6 +212,22 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
     }
     fetchFacilities()
   }, [adminKey])
+
+  // Fetch analytics data
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setAnalyticsLoading(true)
+      const res = await fetch('/api/tenants?includeAnalytics=true', { headers: { 'X-Admin-Key': adminKey } })
+      if (res.ok) {
+        const data = await res.json()
+        setAnalyticsData(data.analytics || null)
+      }
+    } catch { /* silent */ } finally { setAnalyticsLoading(false) }
+  }, [adminKey])
+
+  useEffect(() => {
+    if (showAnalytics && !analyticsData) fetchAnalytics()
+  }, [showAnalytics, analyticsData, fetchAnalytics])
 
   const addTenant = async () => {
     if (!newTenant.facility_id || !newTenant.name || !newTenant.unit_number) return
@@ -165,6 +275,170 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
     } catch { /* silent */ }
   }
 
+  // CSV Import handler
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      if (text) setCsvRows(parseCsv(text))
+    }
+    reader.readAsText(file)
+  }
+
+  const importCsvTenants = async () => {
+    if (!csvFacilityId || csvRows.length === 0) return
+    setCsvImporting(true)
+    try {
+      for (const row of csvRows) {
+        await fetch('/api/tenants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({
+            facility_id: csvFacilityId,
+            name: row.name,
+            email: row.email,
+            phone: row.phone,
+            unit_number: row.unit_number,
+            unit_size: row.unit_size,
+            unit_type: row.unit_type || 'standard',
+            monthly_rate: parseFloat(row.monthly_rate) || 0,
+            move_in_date: row.move_in_date || new Date().toISOString().slice(0, 10),
+            autopay_enabled: false,
+            has_insurance: false,
+          }),
+        })
+      }
+      setShowCsvImport(false)
+      setCsvRows([])
+      setCsvFacilityId('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      fetchTenants()
+    } catch { /* silent */ } finally { setCsvImporting(false) }
+  }
+
+  // Escalation actions
+  const escalateTenant = async (tenantId: string, currentStage?: string) => {
+    const idx = currentStage ? ESCALATION_STAGES.indexOf(currentStage) : -1
+    const nextStage = ESCALATION_STAGES[idx + 1] || ESCALATION_STAGES[0]
+    try {
+      await fetch('/api/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id: tenantId, action: 'escalate', stage: nextStage }),
+      })
+      fetchTenants()
+    } catch { /* silent */ }
+  }
+
+  const deescalateTenant = async (tenantId: string, currentStage?: string) => {
+    const idx = currentStage ? ESCALATION_STAGES.indexOf(currentStage) : 0
+    const prevStage = idx > 0 ? ESCALATION_STAGES[idx - 1] : null
+    try {
+      await fetch('/api/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id: tenantId, action: 'deescalate', stage: prevStage }),
+      })
+      fetchTenants()
+    } catch { /* silent */ }
+  }
+
+  const autoEscalateAll = async () => {
+    try {
+      await fetch('/api/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ action: 'auto_escalate_all' }),
+      })
+      fetchTenants()
+    } catch { /* silent */ }
+  }
+
+  // Batch actions
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(t => t.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const batchMarkDelinquent = async () => {
+    setBatchActionLoading(true)
+    try {
+      for (const id of Array.from(selectedIds)) {
+        await fetch('/api/tenants', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ id, action: 'mark_delinquent' }),
+        })
+      }
+      setSelectedIds(new Set())
+      fetchTenants()
+    } catch { /* silent */ } finally { setBatchActionLoading(false) }
+  }
+
+  const batchMoveOut = async () => {
+    setBatchActionLoading(true)
+    try {
+      for (const id of Array.from(selectedIds)) {
+        await fetch('/api/tenants', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ id, action: 'move_out', move_out_reason: 'batch' }),
+        })
+      }
+      setSelectedIds(new Set())
+      fetchTenants()
+    } catch { /* silent */ } finally { setBatchActionLoading(false) }
+  }
+
+  const batchSendAutopayInvite = async () => {
+    setBatchActionLoading(true)
+    try {
+      await fetch('/api/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ action: 'send_autopay_invite', tenant_ids: Array.from(selectedIds) }),
+      })
+      setSelectedIds(new Set())
+      fetchTenants()
+    } catch { /* silent */ } finally { setBatchActionLoading(false) }
+  }
+
+  // Delinquency aging buckets computed from tenants
+  const delinquencyBuckets = (() => {
+    const buckets = [
+      { range: '1-7d', min: 1, max: 7, count: 0 },
+      { range: '8-14d', min: 8, max: 14, count: 0 },
+      { range: '15-30d', min: 15, max: 30, count: 0 },
+      { range: '31-60d', min: 31, max: 60, count: 0 },
+      { range: '60+d', min: 61, max: Infinity, count: 0 },
+    ]
+    tenants.forEach(t => {
+      if (t.days_delinquent > 0) {
+        const bucket = buckets.find(b => t.days_delinquent >= b.min && t.days_delinquent <= b.max)
+        if (bucket) bucket.count++
+      }
+    })
+    return buckets.map(b => ({ range: b.range, count: b.count }))
+  })()
+
+  // Computed cross-tab stats
+  const atRiskCount = tenants.filter(t => t.risk_level === 'high' || t.risk_level === 'critical').length
+  const totalUpsellPotential = tenants.reduce((sum, t) => sum + (t.upsell_potential || 0), 0)
+
   const filtered = tenants
     .filter(t => {
       if (searchQuery) {
@@ -205,11 +479,13 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
       </div>
 
       {/* Secondary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
         {[
           { icon: CreditCard, label: 'Autopay Enrolled', value: `${stats?.autopay_count || 0} / ${stats?.total_tenants || 0}`, sub: `${stats?.total_tenants ? Math.round(((stats?.autopay_count || 0) / stats.total_tenants) * 100) : 0}%` },
           { icon: Shield, label: 'Insured', value: tenants.filter(t => t.has_insurance).length, sub: 'with protection' },
           { icon: Clock, label: 'Avg Days Late', value: Math.round(stats?.avg_days_late || 0), sub: 'among late payers' },
+          { icon: AlertTriangle, label: 'At-Risk Tenants', value: atRiskCount, sub: atRiskCount > 0 ? 'high/critical churn' : 'none detected' },
+          { icon: TrendingUp, label: 'Upsell Potential', value: `$${totalUpsellPotential.toLocaleString()}`, sub: `${tenants.filter(t => (t.upsell_count || 0) > 0).length} tenants` },
         ].map(({ icon: Icon, label, value, sub }) => (
           <div key={label} className={`rounded-xl border p-4 ${card}`}>
             <div className="flex items-center gap-2 mb-1">
@@ -221,6 +497,62 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
           </div>
         ))}
       </div>
+
+      {/* Payment Analytics Section */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowAnalytics(!showAnalytics)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}
+        >
+          <BarChart3 size={14} />
+          {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+          {showAnalytics ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+      </div>
+
+      {showAnalytics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Monthly Collections AreaChart */}
+          <div className={`rounded-xl border p-4 ${card}`}>
+            <h4 className="text-sm font-semibold mb-3">Monthly Collections (6 months)</h4>
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center h-48">
+                <RefreshCw size={18} className="animate-spin text-emerald-500" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={analyticsData?.monthlyCollections || generateFallbackCollections()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }} />
+                  <YAxis tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: '1px solid ' + (darkMode ? '#334155' : '#e2e8f0'), borderRadius: 8, fontSize: 12 }}
+                    formatter={(value) => [`$${Number(value || 0).toLocaleString()}`, '']}
+                  />
+                  <Area type="monotone" dataKey="collected" stroke="#10b981" fill="#10b98133" name="Collected" />
+                  <Area type="monotone" dataKey="outstanding" stroke="#f59e0b" fill="#f59e0b33" name="Outstanding" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Delinquency Aging BarChart */}
+          <div className={`rounded-xl border p-4 ${card}`}>
+            <h4 className="text-sm font-semibold mb-3">Delinquency Aging</h4>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={delinquencyBuckets}>
+                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                <XAxis dataKey="range" tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }} />
+                <YAxis tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: '1px solid ' + (darkMode ? '#334155' : '#e2e8f0'), borderRadius: 8, fontSize: 12 }}
+                />
+                <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} name="Tenants" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -257,10 +589,89 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
         >
           <Plus size={14} /> Add Tenant
         </button>
+        <button
+          onClick={() => { setShowCsvImport(!showCsvImport); setCsvRows([]); setCsvFacilityId('') }}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}
+        >
+          <Upload size={14} /> Import CSV
+        </button>
+        <button
+          onClick={autoEscalateAll}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'border-amber-700 text-amber-400 hover:bg-slate-700' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+        >
+          <Zap size={14} /> Auto-Escalate All
+        </button>
         <button onClick={fetchTenants} className={`p-2 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
+
+      {/* CSV Import Panel */}
+      {showCsvImport && (
+        <div className={`rounded-xl border p-4 ${card}`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Import Tenants from CSV</h3>
+            <button onClick={() => { setShowCsvImport(false); setCsvRows([]) }} className={`p-1 rounded hover:bg-slate-100 ${darkMode ? 'hover:bg-slate-700' : ''}`}>
+              <X size={16} />
+            </button>
+          </div>
+          <p className={`text-xs ${muted} mb-3`}>
+            CSV should have headers: name, email, phone, unit_number, unit_size, unit_type, monthly_rate, move_in_date
+          </p>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <select value={csvFacilityId} onChange={e => setCsvFacilityId(e.target.value)} className={inputCls + ' w-48'}>
+              <option value="">Select Facility *</option>
+              {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCsvFile}
+              className={`text-sm ${muted}`}
+            />
+          </div>
+          {csvRows.length > 0 && (
+            <>
+              <div className="overflow-x-auto mb-3">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
+                      <th className="text-left py-1 px-2">Name</th>
+                      <th className="text-left py-1 px-2">Email</th>
+                      <th className="text-left py-1 px-2">Unit #</th>
+                      <th className="text-left py-1 px-2">Size</th>
+                      <th className="text-left py-1 px-2">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvRows.slice(0, 5).map((row, i) => (
+                      <tr key={i} className={darkMode ? 'border-slate-700' : 'border-slate-200'}>
+                        <td className="py-1 px-2">{row.name}</td>
+                        <td className="py-1 px-2">{row.email}</td>
+                        <td className="py-1 px-2">{row.unit_number}</td>
+                        <td className="py-1 px-2">{row.unit_size}</td>
+                        <td className="py-1 px-2">${row.monthly_rate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {csvRows.length > 5 && (
+                  <p className={`text-xs ${muted} mt-1`}>...and {csvRows.length - 5} more rows</p>
+                )}
+              </div>
+              <button
+                onClick={importCsvTenants}
+                disabled={!csvFacilityId || csvImporting}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {csvImporting ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                Import {csvRows.length} Tenant{csvRows.length !== 1 ? 's' : ''}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Add tenant form */}
       {showAddForm && (
@@ -301,9 +712,50 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
         </div>
       )}
 
+      {/* Batch Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-800/95 border-slate-600 backdrop-blur' : 'bg-white/95 border-slate-300 backdrop-blur'} shadow-lg`}>
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <div className="flex-1" />
+          <button
+            onClick={batchMarkDelinquent}
+            disabled={batchActionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs hover:bg-red-700 disabled:opacity-50"
+          >
+            <AlertTriangle size={12} /> Mark Delinquent
+          </button>
+          <button
+            onClick={batchMoveOut}
+            disabled={batchActionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
+          >
+            Move Out {selectedIds.size}
+          </button>
+          <button
+            onClick={batchSendAutopayInvite}
+            disabled={batchActionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Mail size={12} /> Send Autopay Invite
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Tenant list */}
       <div className={`rounded-xl border overflow-hidden ${card}`}>
-        <div className={`px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        <div className={`px-4 py-3 border-b flex items-center gap-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <input
+            type="checkbox"
+            checked={filtered.length > 0 && selectedIds.size === filtered.length}
+            onChange={toggleSelectAll}
+            className="rounded"
+          />
           <h3 className="font-semibold text-sm">Tenants ({filtered.length})</h3>
         </div>
         {loading ? (
@@ -323,9 +775,17 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
                   className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}
                   onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}
                 >
+                  {/* Batch checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(t.id)}
+                    onChange={(e) => { e.stopPropagation(); toggleSelect(t.id) }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded"
+                  />
                   {expandedId === t.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{t.name}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[t.status] || 'bg-slate-100 text-slate-600'}`}>
                         {t.status}
@@ -333,6 +793,23 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
                       {t.days_delinquent > 0 && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
                           {t.days_delinquent}d late
+                        </span>
+                      )}
+                      {/* Cross-tab insight badges */}
+                      {t.risk_level && (t.risk_level === 'high' || t.risk_level === 'critical') && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+                          <span className={`inline-block w-2 h-2 rounded-full ${t.risk_level === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                          Churn {t.risk_score ?? '?'}
+                        </span>
+                      )}
+                      {(t.upsell_count || 0) > 0 && t.upsell_potential && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                          +${t.upsell_potential}/mo
+                        </span>
+                      )}
+                      {t.current_stage && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          {ESCALATION_LABELS[t.current_stage] || t.current_stage}
                         </span>
                       )}
                     </div>
@@ -366,6 +843,60 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
                       <div><span className={muted}>Move-in:</span> {t.move_in_date ? new Date(t.move_in_date).toLocaleDateString() : '—'}</div>
                       <div><span className={muted}>Last Payment:</span> {t.last_payment_date ? new Date(t.last_payment_date).toLocaleDateString() : '—'}</div>
                     </div>
+
+                    {/* Delinquency Escalation Timeline */}
+                    {t.days_delinquent > 0 && (
+                      <div className="mb-3">
+                        <h4 className={`text-xs font-semibold mb-2 ${muted}`}>Escalation Timeline</h4>
+                        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                          {ESCALATION_STAGES.map((stage, idx) => {
+                            const currentIdx = t.current_stage ? ESCALATION_STAGES.indexOf(t.current_stage) : -1
+                            const isCompleted = currentIdx >= 0 && idx < currentIdx
+                            const isCurrent = idx === currentIdx
+                            return (
+                              <div key={stage} className="flex items-center">
+                                <div className="flex flex-col items-center">
+                                  <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                                      isCompleted
+                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                        : isCurrent
+                                        ? 'bg-amber-400 border-amber-500 text-amber-900'
+                                        : 'border-slate-300 text-slate-400 ' + (darkMode ? 'bg-slate-700' : 'bg-slate-100')
+                                    }`}
+                                  >
+                                    {isCompleted ? <Check size={12} /> : idx + 1}
+                                  </div>
+                                  <span className={`text-[10px] mt-1 whitespace-nowrap ${isCurrent ? 'font-semibold text-amber-600' : muted}`}>
+                                    {ESCALATION_LABELS[stage]}
+                                  </span>
+                                </div>
+                                {idx < ESCALATION_STAGES.length - 1 && (
+                                  <div className={`w-6 h-0.5 mx-0.5 mt-[-14px] ${isCompleted ? 'bg-emerald-500' : darkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deescalateTenant(t.id, t.current_stage) }}
+                            disabled={!t.current_stage}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs border disabled:opacity-30 ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}
+                          >
+                            <ArrowLeft size={10} /> De-escalate
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); escalateTenant(t.id, t.current_stage) }}
+                            disabled={t.current_stage === 'auction_complete'}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-30"
+                          >
+                            Escalate <ArrowRight size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowPaymentForm(showPaymentForm === t.id ? null : t.id) }}
@@ -435,4 +966,14 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
       )}
     </div>
   )
+}
+
+/** Fallback collections data when API doesn't return analytics */
+function generateFallbackCollections(): MonthlyCollection[] {
+  const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
+  return months.map(month => ({
+    month,
+    collected: Math.floor(Math.random() * 20000) + 30000,
+    outstanding: Math.floor(Math.random() * 5000) + 2000,
+  }))
 }

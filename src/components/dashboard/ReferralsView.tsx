@@ -175,9 +175,11 @@ export default function ReferralsView({ adminKey, darkMode }: { adminKey: string
     const body = encodeURIComponent(
       `Hey,\n\n` +
       `I've been using StowStack for my storage facility and it's been a game-changer for filling vacant units. ` +
-      `Ad-specific landing pages, full-funnel attribution, the whole deal.\n\n` +
-      `If you want to check it out, here's my referral link:\n${getReferralLink(code)}\n\n` +
-      `We both get credits when you sign up. Let me know if you have questions.\n\n` +
+      `Ad-specific landing pages, full-funnel attribution, revenue-based A/B testing — the whole deal.\n\n` +
+      `They're running an aggressive referral program right now: we each get $99 in account credits when you sign up, ` +
+      `and another $99 when you go live. That's basically 2 free months.\n\n` +
+      `Here's my referral link:\n${getReferralLink(code)}\n\n` +
+      `Let me know if you have any questions — happy to walk you through what it's done for my facility.\n\n` +
       `- ${name}`
     )
     return `mailto:?subject=${subject}&body=${body}`
@@ -698,6 +700,19 @@ export default function ReferralsView({ adminKey, darkMode }: { adminKey: string
           <Gift size={16} className="inline mr-1.5 text-emerald-500" />
           How Credits Work
         </h3>
+        {/* Per-referral value callout */}
+        <div className={`rounded-lg p-4 mb-3 border-2 border-emerald-500/30 ${darkMode ? 'bg-emerald-950/30' : 'bg-emerald-50'}`}>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div>
+              <p className={`text-2xl font-black text-emerald-600`}>$198</p>
+              <p className={`text-xs font-medium ${sub}`}>per referral</p>
+            </div>
+            <div className={`flex-1 min-w-[200px]`}>
+              <p className={`text-sm font-semibold ${text}`}>Every referral earns you 2 months free.</p>
+              <p className={`text-xs mt-0.5 ${sub}`}>$99 when they sign up + $99 when they go active. That's $198 in credits applied directly to your StowStack bill. Refer 5 operators and you've earned $1,490 in credits.</p>
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {CREDIT_TIERS.map(tier => {
             const TierIcon = tier.icon
@@ -711,10 +726,20 @@ export default function ReferralsView({ adminKey, darkMode }: { adminKey: string
             )
           })}
         </div>
+        {/* Mega bonus callout */}
+        <div className={`flex items-center gap-3 mt-3 pt-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <div className={`flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 ${darkMode ? 'bg-amber-900/50' : 'bg-amber-100'}`}>
+            <Trophy size={20} className="text-amber-500" />
+          </div>
+          <div className="flex-1">
+            <p className={`text-sm font-bold ${text}`}>Network Builder: <span className="text-amber-500">${MEGA_BONUS.amount.toLocaleString()} bonus</span> at {MEGA_BONUS.threshold} active referrals</p>
+            <p className={`text-xs ${sub}`}>{MEGA_BONUS.desc}</p>
+          </div>
+        </div>
         <div className={`flex items-start gap-2 mt-3 pt-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
           <AlertCircle size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
           <p className={`text-xs ${sub}`}>
-            Credits are applied to your StowStack invoice. A $50 credit = $50 off your next month. Credits never expire and stack with milestone bonuses.
+            Credits are applied directly to your StowStack invoice. Credits never expire, stack with milestone bonuses, and have no cap. A 5-referral operator earns <strong className="text-emerald-600">$1,490</strong> total ($198 × 5 per-referral + $200 at 3 + $500 at 5).
           </p>
         </div>
       </div>

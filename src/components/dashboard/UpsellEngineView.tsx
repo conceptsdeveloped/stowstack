@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   TrendingUp, DollarSign, ArrowUpRight, Shield, CreditCard, Zap,
   Search, RefreshCw, ChevronDown, ChevronRight, Send, Check, X,
-  Thermometer, Package
+  Thermometer, Package, CheckSquare, Square, MinusSquare, Percent
 } from 'lucide-react'
 
 interface UpsellOpportunity {
@@ -39,6 +39,7 @@ interface UpsellStats {
   potential_mrr: number
   captured_mrr: number
   type_count: number
+  acceptance_rate?: number
 }
 
 const TYPE_ICONS: Record<string, typeof Shield> = {
@@ -75,6 +76,7 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const fetchOpportunities = useCallback(async () => {
     try {
@@ -92,6 +94,9 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
   }, [adminKey, typeFilter, statusFilter])
 
   useEffect(() => { fetchOpportunities() }, [fetchOpportunities])
+
+  // Clear selection when filters change
+  useEffect(() => { setSelectedIds(new Set()) }, [typeFilter, statusFilter, searchQuery])
 
   const runScan = async () => {
     try {
@@ -116,6 +121,19 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
     } catch { /* silent */ }
   }
 
+  const batchAction = async (action: string, extras: Record<string, string> = {}) => {
+    if (selectedIds.size === 0) return
+    try {
+      await fetch('/api/upsell', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action, ...extras }),
+      })
+      setSelectedIds(new Set())
+      fetchOpportunities()
+    } catch { /* silent */ }
+  }
+
   const filtered = opportunities.filter(o => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -125,6 +143,36 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
     return true
   })
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every(o => selectedIds.has(o.id))
+  const someFilteredSelected = filtered.some(o => selectedIds.has(o.id))
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(o => o.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // Revenue impact projection: sum monthly_uplift from identified items
+  const revenueProjection = useMemo(() => {
+    const identifiedItems = opportunities.filter(o => o.status === 'identified')
+    const projectedMrr = identifiedItems.reduce((sum, o) => sum + (o.monthly_uplift || 0), 0)
+    return { projectedMrr, projectedAnnual: projectedMrr * 12, count: identifiedItems.length }
+  }, [opportunities])
+
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const muted = darkMode ? 'text-slate-400' : 'text-slate-500'
   const inputCls = `w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-900'}`
@@ -132,12 +180,13 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
           { icon: TrendingUp, label: 'Opportunities', value: stats?.total_opportunities || 0, color: 'text-purple-500' },
           { icon: DollarSign, label: 'Potential MRR', value: `$${(stats?.potential_mrr || 0).toLocaleString()}`, color: 'text-amber-500' },
           { icon: ArrowUpRight, label: 'Captured MRR', value: `$${(stats?.captured_mrr || 0).toLocaleString()}`, color: 'text-green-500' },
           { icon: Check, label: 'Accepted', value: stats?.accepted_count || 0, color: 'text-emerald-500' },
+          { icon: Percent, label: 'Acceptance Rate', value: stats?.acceptance_rate != null ? `${stats.acceptance_rate.toFixed(1)}%` : '0%', color: 'text-cyan-500' },
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} className={`rounded-xl border p-4 ${card}`}>
             <div className="flex items-center gap-2 mb-1">
@@ -179,6 +228,24 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
         </div>
       </div>
 
+      {/* Revenue Impact Projection */}
+      {revenueProjection.count > 0 && (
+        <div className={`rounded-xl border p-4 ${card}`}>
+          <h3 className="font-semibold text-sm mb-3">Revenue Impact Projection</h3>
+          <p className={`text-xs ${muted} mb-3`}>If all {revenueProjection.count} identified opportunities are accepted:</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`rounded-lg p-4 border ${card}`}>
+              <div className={`text-xs font-medium ${muted} mb-1`}>Projected Additional MRR</div>
+              <div className="text-2xl font-bold text-green-600">+${revenueProjection.projectedMrr.toLocaleString()}</div>
+            </div>
+            <div className={`rounded-lg p-4 border ${card}`}>
+              <div className={`text-xs font-medium ${muted} mb-1`}>Projected Annual Revenue</div>
+              <div className="text-2xl font-bold text-green-600">+${revenueProjection.projectedAnnual.toLocaleString()}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -215,9 +282,56 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
         </button>
       </div>
 
+      {/* Batch Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className={`sticky top-0 z-10 rounded-xl border p-3 flex flex-wrap items-center gap-3 ${darkMode ? 'bg-slate-900 border-slate-600' : 'bg-indigo-50 border-indigo-200'}`}>
+          <span className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-indigo-800'}`}>
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={() => batchAction('batch_send', { outreach_method: 'email' })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
+            >
+              <Send size={12} />
+              Send {selectedIds.size} via Email
+            </button>
+            <button
+              onClick={() => batchAction('batch_send', { outreach_method: 'sms' })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"
+            >
+              <Send size={12} />
+              Send {selectedIds.size} via SMS
+            </button>
+            <button
+              onClick={() => batchAction('batch_status', { status: 'declined' })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+            >
+              <X size={12} />
+              Mark Declined
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-white'}`}
+            >
+              Deselect All
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Opportunities list */}
       <div className={`rounded-xl border overflow-hidden ${card}`}>
-        <div className={`px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        <div className={`px-4 py-3 border-b flex items-center gap-3 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <button onClick={toggleSelectAll} className="flex-shrink-0">
+            {allFilteredSelected ? (
+              <CheckSquare size={16} className="text-indigo-500" />
+            ) : someFilteredSelected ? (
+              <MinusSquare size={16} className="text-indigo-500" />
+            ) : (
+              <Square size={16} className={muted} />
+            )}
+          </button>
           <h3 className="font-semibold text-sm">Upsell Opportunities ({filtered.length})</h3>
         </div>
         {loading ? (
@@ -233,12 +347,24 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {filtered.map(o => {
               const TypeIcon = TYPE_ICONS[o.type] || Package
+              const isSelected = selectedIds.has(o.id)
               return (
                 <div key={o.id}>
                   <div
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${isSelected ? (darkMode ? 'bg-indigo-900/20' : 'bg-indigo-50/50') : ''} ${darkMode ? 'hover:bg-slate-750' : 'hover:bg-slate-50'}`}
                     onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
                   >
+                    <button
+                      className="flex-shrink-0"
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(o.id) }}
+                    >
+                      {isSelected ? (
+                        <CheckSquare size={16} className="text-indigo-500" />
+                      ) : (
+                        <Square size={16} className={muted} />
+                      )}
+                    </button>
+
                     {expandedId === o.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
 
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TYPE_COLORS[o.type] || 'bg-slate-100'}`}>
