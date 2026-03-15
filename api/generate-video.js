@@ -224,7 +224,7 @@ export default async function handler(req, res) {
 
   // POST — start video generation
   if (req.method === 'POST') {
-    const { templateId, facilityId, imageUrl, customNotes } = req.body || {}
+    const { templateId, facilityId, imageUrl, customNotes, promptOverride } = req.body || {}
     if (!templateId || !facilityId) {
       return res.status(400).json({ error: 'templateId and facilityId required' })
     }
@@ -238,8 +238,8 @@ export default async function handler(req, res) {
       if (!facilities.length) return res.status(404).json({ error: 'Facility not found' })
       const facility = facilities[0]
 
-      // Generate optimized prompt
-      const prompt = await generateVideoPrompt(template, facility, customNotes)
+      // Use override prompt if provided, otherwise generate one
+      const prompt = promptOverride?.trim() || await generateVideoPrompt(template, facility, customNotes)
 
       // For image_to_video mode, we need an image
       const sourceImage = imageUrl || null

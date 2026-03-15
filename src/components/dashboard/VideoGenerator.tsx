@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Download, Sparkles, Image, AlertTriangle } from 'lucide-react'
+import { Loader2, Download, Sparkles, Image, AlertTriangle, Send, RefreshCw, Edit3 } from 'lucide-react'
 import { Facility, Asset } from './types'
 
 interface VideoTemplate {
@@ -17,6 +17,7 @@ interface GenerationJob {
   videoUrl: string | null
   error: string | null
   prompt: string
+  imageUrl: string | null
   startedAt: number
 }
 
@@ -38,10 +39,11 @@ const TEMPLATE_PREVIEWS: Record<string, string> = {
   before_after: 'Split-screen transformation from messy garage to perfectly organized storage unit.',
 }
 
-export default function VideoGenerator({ facility, adminKey, darkMode }: {
+export default function VideoGenerator({ facility, adminKey, darkMode, onPublish }: {
   facility: Facility
   adminKey: string
   darkMode: boolean
+  onPublish?: (videoUrl: string) => void
 }) {
   const [templates, setTemplates] = useState<VideoTemplate[]>([])
   const [configured, setConfigured] = useState(false)
@@ -50,8 +52,12 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [customNotes, setCustomNotes] = useState('')
+  const [promptOverride, setPromptOverride] = useState('')
+  const [showPromptEditor, setShowPromptEditor] = useState(false)
   const [jobs, setJobs] = useState<GenerationJob[]>([])
   const [generating, setGenerating] = useState(false)
+  const [editingJobPrompt, setEditingJobPrompt] = useState<string | null>(null)
+  const [editedPrompt, setEditedPrompt] = useState('')
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
@@ -98,9 +104,10 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
     return () => clearInterval(interval)
   }, [jobs, adminKey])
 
-  async function startGeneration() {
-    if (!selectedTemplate || generating) return
-    const template = templates.find(t => t.id === selectedTemplate)
+  async function startGeneration(overridePrompt?: string, overrideImage?: string) {
+    const templateId = selectedTemplate
+    if (!templateId || generating) return
+    const template = templates.find(t => t.id === templateId)
     if (!template) return
 
     setGenerating(true)
@@ -109,10 +116,11 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
         body: JSON.stringify({
-          templateId: selectedTemplate,
+          templateId,
           facilityId: facility.id,
-          imageUrl: template.mode === 'image_to_video' ? selectedImage : undefined,
+          imageUrl: template.mode === 'image_to_video' ? (overrideImage || selectedImage) : undefined,
           customNotes: customNotes.trim() || undefined,
+          promptOverride: overridePrompt || promptOverride.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -120,23 +128,25 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
       if (data.taskId) {
         setJobs(prev => [{
           taskId: data.taskId,
-          templateId: selectedTemplate,
+          templateId,
           templateName: template.name,
           status: 'PENDING',
           videoUrl: null,
           error: null,
-          prompt: data.prompt || '',
+          prompt: data.prompt || overridePrompt || '',
+          imageUrl: overrideImage || selectedImage || null,
           startedAt: Date.now(),
         }, ...prev])
       } else if (data.error) {
         setJobs(prev => [{
           taskId: `local-${Date.now()}`,
-          templateId: selectedTemplate,
+          templateId,
           templateName: template.name,
           status: 'FAILED',
           videoUrl: null,
           error: data.error,
           prompt: '',
+          imageUrl: null,
           startedAt: Date.now(),
         }, ...prev])
       }
@@ -145,6 +155,13 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
     } finally {
       setGenerating(false)
     }
+  }
+
+  function regenerateWithEditedPrompt(job: GenerationJob) {
+    setSelectedTemplate(job.templateId)
+    startGeneration(editedPrompt, job.imageUrl || undefined)
+    setEditingJobPrompt(null)
+    setEditedPrompt('')
   }
 
   const activeTemplate = templates.find(t => t.id === selectedTemplate)
@@ -181,7 +198,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
           {templates.map(template => (
             <button
               key={template.id}
-              onClick={() => setSelectedTemplate(template.id)}
+              onClick={() => { setSelectedTemplate(template.id); setPromptOverride(''); setShowPromptEditor(false) }}
               className={`text-left p-4 border rounded-xl transition-all ${
                 selectedTemplate === template.id
                   ? darkMode ? 'border-emerald-500 bg-emerald-900/20' : 'border-emerald-500 bg-emerald-50'
@@ -206,67 +223,87 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
       {/* Generation controls */}
       {activeTemplate && (
         <div className={`border rounded-xl p-5 ${card}`}>
-          <div className="flex items-start gap-4">
-            <div className="flex-1 space-y-4">
-              {/* Preview description */}
-              <div>
-                <p className={`text-xs font-medium ${sub} mb-1`}>What you'll get:</p>
-                <p className={`text-sm ${text}`}>{TEMPLATE_PREVIEWS[activeTemplate.id] || activeTemplate.description}</p>
-              </div>
+          <div className="flex-1 space-y-4">
+            {/* Preview description */}
+            <div>
+              <p className={`text-xs font-medium ${sub} mb-1`}>What you'll get:</p>
+              <p className={`text-sm ${text}`}>{TEMPLATE_PREVIEWS[activeTemplate.id] || activeTemplate.description}</p>
+            </div>
 
-              {/* Image selector for image_to_video templates */}
-              {activeTemplate.mode === 'image_to_video' && (
-                <div>
-                  <label className={`text-xs font-medium ${sub} block mb-1.5`}>Source Image</label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {assets.slice(0, 12).map(a => (
-                      <button
-                        key={a.id}
-                        onClick={() => setSelectedImage(a.url)}
-                        className={`relative h-14 rounded-lg overflow-hidden ${
-                          selectedImage === a.url ? 'ring-2 ring-emerald-500' : ''
-                        }`}
-                      >
-                        <img src={a.url} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                    {assets.length === 0 && (
-                      <p className={`col-span-6 text-xs ${sub} py-2`}>No images. Upload or scrape in Assets tab.</p>
-                    )}
-                  </div>
+            {/* Image selector for image_to_video templates */}
+            {activeTemplate.mode === 'image_to_video' && (
+              <div>
+                <label className={`text-xs font-medium ${sub} block mb-1.5`}>Source Image</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {assets.slice(0, 12).map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedImage(a.url)}
+                      className={`relative h-14 rounded-lg overflow-hidden ${
+                        selectedImage === a.url ? 'ring-2 ring-emerald-500' : ''
+                      }`}
+                    >
+                      <img src={a.url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                  {assets.length === 0 && (
+                    <p className={`col-span-6 text-xs ${sub} py-2`}>No images. Upload or scrape in Assets tab.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom notes */}
+            <div>
+              <label className={`text-xs font-medium ${sub} block mb-1.5`}>Custom Notes (optional)</label>
+              <input
+                value={customNotes}
+                onChange={e => setCustomNotes(e.target.value)}
+                placeholder="e.g., Mention first month free, emphasize 24/7 access..."
+                className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+              />
+            </div>
+
+            {/* Advanced: prompt editor */}
+            <div>
+              <button
+                onClick={() => setShowPromptEditor(!showPromptEditor)}
+                className={`flex items-center gap-1.5 text-xs ${sub} hover:underline`}
+              >
+                <Edit3 size={11} /> {showPromptEditor ? 'Hide' : 'Edit'} AI prompt directly
+              </button>
+              {showPromptEditor && (
+                <div className="mt-2">
+                  <textarea
+                    value={promptOverride}
+                    onChange={e => setPromptOverride(e.target.value)}
+                    rows={4}
+                    placeholder="Write your own video generation prompt... Leave blank to use the auto-generated prompt based on the template and facility data."
+                    className={`w-full px-3 py-2 border rounded-lg text-xs font-mono ${inputBg}`}
+                  />
+                  <p className={`text-[10px] ${sub} mt-1`}>This overrides the auto-generated prompt. Be descriptive about camera movement, lighting, and scene composition.</p>
                 </div>
               )}
-
-              {/* Custom notes */}
-              <div>
-                <label className={`text-xs font-medium ${sub} block mb-1.5`}>Custom Notes (optional)</label>
-                <input
-                  value={customNotes}
-                  onChange={e => setCustomNotes(e.target.value)}
-                  placeholder="e.g., Mention first month free, emphasize 24/7 access..."
-                  className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}
-                />
-              </div>
-
-              {/* Generate button */}
-              <button
-                onClick={startGeneration}
-                disabled={generating || !configured || (activeTemplate.mode === 'image_to_video' && !selectedImage)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
-              >
-                {generating ? (
-                  <><Loader2 size={14} className="animate-spin" /> Starting...</>
-                ) : (
-                  <><Sparkles size={14} /> Generate {activeTemplate.name} Video</>
-                )}
-              </button>
-              <p className={`text-[10px] ${sub}`}>Takes 1-3 minutes. You can start multiple generations.</p>
             </div>
+
+            {/* Generate button */}
+            <button
+              onClick={() => startGeneration()}
+              disabled={generating || !configured || (activeTemplate.mode === 'image_to_video' && !selectedImage)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+            >
+              {generating ? (
+                <><Loader2 size={14} className="animate-spin" /> Starting...</>
+              ) : (
+                <><Sparkles size={14} /> Generate {activeTemplate.name} Video</>
+              )}
+            </button>
+            <p className={`text-[10px] ${sub}`}>Takes 1-3 minutes. You can start multiple generations.</p>
           </div>
         </div>
       )}
 
-      {/* Active & completed jobs */}
+      {/* Generated videos */}
       {jobs.length > 0 && (
         <div>
           <h4 className={`text-sm font-semibold ${text} mb-3`}>Generated Videos</h4>
@@ -274,7 +311,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
             {jobs.map(job => (
               <div key={job.taskId} className={`border rounded-xl p-4 ${card}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
                     job.status === 'SUCCEEDED' ? 'bg-emerald-100' :
                     job.status === 'FAILED' ? 'bg-red-100' :
                     darkMode ? 'bg-slate-700' : 'bg-slate-100'
@@ -303,14 +340,14 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
                     )}
 
                     {job.status === 'SUCCEEDED' && job.videoUrl && (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         <video
                           src={job.videoUrl}
                           controls
-                          className="w-full max-w-xs rounded-lg"
+                          className="w-full max-w-sm rounded-lg"
                           preload="metadata"
                         />
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <a
                             href={job.videoUrl}
                             download={`video-${job.templateId}-${Date.now()}.mp4`}
@@ -318,12 +355,25 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
                           >
                             <Download size={12} /> Download
                           </a>
+                          {onPublish && (
+                            <button
+                              onClick={() => onPublish(job.videoUrl!)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-slate-800"
+                            >
+                              <Send size={12} /> Publish
+                            </button>
+                          )}
                           <button
                             onClick={() => {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(job.videoUrl!)
-                              }
+                              setEditingJobPrompt(job.taskId)
+                              setEditedPrompt(job.prompt)
                             }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            <RefreshCw size={12} /> Regenerate with Edits
+                          </button>
+                          <button
+                            onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(job.videoUrl!) }}
                             className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                           >
                             Copy URL
@@ -333,17 +383,56 @@ export default function VideoGenerator({ facility, adminKey, darkMode }: {
                     )}
 
                     {job.status === 'FAILED' && (
-                      <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-red-900/20 text-red-300' : 'bg-red-50 text-red-700'}`}>
-                        {job.error}
+                      <div className="mt-2 space-y-2">
+                        <div className={`p-2 rounded text-xs ${darkMode ? 'bg-red-900/20 text-red-300' : 'bg-red-50 text-red-700'}`}>
+                          {job.error}
+                        </div>
+                        {job.prompt && (
+                          <button
+                            onClick={() => {
+                              setEditingJobPrompt(job.taskId)
+                              setEditedPrompt(job.prompt)
+                            }}
+                            className={`flex items-center gap-1.5 text-xs ${sub} hover:underline`}
+                          >
+                            <Edit3 size={11} /> Edit prompt and retry
+                          </button>
+                        )}
                       </div>
                     )}
 
-                    {job.prompt && (
+                    {/* Prompt viewer/editor for this job */}
+                    {editingJobPrompt === job.taskId ? (
+                      <div className="mt-3 space-y-2">
+                        <label className={`text-xs font-medium ${sub}`}>Edit prompt and regenerate:</label>
+                        <textarea
+                          value={editedPrompt}
+                          onChange={e => setEditedPrompt(e.target.value)}
+                          rows={5}
+                          className={`w-full px-3 py-2 border rounded-lg text-xs font-mono ${inputBg}`}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => regenerateWithEditedPrompt(job)}
+                            disabled={!editedPrompt.trim() || generating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+                          >
+                            <Sparkles size={12} /> {generating ? 'Starting...' : 'Regenerate'}
+                          </button>
+                          <button
+                            onClick={() => { setEditingJobPrompt(null); setEditedPrompt('') }}
+                            className={`px-3 py-1.5 text-xs ${sub} hover:underline`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : job.prompt ? (
                       <details className={`mt-2 text-xs ${sub}`}>
                         <summary className="cursor-pointer hover:underline">View prompt</summary>
-                        <p className={`mt-1 p-2 rounded text-xs ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>{job.prompt}</p>
+                        <p className={`mt-1 p-2 rounded text-xs whitespace-pre-wrap ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>{job.prompt}</p>
                       </details>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>

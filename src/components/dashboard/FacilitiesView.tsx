@@ -202,7 +202,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
       )}
 
       {subTab === 'video' && (
-        <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
       )}
 
       {subTab === 'publish' && (
