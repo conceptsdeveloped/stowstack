@@ -115,7 +115,7 @@ async function callRunway(prompt, imageUrl, mode) {
   // 720:1280 = 9:16 portrait (TikTok/Reels/Shorts)
   const body = mode === 'image_to_video'
     ? {
-        model: 'gen3a_turbo',
+        model: 'gen4_turbo',
         promptImage: imageUrl,
         promptText: prompt.slice(0, 1000),
         duration: 5,
