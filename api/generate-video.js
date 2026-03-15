@@ -129,7 +129,7 @@ async function callRunway(prompt, imageUrl, mode) {
         ratio: '720:1280',
       }
     : {
-        model: 'gen4_turbo',
+        model: 'gen4.5',
         promptText: prompt.slice(0, 1000),
         duration: 5,
         ratio: '720:1280',
