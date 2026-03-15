@@ -107,23 +107,25 @@ async function callRunway(prompt, imageUrl, mode) {
   const runwayKey = process.env.RUNWAY_API_KEY
   if (!runwayKey) throw new Error('RUNWAY_API_KEY not configured. Add it in Vercel → Settings → Environment Variables.')
 
+  const baseUrl = 'https://api.runwayml.com/v1'
   const endpoint = mode === 'image_to_video'
-    ? 'https://api.dev.runwayml.com/v1/image_to_video'
-    : 'https://api.dev.runwayml.com/v1/text_to_video'
+    ? `${baseUrl}/image_to_video`
+    : `${baseUrl}/text_to_video`
 
+  // 720:1280 = 9:16 portrait (TikTok/Reels/Shorts)
   const body = mode === 'image_to_video'
     ? {
         model: 'gen3a_turbo',
         promptImage: imageUrl,
-        promptText: prompt,
+        promptText: prompt.slice(0, 1000),
         duration: 5,
-        ratio: '9:16',
+        ratio: '720:1280',
       }
     : {
-        model: 'gen3a_turbo',
-        promptText: prompt,
+        model: 'gen4_turbo',
+        promptText: prompt.slice(0, 1000),
         duration: 5,
-        ratio: '9:16',
+        ratio: '720:1280',
       }
 
   const res = await fetch(endpoint, {
@@ -139,7 +141,7 @@ async function callRunway(prompt, imageUrl, mode) {
   const data = await res.json()
 
   if (!res.ok) {
-    throw new Error(data.error || data.message || `Runway API error: ${res.status}`)
+    throw new Error(data.error || data.message || JSON.stringify(data) || `Runway API error: ${res.status}`)
   }
 
   return data
@@ -152,7 +154,7 @@ async function pollRunwayTask(taskId) {
   let attempts = 0
 
   while (attempts < maxAttempts) {
-    const res = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+    const res = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
       headers: {
         Authorization: `Bearer ${runwayKey}`,
         'X-Runway-Version': '2024-11-06',
@@ -191,7 +193,7 @@ export default async function handler(req, res) {
         const runwayKey = process.env.RUNWAY_API_KEY
         if (!runwayKey) return res.status(500).json({ error: 'RUNWAY_API_KEY not configured' })
 
-        const taskRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+        const taskRes = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
           headers: {
             Authorization: `Bearer ${runwayKey}`,
             'X-Runway-Version': '2024-11-06',
