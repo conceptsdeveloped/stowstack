@@ -297,7 +297,7 @@ export function FAQSection({ config }: { config: SectionConfig }) {
   )
 }
 
-export function CTASection({ config, theme }: { config: SectionConfig; theme?: ThemeConfig }) {
+export function CTASection({ config, theme, widgetUrl }: { config: SectionConfig; theme?: ThemeConfig; widgetUrl?: string }) {
   const isGradient = config.style !== 'simple'
   return (
     <section
@@ -315,30 +315,46 @@ export function CTASection({ config, theme }: { config: SectionConfig; theme?: T
           </p>
         )}
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-          {config.ctaText && (
-            <a
-              href={config.ctaUrl || '#'}
-              className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-base font-semibold text-white shadow-lg transition-all ${theme?.primaryColor ? '' : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-600/25'}`}
-              style={theme?.primaryColor ? { background: theme.primaryColor, boxShadow: `0 10px 15px -3px ${theme.primaryColor}40` } : undefined}
-            >
-              {config.ctaText}
-              <ArrowRight size={16} />
-            </a>
-          )}
-          {config.phone && (
-            <a
-              href={`tel:${config.phone.replace(/[^+\d]/g, '')}`}
-              className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-base font-medium border transition-colors ${
-                isGradient
-                  ? 'border-white/20 text-white hover:bg-white/10'
-                  : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Phone size={16} /> {config.phone}
-            </a>
-          )}
-        </div>
+        {/* storEDGE reservation widget */}
+        {widgetUrl && (
+          <div className="max-w-2xl mx-auto mb-8 rounded-2xl overflow-hidden shadow-xl">
+            <iframe
+              src={widgetUrl}
+              title="Reserve your unit"
+              className="w-full border-0"
+              style={{ minHeight: 520 }}
+              allow="payment"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        {!widgetUrl && (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            {config.ctaText && (
+              <a
+                href={config.ctaUrl || '#'}
+                className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-base font-semibold text-white shadow-lg transition-all ${theme?.primaryColor ? '' : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-600/25'}`}
+                style={theme?.primaryColor ? { background: theme.primaryColor, boxShadow: `0 10px 15px -3px ${theme.primaryColor}40` } : undefined}
+              >
+                {config.ctaText}
+                <ArrowRight size={16} />
+              </a>
+            )}
+            {config.phone && (
+              <a
+                href={`tel:${config.phone.replace(/[^+\d]/g, '')}`}
+                className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-base font-medium border transition-colors ${
+                  isGradient
+                    ? 'border-white/20 text-white hover:bg-white/10'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Phone size={16} /> {config.phone}
+              </a>
+            )}
+          </div>
+        )}
 
         {config.email && (
           <a href={`mailto:${config.email}`} className={`inline-flex items-center gap-2 text-sm ${isGradient ? 'text-white/40 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'} transition-colors`}>
@@ -423,7 +439,7 @@ interface ThemeConfig {
   accentColor?: string
 }
 
-export function RenderSection({ section, theme }: { section: Section; theme?: ThemeConfig }) {
+export function RenderSection({ section, theme, widgetUrl }: { section: Section; theme?: ThemeConfig; widgetUrl?: string }) {
   const { section_type, config } = section
   switch (section_type) {
     case 'hero': return <HeroSection config={config} theme={theme} />
@@ -433,7 +449,7 @@ export function RenderSection({ section, theme }: { section: Section; theme?: Th
     case 'gallery': return <GallerySection config={config} />
     case 'testimonials': return <TestimonialsSection config={config} theme={theme} />
     case 'faq': return <FAQSection config={config} />
-    case 'cta': return <CTASection config={config} theme={theme} />
+    case 'cta': return <CTASection config={config} theme={theme} widgetUrl={widgetUrl} />
     case 'location_map': return <LocationMapSection config={config} theme={theme} />
     default: return null
   }
@@ -541,7 +557,7 @@ export default function LandingPageView({ slug }: { slug: string }) {
         {page.sections
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(section => (
-            <RenderSection key={section.id} section={section} theme={page.theme} />
+            <RenderSection key={section.id} section={section} theme={page.theme} widgetUrl={page.storedge_widget_url} />
           ))
         }
       </main>

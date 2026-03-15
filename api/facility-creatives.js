@@ -1,7 +1,7 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 
-export const config = { maxDuration: 30 }
+export const config = { maxDuration: 60 }
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -25,7 +25,128 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
-const COPY_SYSTEM_PROMPT = `You are an expert Meta (Facebook/Instagram) ad copywriter specializing in self-storage facilities. You write high-converting ad copy for independent storage operators targeting local customers.
+/* ═══════════════════════════════════════════════════════════════
+   FACILITY CONTEXT BUILDER
+   Pulls facility data, places data, AND onboarding wizard data
+   to give Claude the richest possible context for copy generation.
+   ═══════════════════════════════════════════════════════════════ */
+
+async function buildFacilityContext(facilityId) {
+  // Fetch facility + places data + onboarding data in parallel
+  const [facilities, onboardingRows] = await Promise.all([
+    query(
+      `SELECT f.*, pd.photos, pd.reviews
+       FROM facilities f
+       LEFT JOIN LATERAL (
+         SELECT photos, reviews FROM places_data
+         WHERE facility_id = f.id ORDER BY fetched_at DESC LIMIT 1
+       ) pd ON true
+       WHERE f.id = $1`,
+      [facilityId]
+    ),
+    query(
+      `SELECT co.steps FROM client_onboarding co
+       JOIN clients c ON c.id = co.client_id
+       WHERE c.facility_id = $1
+       ORDER BY co.updated_at DESC LIMIT 1`,
+      [facilityId]
+    ),
+  ])
+
+  if (!facilities.length) return null
+  const f = facilities[0]
+  const onboarding = onboardingRows[0]?.steps || null
+
+  // Core facility info
+  const lines = [`Facility: ${f.name}`, `Location: ${f.location}`]
+  if (f.google_rating) lines.push(`Google Rating: ${f.google_rating} stars (${f.review_count} reviews)`)
+  if (f.google_address) lines.push(`Full Address: ${f.google_address}`)
+  if (f.reviews?.length) {
+    const snippets = f.reviews.slice(0, 3).map(r => `"${r.text.slice(0, 150)}"`).join('\n')
+    lines.push(`Top Customer Reviews:\n${snippets}`)
+  }
+  if (f.photos?.length) lines.push(`Photos available: ${f.photos.length}`)
+  if (f.occupancy_range) lines.push(`Current occupancy: ${f.occupancy_range}`)
+  if (f.biggest_issue) lines.push(`Operator's biggest challenge: ${f.biggest_issue}`)
+  if (f.total_units) lines.push(`Total units: ${f.total_units}`)
+  if (f.google_phone) lines.push(`Phone: ${f.google_phone}`)
+  if (f.website) lines.push(`Website: ${f.website}`)
+
+  // Onboarding wizard enrichment
+  if (onboarding) {
+    // Facility details (brand voice, selling points)
+    const fd = onboarding.facilityDetails?.data
+    if (fd) {
+      if (fd.brandDescription) lines.push(`\nBrand Description: ${fd.brandDescription}`)
+      if (fd.sellingPoints?.filter(s => s.trim()).length) {
+        lines.push(`Key Selling Points: ${fd.sellingPoints.filter(s => s.trim()).join(', ')}`)
+      }
+      if (fd.brandColors) lines.push(`Brand Colors: ${fd.brandColors}`)
+    }
+
+    // Target demographics
+    const td = onboarding.targetDemographics?.data
+    if (td) {
+      const parts = []
+      if (td.ageMin && td.ageMax) parts.push(`ages ${td.ageMin}-${td.ageMax}`)
+      if (td.radiusMiles) parts.push(`within ${td.radiusMiles} miles`)
+      if (td.incomeLevel) parts.push(`${td.incomeLevel} income`)
+      if (td.renterVsOwner) parts.push(`${td.renterVsOwner}`)
+      if (parts.length) lines.push(`Target Audience: ${parts.join(', ')}`)
+    }
+
+    // Unit mix & pricing
+    const um = onboarding.unitMix?.data
+    if (um?.units?.length) {
+      const unitLines = um.units
+        .filter(u => u.type)
+        .map(u => {
+          const parts = [u.type]
+          if (u.size) parts.push(u.size)
+          if (u.monthlyRate) parts.push(`$${u.monthlyRate}/mo`)
+          if (u.availableCount) parts.push(`${u.availableCount} available`)
+          return parts.join(' — ')
+        })
+      if (unitLines.length) lines.push(`\nUnit Mix:\n${unitLines.join('\n')}`)
+      if (um.specials) lines.push(`Current Specials/Promotions: ${um.specials}`)
+    }
+
+    // Competitor intel
+    const ci = onboarding.competitorIntel?.data
+    if (ci?.competitors?.length) {
+      const compLines = ci.competitors
+        .filter(c => c.name)
+        .map(c => {
+          const parts = [c.name]
+          if (c.distance) parts.push(c.distance)
+          if (c.pricingNotes) parts.push(c.pricingNotes)
+          return parts.join(' — ')
+        })
+      if (compLines.length) lines.push(`\nCompetitors:\n${compLines.join('\n')}`)
+      if (ci.differentiation) lines.push(`Key Differentiator: ${ci.differentiation}`)
+    }
+
+    // Ad preferences (tone, goals, budget)
+    const ap = onboarding.adPreferences?.data
+    if (ap) {
+      if (ap.toneOfVoice) lines.push(`\nPreferred Tone: ${ap.toneOfVoice}`)
+      if (ap.primaryGoal) lines.push(`Primary Ad Goal: ${ap.primaryGoal}`)
+      if (ap.monthlyBudget) lines.push(`Monthly Budget: ${ap.monthlyBudget}`)
+      if (ap.pastAdExperience) lines.push(`Past Ad Experience: ${ap.pastAdExperience}`)
+      if (ap.notes) lines.push(`Operator Notes: ${ap.notes}`)
+    }
+  }
+
+  return { facility: f, context: lines.join('\n'), onboarding }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SYSTEM PROMPTS — one per generation type
+   ═══════════════════════════════════════════════════════════════ */
+
+const SYSTEM_PROMPTS = {
+  meta_feed: `You are an expert Meta (Facebook/Instagram) ad copywriter specializing in self-storage facilities. You write high-converting ad copy for independent storage operators targeting local customers.
 
 You produce exactly 4 ad variations, each with a distinct angle. Return ONLY valid JSON — no markdown, no text outside the JSON.
 
@@ -43,6 +164,9 @@ META AD FORMAT RULES:
 - Do NOT use all-caps words except CTA-style words like "FREE"
 - Use local city/neighborhood when available to increase relevance
 - If rating is provided, use the actual number (e.g. "4.8-star")
+- If competitor data is provided, use it to position the facility as the better choice WITHOUT naming competitors
+- If unit pricing is provided, reference specific deals (e.g. "Starting at $49/mo")
+- Match the operator's preferred tone if specified
 
 OUTPUT STRUCTURE:
 {
@@ -57,7 +181,262 @@ OUTPUT STRUCTURE:
       "targetingNote": ""
     }
   ]
+}`,
+
+  google_search: `You are an expert Google Ads copywriter specializing in self-storage facilities. You write high-converting Responsive Search Ads (RSA) for independent storage operators.
+
+You produce a SINGLE RSA ad group with 15 headlines and 4 descriptions. Return ONLY valid JSON — no markdown, no text outside the JSON.
+
+GOOGLE RSA RULES:
+- headlines: exactly 15 unique headlines, each MAX 30 characters
+  - Mix keyword-focused ("Self Storage in [City]"), benefit-focused ("24/7 Access"), offer-focused ("First Month Free"), and trust ("4.8★ Rated")
+  - At least 3 should include the city/location name
+  - At least 2 should include a call to action
+  - Include pricing if available
+  - Pin suggestions: mark 1-2 headlines as "pin_position": 1 for headlines that must appear in position 1
+- descriptions: exactly 4 unique descriptions, each MAX 90 characters
+  - Lead with benefits, include call to action
+  - At least one should mention specific features (climate-controlled, drive-up, etc.)
+  - At least one should include location details
+- finalUrl: suggested landing page path (e.g. "/storage/grand-rapids" or just "/")
+- sitelinks: 4 sitelink extensions with title (MAX 25 chars) and description (MAX 35 chars)
+
+OUTPUT STRUCTURE:
+{
+  "adGroup": {
+    "name": "",
+    "headlines": [
+      { "text": "", "pin_position": null }
+    ],
+    "descriptions": [
+      { "text": "" }
+    ],
+    "finalUrl": "/",
+    "sitelinks": [
+      { "title": "", "description": "" }
+    ],
+    "keywords": [""]
+  }
+}`,
+
+  landing_page: `You are an expert landing page copywriter specializing in self-storage facilities. You write high-converting, section-based landing page content for independent storage operators.
+
+Generate a complete set of landing page sections. Return ONLY valid JSON — no markdown, no text outside the JSON.
+
+Use the facility data, reviews, unit pricing, and competitor info to make every section specific and credible. DO NOT use generic filler copy.
+
+SECTION REQUIREMENTS:
+1. hero — the top banner
+   - headline: 40-60 chars, bold and specific (use city name). No period at end.
+   - subheadline: 80-120 chars, benefit-driven supporting line
+   - badgeText: short trust signal like "4.8★ Rated" or "Serving [City] Since 2005"
+   - ctaText: 2-4 words, action-oriented
+   - ctaUrl: "#cta"
+
+2. trust_bar — horizontal strip of trust signals
+   - items: 4-5 items, each with icon (star|shield|clock|check|truck|building) and text (MAX 20 chars each)
+
+3. features — 3-6 key facility features
+   - headline: section heading
+   - items: each with icon (shield|clock|truck|star|building|check), title (MAX 25 chars), desc (40-80 chars)
+
+4. unit_types — pricing cards from real unit mix data
+   - headline: section heading
+   - units: each with name, size, price (format: "$XX"), features (2-3 per unit)
+
+5. testimonials — social proof from real reviews
+   - headline: section heading
+   - items: each with name, text (rephrase/shorten real reviews to 60-100 chars), metric (optional, e.g. "5-star review")
+
+6. faq — common questions
+   - headline: "Frequently Asked Questions"
+   - items: 5-7 Q&A pairs relevant to the facility (hours, access, security, move-in, pricing)
+
+7. cta — bottom conversion section
+   - headline: action-oriented, 30-50 chars
+   - subheadline: urgency or benefit line, 60-100 chars
+   - ctaText: "Reserve Your Unit" or similar
+   - ctaUrl: "#"
+
+OUTPUT STRUCTURE:
+{
+  "sections": [
+    { "section_type": "hero", "sort_order": 0, "config": { ... } },
+    { "section_type": "trust_bar", "sort_order": 1, "config": { ... } },
+    { "section_type": "features", "sort_order": 2, "config": { ... } },
+    { "section_type": "unit_types", "sort_order": 3, "config": { ... } },
+    { "section_type": "testimonials", "sort_order": 4, "config": { ... } },
+    { "section_type": "faq", "sort_order": 5, "config": { ... } },
+    { "section_type": "cta", "sort_order": 6, "config": { ... } }
+  ],
+  "meta_title": "MAX 60 chars — [Facility Name] | Self Storage in [City]",
+  "meta_description": "MAX 155 chars — include city, key benefit, and CTA"
+}`,
+
+  email_drip: `You are an expert email marketing copywriter specializing in self-storage follow-up sequences. You write conversion-focused nurture emails for independent storage operators.
+
+Generate a 4-email drip sequence for a facility. Each email should build on the previous one, escalating from value-add to urgency. Return ONLY valid JSON.
+
+SEQUENCE STRUCTURE:
+1. Email 1 (Day 2) — Warm follow-up: reference their inquiry, share one unique facility benefit
+2. Email 2 (Day 5) — Value add: share a useful tip about moving/storage, subtly position the facility
+3. Email 3 (Day 10) — Social proof: lead with reviews/rating, address common objections
+4. Email 4 (Day 21) — Last chance: urgency angle, limited availability, time-sensitive offer
+
+EMAIL RULES:
+- subject: MAX 50 characters. No spam trigger words. Personalize with city or facility name.
+- preheader: MAX 80 characters. Complements subject line.
+- body: 80-150 words. Conversational, direct, scannable. Short paragraphs (2-3 sentences max).
+- ctaText: clear action button text (2-4 words)
+- ctaUrl: "#reserve" (placeholder)
+- Use the operator's preferred tone if specified
+- Reference real facility features, pricing, and reviews where relevant
+- Include the facility name and city naturally
+
+OUTPUT STRUCTURE:
+{
+  "sequence": [
+    {
+      "step": 1,
+      "delayDays": 2,
+      "subject": "",
+      "preheader": "",
+      "body": "",
+      "ctaText": "",
+      "ctaUrl": "#reserve",
+      "label": "Warm follow-up"
+    }
+  ]
 }`
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   GENERATION LOGIC
+   ═══════════════════════════════════════════════════════════════ */
+
+function parseJsonResponse(raw) {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('Could not parse AI response as JSON')
+    return JSON.parse(match[0])
+  }
+}
+
+async function generateWithClaude(systemPrompt, userMessage, apiKey) {
+  const client = new Anthropic({ apiKey })
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userMessage }],
+  })
+  return parseJsonResponse(message.content[0].text.trim())
+}
+
+async function generateMetaAds(facilityId, context, feedback, apiKey) {
+  let feedbackNote = ''
+  if (feedback) feedbackNote = `\n\nPREVIOUS FEEDBACK FROM REVIEWER (incorporate this):\n${feedback}`
+
+  const userMessage = `Generate 4 Meta ad variations for this self-storage facility. Use the real data provided — especially the rating, review snippets, unit pricing, and competitor positioning — to make the copy specific and credible.${feedbackNote}
+
+${context}
+
+Return the JSON object with the "variations" array. Nothing else.`
+
+  return generateWithClaude(SYSTEM_PROMPTS.meta_feed, userMessage, apiKey)
+}
+
+async function generateGoogleRSA(facilityId, context, feedback, apiKey) {
+  let feedbackNote = ''
+  if (feedback) feedbackNote = `\n\nPREVIOUS FEEDBACK FROM REVIEWER (incorporate this):\n${feedback}`
+
+  const userMessage = `Generate a Google Responsive Search Ad for this self-storage facility. Use real data — ratings, pricing, location, and features — for specific, high-performing ad copy.${feedbackNote}
+
+${context}
+
+Return the JSON object with the "adGroup". Nothing else.`
+
+  return generateWithClaude(SYSTEM_PROMPTS.google_search, userMessage, apiKey)
+}
+
+async function generateLandingPageCopy(facilityId, context, feedback, apiKey) {
+  let feedbackNote = ''
+  if (feedback) feedbackNote = `\n\nPREVIOUS FEEDBACK FROM REVIEWER (incorporate this):\n${feedback}`
+
+  const userMessage = `Generate complete landing page content for this self-storage facility. Use real data to make every section specific and credible. Do NOT use generic placeholder copy.${feedbackNote}
+
+${context}
+
+Return the JSON object with the "sections" array, "meta_title", and "meta_description". Nothing else.`
+
+  return generateWithClaude(SYSTEM_PROMPTS.landing_page, userMessage, apiKey)
+}
+
+async function generateEmailDrip(facilityId, context, feedback, apiKey) {
+  let feedbackNote = ''
+  if (feedback) feedbackNote = `\n\nPREVIOUS FEEDBACK FROM REVIEWER (incorporate this):\n${feedback}`
+
+  const userMessage = `Generate a 4-email drip sequence for this self-storage facility. Use real data — facility name, city, pricing, reviews — to make the emails specific and personal.${feedbackNote}
+
+${context}
+
+Return the JSON object with the "sequence" array. Nothing else.`
+
+  return generateWithClaude(SYSTEM_PROMPTS.email_drip, userMessage, apiKey)
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PERSISTENCE HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+
+async function getOrCreateBrief(facilityId, facility, context, platforms) {
+  const existingBriefs = await query(
+    `SELECT id, version FROM creative_briefs WHERE facility_id = $1 ORDER BY version DESC LIMIT 1`,
+    [facilityId]
+  )
+
+  if (existingBriefs.length) return existingBriefs[0].id
+
+  const newBrief = await query(
+    `INSERT INTO creative_briefs (facility_id, brief_json, platform_recommendation, status)
+     VALUES ($1, $2, $3, 'draft') RETURNING id`,
+    [facilityId, JSON.stringify({ facility: facility.name, location: facility.location, context }), platforms]
+  )
+  return newBrief[0].id
+}
+
+async function getNextVersion(facilityId) {
+  const maxVersion = await query(
+    `SELECT COALESCE(MAX(version), 0) as max_v FROM ad_variations WHERE facility_id = $1`,
+    [facilityId]
+  )
+  return maxVersion[0].max_v + 1
+}
+
+async function insertVariations(variations, facilityId, briefId, platform, format, nextVersion) {
+  const inserted = []
+  for (const v of variations) {
+    const angle = v.angle || v.name || platform
+    const rows = await query(
+      `INSERT INTO ad_variations
+        (facility_id, brief_id, platform, format, angle, content_json, status, version)
+       VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)
+       RETURNING *`,
+      [facilityId, briefId, platform, format, angle, JSON.stringify(v), nextVersion]
+    )
+    inserted.push(rows[0])
+  }
+  return inserted
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   HANDLER
+   ═══════════════════════════════════════════════════════════════ */
 
 export default async function handler(req, res) {
   const cors = getCorsHeaders(req.headers.origin || '')
@@ -68,7 +447,7 @@ export default async function handler(req, res) {
 
   const facilityId = req.query.facilityId || req.body?.facilityId
 
-  // GET — fetch all ad variations + briefs for a facility
+  // ── GET — fetch all ad variations + briefs for a facility ──
   if (req.method === 'GET') {
     if (!facilityId) return res.status(400).json({ error: 'facilityId required' })
 
@@ -90,124 +469,125 @@ export default async function handler(req, res) {
     }
   }
 
-  // POST — generate new ad variations for a facility
+  // ── POST — generate new content for a facility ──
   if (req.method === 'POST') {
     if (!facilityId) return res.status(400).json({ error: 'facilityId required' })
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' })
 
+    // Platform type: meta_feed (default), google_search, landing_page, email_drip, all
+    const platform = req.body?.platform || 'meta_feed'
+    const feedback = req.body?.feedback || null
+
     try {
-      // Fetch facility data + places data
-      const facilities = await query(
-        `SELECT f.*, pd.photos, pd.reviews
-         FROM facilities f
-         LEFT JOIN LATERAL (
-           SELECT photos, reviews FROM places_data
-           WHERE facility_id = f.id ORDER BY fetched_at DESC LIMIT 1
-         ) pd ON true
-         WHERE f.id = $1`,
-        [facilityId]
-      )
+      const facilityData = await buildFacilityContext(facilityId)
+      if (!facilityData) return res.status(404).json({ error: 'Facility not found' })
 
-      if (!facilities.length) return res.status(404).json({ error: 'Facility not found' })
-      const f = facilities[0]
+      const { facility, context } = facilityData
+      const result = { variations: [], landingPage: null, emailSequence: null }
 
-      // Build context for Claude
-      const lines = [`Facility: ${f.name}`, `Location: ${f.location}`]
-      if (f.google_rating) lines.push(`Google Rating: ${f.google_rating} stars (${f.review_count} reviews)`)
-      if (f.google_address) lines.push(`Full Address: ${f.google_address}`)
-      if (f.reviews?.length) {
-        const snippets = f.reviews.slice(0, 3).map(r => `"${r.text.slice(0, 120)}"`).join('\n')
-        lines.push(`Top Customer Reviews:\n${snippets}`)
-      }
-      if (f.photos?.length) lines.push(`Photos available: ${f.photos.length}`)
-      if (f.occupancy_range) lines.push(`Current occupancy: ${f.occupancy_range}`)
-      if (f.biggest_issue) lines.push(`Operator's biggest challenge: ${f.biggest_issue}`)
-      if (f.total_units) lines.push(`Total units: ${f.total_units}`)
+      // Determine which platforms to generate for
+      const platforms = platform === 'all'
+        ? ['meta_feed', 'google_search', 'landing_page', 'email_drip']
+        : [platform]
 
-      // Include feedback from rejected variations if regenerating
-      const { feedback: priorFeedback } = req.body || {}
-      let feedbackNote = ''
-      if (priorFeedback) {
-        feedbackNote = `\n\nPREVIOUS FEEDBACK FROM REVIEWER (incorporate this):\n${priorFeedback}`
-      }
+      const briefId = await getOrCreateBrief(facilityId, facility, context, platforms)
+      const nextVersion = await getNextVersion(facilityId)
 
-      const userMessage = `Generate 4 Meta ad variations for this self-storage facility. Use the real data provided — especially the rating and review snippets — to make the copy specific and credible.${feedbackNote}
+      // Generate in parallel where possible
+      const generators = []
 
-${lines.join('\n')}
-
-Return the JSON object with the "variations" array. Nothing else.`
-
-      const client = new Anthropic({ apiKey })
-      const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: COPY_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-      })
-
-      const raw = message.content[0].text.trim()
-      let parsed
-      try {
-        parsed = JSON.parse(raw)
-      } catch {
-        const match = raw.match(/\{[\s\S]*\}/)
-        if (!match) throw new Error('Could not parse ad copy response')
-        parsed = JSON.parse(match[0])
-      }
-
-      // Get latest brief or create one
-      const existingBriefs = await query(
-        `SELECT id, version FROM creative_briefs WHERE facility_id = $1 ORDER BY version DESC LIMIT 1`,
-        [facilityId]
-      )
-
-      let briefId
-      if (existingBriefs.length) {
-        briefId = existingBriefs[0].id
-      } else {
-        const newBrief = await query(
-          `INSERT INTO creative_briefs (facility_id, brief_json, platform_recommendation, status)
-           VALUES ($1, $2, $3, 'draft') RETURNING id`,
-          [facilityId, JSON.stringify({ facility: f.name, location: f.location, context: lines }), ['meta_feed']]
+      if (platforms.includes('meta_feed')) {
+        generators.push(
+          generateMetaAds(facilityId, context, feedback, apiKey)
+            .then(async parsed => {
+              const inserted = await insertVariations(
+                parsed.variations, facilityId, briefId, 'meta_feed', 'static', nextVersion
+              )
+              result.variations.push(...inserted)
+            })
         )
-        briefId = newBrief[0].id
       }
 
-      // Determine version number
-      const maxVersion = await query(
-        `SELECT COALESCE(MAX(version), 0) as max_v FROM ad_variations WHERE facility_id = $1`,
-        [facilityId]
-      )
-      const nextVersion = maxVersion[0].max_v + 1
-
-      // Insert all variations
-      const insertedVariations = []
-      for (const v of parsed.variations) {
-        const rows = await query(
-          `INSERT INTO ad_variations
-            (facility_id, brief_id, platform, format, angle, content_json, status, version)
-           VALUES ($1, $2, 'meta_feed', 'static', $3, $4, 'draft', $5)
-           RETURNING *`,
-          [facilityId, briefId, v.angle, JSON.stringify(v), nextVersion]
+      if (platforms.includes('google_search')) {
+        generators.push(
+          generateGoogleRSA(facilityId, context, feedback, apiKey)
+            .then(async parsed => {
+              // Store the entire ad group as a single variation
+              const rows = await query(
+                `INSERT INTO ad_variations
+                  (facility_id, brief_id, platform, format, angle, content_json, status, version)
+                 VALUES ($1, $2, 'google_search', 'text', 'rsa', $3, 'draft', $4)
+                 RETURNING *`,
+                [facilityId, briefId, JSON.stringify(parsed.adGroup), nextVersion]
+              )
+              result.variations.push(rows[0])
+            })
         )
-        insertedVariations.push(rows[0])
       }
+
+      if (platforms.includes('landing_page')) {
+        generators.push(
+          generateLandingPageCopy(facilityId, context, feedback, apiKey)
+            .then(async parsed => {
+              // Store as a single variation with all sections
+              const rows = await query(
+                `INSERT INTO ad_variations
+                  (facility_id, brief_id, platform, format, angle, content_json, status, version)
+                 VALUES ($1, $2, 'landing_page', 'sections', 'full_page', $3, 'draft', $4)
+                 RETURNING *`,
+                [facilityId, briefId, JSON.stringify(parsed), nextVersion]
+              )
+              result.variations.push(rows[0])
+              result.landingPage = parsed
+            })
+        )
+      }
+
+      if (platforms.includes('email_drip')) {
+        generators.push(
+          generateEmailDrip(facilityId, context, feedback, apiKey)
+            .then(async parsed => {
+              // Store as a single variation
+              const rows = await query(
+                `INSERT INTO ad_variations
+                  (facility_id, brief_id, platform, format, angle, content_json, status, version)
+                 VALUES ($1, $2, 'email_drip', 'email', 'nurture_sequence', $3, 'draft', $4)
+                 RETURNING *`,
+                [facilityId, briefId, JSON.stringify(parsed), nextVersion]
+              )
+              result.variations.push(rows[0])
+              result.emailSequence = parsed
+            })
+        )
+      }
+
+      await Promise.all(generators)
 
       // Update facility status
-      await query(`UPDATE facilities SET status = 'generating' WHERE id = $1 AND status IN ('intake', 'scraped', 'briefed')`, [facilityId])
+      await query(
+        `UPDATE facilities SET status = 'generating' WHERE id = $1 AND status IN ('intake', 'scraped', 'briefed')`,
+        [facilityId]
+      )
 
-      return res.status(200).json({ variations: insertedVariations, briefId })
+      return res.status(200).json({
+        variations: result.variations,
+        briefId,
+        landingPage: result.landingPage,
+        emailSequence: result.emailSequence,
+        platforms,
+        version: nextVersion,
+      })
     } catch (err) {
       console.error('Copy generation failed:', err.message)
       return res.status(500).json({ error: 'Copy generation failed', details: err.message })
     }
   }
 
-  // PATCH — update a variation (approve, reject with feedback, edit content)
+  // ── PATCH — update a variation (approve, reject with feedback, edit content) ──
   if (req.method === 'PATCH') {
-    const { variationId, status, feedback, content_json } = req.body || {}
+    const { variationId, status, feedback, content_json, deploy } = req.body || {}
     if (!variationId) return res.status(400).json({ error: 'variationId required' })
 
     const VALID = ['draft', 'review', 'approved', 'published', 'rejected']
@@ -231,19 +611,28 @@ Return the JSON object with the "variations" array. Nothing else.`
         params.push(JSON.stringify(content_json))
       }
 
-      if (!updates.length) return res.status(400).json({ error: 'Nothing to update' })
+      if (!updates.length && !deploy) return res.status(400).json({ error: 'Nothing to update' })
 
-      params.push(variationId)
-      const rows = await query(
-        `UPDATE ad_variations SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
-        params
-      )
+      let variation
+      if (updates.length) {
+        params.push(variationId)
+        const rows = await query(
+          `UPDATE ad_variations SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+          params
+        )
+        if (!rows.length) return res.status(404).json({ error: 'Variation not found' })
+        variation = rows[0]
+      } else {
+        const rows = await query(`SELECT * FROM ad_variations WHERE id = $1`, [variationId])
+        if (!rows.length) return res.status(404).json({ error: 'Variation not found' })
+        variation = rows[0]
+      }
 
-      if (!rows.length) return res.status(404).json({ error: 'Variation not found' })
+      const result = { variation }
 
       // If all variations for this facility are approved, update facility status
       if (status === 'approved') {
-        const fid = rows[0].facility_id
+        const fid = variation.facility_id
         const pending = await query(
           `SELECT COUNT(*) as cnt FROM ad_variations WHERE facility_id = $1 AND status NOT IN ('approved', 'published', 'rejected')`,
           [fid]
@@ -255,14 +644,104 @@ Return the JSON object with the "variations" array. Nothing else.`
         }
       }
 
-      return res.status(200).json({ variation: rows[0] })
+      // ── Deploy actions — wire approved content to live systems ──
+      if (deploy === 'landing_page' && variation.platform === 'landing_page') {
+        const lpContent = typeof variation.content_json === 'string'
+          ? JSON.parse(variation.content_json)
+          : variation.content_json
+        const fac = (await query(`SELECT * FROM facilities WHERE id = $1`, [variation.facility_id]))[0]
+        if (!fac) return res.status(404).json({ error: 'Facility not found' })
+
+        // Generate a unique slug from facility name
+        const baseSlug = (fac.name || 'storage')
+          .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        let slug = baseSlug
+        let attempt = 0
+        while (true) {
+          const exists = await query(`SELECT id FROM landing_pages WHERE slug = $1`, [slug])
+          if (!exists.length) break
+          attempt++
+          slug = `${baseSlug}-${attempt}`
+        }
+
+        // Create the landing page
+        const pageRows = await query(
+          `INSERT INTO landing_pages (facility_id, slug, title, meta_title, meta_description, variation_ids, storedge_widget_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+          [
+            variation.facility_id,
+            slug,
+            lpContent.meta_title || `${fac.name} - Self Storage`,
+            lpContent.meta_title || null,
+            lpContent.meta_description || null,
+            [variation.id],
+            fac.website || null,
+          ]
+        )
+        const page = pageRows[0]
+
+        // Insert sections
+        const sections = lpContent.sections || []
+        for (let i = 0; i < sections.length; i++) {
+          const s = sections[i]
+          await query(
+            `INSERT INTO landing_page_sections (landing_page_id, sort_order, section_type, config)
+             VALUES ($1, $2, $3, $4)`,
+            [page.id, s.sort_order ?? i, s.section_type, s.config || {}]
+          )
+        }
+
+        // Mark variation as published
+        await query(`UPDATE ad_variations SET status = 'published' WHERE id = $1`, [variation.id])
+        variation.status = 'published'
+
+        result.landingPage = { id: page.id, slug: page.slug, url: `/lp/${slug}` }
+      }
+
+      if (deploy === 'email_drip' && variation.platform === 'email_drip') {
+        const dripContent = typeof variation.content_json === 'string'
+          ? JSON.parse(variation.content_json)
+          : variation.content_json
+        const sequence = dripContent.sequence || []
+        if (sequence.length === 0) return res.status(400).json({ error: 'No email sequence in variation' })
+
+        // Store the custom sequence as a drip_sequence_templates row
+        await query(
+          `INSERT INTO drip_sequence_templates (facility_id, variation_id, name, steps)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (facility_id, variation_id) DO UPDATE SET steps = $4, updated_at = NOW()`,
+          [
+            variation.facility_id,
+            variation.id,
+            'AI-Generated Drip',
+            JSON.stringify(sequence.map((e, i) => ({
+              step: i,
+              delayDays: e.delayDays,
+              subject: e.subject,
+              preheader: e.preheader,
+              body: e.body,
+              ctaText: e.ctaText,
+              ctaUrl: e.ctaUrl,
+              label: e.label,
+            }))),
+          ]
+        )
+
+        // Mark variation as published
+        await query(`UPDATE ad_variations SET status = 'published' WHERE id = $1`, [variation.id])
+        variation.status = 'published'
+
+        result.dripActivated = true
+      }
+
+      return res.status(200).json(result)
     } catch (err) {
       console.error('facility-creatives PATCH failed:', err.message)
       return res.status(500).json({ error: 'Failed to update variation' })
     }
   }
 
-  // DELETE — remove a variation
+  // ── DELETE — remove a variation ──
   if (req.method === 'DELETE') {
     const { variationId } = req.body || {}
     if (!variationId) return res.status(400).json({ error: 'variationId required' })

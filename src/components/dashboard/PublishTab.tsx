@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Send } from 'lucide-react'
-import { Facility, AdVariation, Asset, PlatformInfo, PlatformConnection, PublishLogEntry } from './types'
+import { Facility, AdVariation, MetaAdContent, Asset, PlatformInfo, PlatformConnection, PublishLogEntry } from './types'
 
 export default function PublishTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([])
@@ -192,7 +192,7 @@ export default function PublishTab({ facility, adminKey, darkMode }: { facility:
               >
                 {variations.map(v => (
                   <option key={v.id} value={v.id}>
-                    {v.content_json.angleLabel || v.angle} — {v.content_json.headline?.slice(0, 30)}
+                    {(v.content_json as MetaAdContent).angleLabel || v.angle} — {(v.content_json as MetaAdContent).headline?.slice(0, 30)}
                   </option>
                 ))}
               </select>

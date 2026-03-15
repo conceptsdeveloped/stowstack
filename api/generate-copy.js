@@ -1,3 +1,12 @@
+/**
+ * DEPRECATED: This endpoint is superseded by /api/facility-creatives (POST).
+ * Use facility-creatives with { platform: 'meta_feed' } for the same functionality
+ * plus onboarding data enrichment and multi-platform support.
+ *
+ * This endpoint is kept for backwards compatibility with any external callers.
+ * It proxies the request to facility-creatives internally.
+ */
+
 import Anthropic from '@anthropic-ai/sdk'
 
 export const config = { maxDuration: 30 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Send, Image, MoreHorizontal, Heart, MessageCircle, Bookmark, Globe } from 'lucide-react'
-import { Facility, AdVariation, Asset, STATUS_COLORS } from './types'
+import { Facility, AdVariation, MetaAdContent, Asset, STATUS_COLORS } from './types'
 
 type AdFormat = 'instagram_post' | 'instagram_story' | 'google_display' | 'facebook_feed'
 
@@ -33,8 +33,9 @@ export default function AdPreviewTab({ facility, adminKey, darkMode, onPublish }
       fetch(`/api/stock-images?category=all`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
     ]).then(([creativeData, assetData, stockData]) => {
       if (creativeData.variations?.length) {
-        setVariations(creativeData.variations)
-        setSelectedVariation(creativeData.variations[0])
+        const metaOnly = creativeData.variations.filter((v: AdVariation) => v.platform === 'meta_feed')
+        setVariations(metaOnly)
+        if (metaOnly.length) setSelectedVariation(metaOnly[0])
       }
       if (assetData.assets) {
         const photos = assetData.assets.filter((a: Asset) => a.type === 'photo')
@@ -64,7 +65,7 @@ export default function AdPreviewTab({ facility, adminKey, darkMode, onPublish }
     )
   }
 
-  const copy = selectedVariation?.content_json || {}
+  const copy = (selectedVariation?.content_json || {}) as Record<string, string>
   const availableImages = imageSource === 'assets'
     ? assets.map(a => ({ id: a.id, url: a.url, alt: '' }))
     : stockImages.filter(s => stockCategory === 'all' || s.category === stockCategory)
@@ -132,12 +133,12 @@ export default function AdPreviewTab({ facility, adminKey, darkMode, onPublish }
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
                       darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
                     }`}>
-                      {v.content_json.angleLabel || v.angle}
+                      {(v.content_json as MetaAdContent).angleLabel || v.angle}
                     </span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_COLORS[v.status] || ''}`}>{v.status}</span>
                   </div>
-                  <p className={`text-xs font-medium ${text} truncate`}>{v.content_json.headline}</p>
-                  <p className={`text-[11px] ${sub} line-clamp-2 mt-0.5`}>{v.content_json.primaryText}</p>
+                  <p className={`text-xs font-medium ${text} truncate`}>{(v.content_json as MetaAdContent).headline}</p>
+                  <p className={`text-[11px] ${sub} line-clamp-2 mt-0.5`}>{(v.content_json as MetaAdContent).primaryText}</p>
                 </button>
               ))}
             </div>

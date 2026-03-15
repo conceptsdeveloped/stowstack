@@ -367,6 +367,50 @@ CREATE TABLE IF NOT EXISTS ideas (
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- A/B Tests: server-side experiment definitions
+CREATE TABLE IF NOT EXISTS ab_tests (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  description       TEXT,
+  status            TEXT NOT NULL DEFAULT 'active',  -- active | paused | completed
+  variants          JSONB NOT NULL,                  -- [{id, name, slug, weight}]
+  metrics           JSONB NOT NULL,                  -- {primary: "reservation_completed", secondary: [...]}
+  landing_page_ids  UUID[],
+  start_date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_date          TIMESTAMPTZ,
+  winner_variant_id TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ab_tests_facility ON ab_tests(facility_id);
+CREATE INDEX IF NOT EXISTS idx_ab_tests_status ON ab_tests(status);
+
+-- A/B Test Events: visitor-level tracking data
+CREATE TABLE IF NOT EXISTS ab_test_events (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  test_id     UUID NOT NULL REFERENCES ab_tests(id) ON DELETE CASCADE,
+  variant_id  TEXT NOT NULL,
+  visitor_id  TEXT NOT NULL,
+  event_name  TEXT NOT NULL,
+  metadata    JSONB,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ab_test_events_test ON ab_test_events(test_id);
+CREATE INDEX IF NOT EXISTS idx_ab_test_events_dedup ON ab_test_events(test_id, variant_id, visitor_id, event_name);
+
+-- Drip Sequence Templates: AI-generated email content per facility
+CREATE TABLE IF NOT EXISTS drip_sequence_templates (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  variation_id  UUID REFERENCES ad_variations(id) ON DELETE SET NULL,
+  name          TEXT NOT NULL,
+  steps         JSONB NOT NULL,  -- [{step, delayDays, subject, preheader, body, ctaText, ctaUrl, label}]
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, variation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_drip_templates_facility ON drip_sequence_templates(facility_id);
 `
 
 async function migrate() {
