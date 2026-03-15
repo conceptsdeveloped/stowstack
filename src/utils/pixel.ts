@@ -1,0 +1,599 @@
+/**
+ * Client-side pixel tracking utility for StowStack.
+ *
+ * Handles:
+ * - Meta Pixel (fbq) initialization and browser-side tracking
+ * - Google Ads gtag initialization and conversion tracking
+ * - Server-side event firing to Meta CAPI and Google Ads APIs
+ * - Event deduplication between browser pixel and server API
+ * - Unified interface for firing conversions across both platforms
+ */
+
+/**
+ * Event data structure for StowStack conversions.
+ */
+export interface StowStackEvent {
+  event_name: string
+  event_time?: number
+  event_id?: string
+  user_data?: {
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?: string
+    city?: string
+    state?: string
+    zip?: string
+    country?: string
+  }
+  custom_data?: {
+    value?: number
+    currency?: string
+    content_name?: string
+    content_category?: string
+    content_type?: string
+    content_id?: string
+    num_items?: number
+    [key: string]: any
+  }
+  gclid?: string
+  fbclid?: string
+  conversion_value?: number
+  conversion_currency?: string
+}
+
+/**
+ * Pixel configuration.
+ */
+export interface PixelConfig {
+  metaPixelId?: string
+  googleConversionId?: string
+  googleConversionLabel?: string
+  debug?: boolean
+  capiEndpoint?: string
+  googleConversionEndpoint?: string
+}
+
+/**
+ * Pixel manager class for unified tracking.
+ */
+class PixelManager {
+  private config: PixelConfig
+  private metaPixelId: string | null = null
+  private googleConversionId: string | null = null
+  private googleConversionLabel: string | null = null
+  private debug: boolean = false
+  private capiEndpoint: string
+  private googleConversionEndpoint: string
+
+  constructor(config: PixelConfig = {}) {
+    this.config = config
+    this.metaPixelId = config.metaPixelId || null
+    this.googleConversionId = config.googleConversionId || null
+    this.googleConversionLabel = config.googleConversionLabel || null
+    this.debug = config.debug || false
+    this.capiEndpoint = config.capiEndpoint || '/api/meta-capi'
+    this.googleConversionEndpoint =
+      config.googleConversionEndpoint || '/api/google-conversion'
+
+    this.initializePixels()
+  }
+
+  /**
+   * Initialize Meta Pixel and Google Ads tracking.
+   * Should be called once on app initialization.
+   */
+  private initializePixels(): void {
+    // Initialize Meta Pixel
+    if (this.metaPixelId) {
+      this.initializeMetaPixel()
+    }
+
+    // Initialize Google Ads
+    this.initializeGoogleAds()
+
+    if (this.debug) {
+      console.log('[Pixel] Initialized with config:', this.config)
+    }
+  }
+
+  /**
+   * Initialize Meta Pixel (fbq).
+   * Adds Facebook Pixel script and configures event tracking.
+   */
+  private initializeMetaPixel(): void {
+    const win = window as any
+
+    // Check if fbq already exists (if Meta Pixel script was loaded)
+    if (win.fbq) {
+      if (this.debug) {
+        console.log('[Pixel] Meta Pixel already initialized')
+      }
+      return
+    }
+
+    // Create fbq object if not present
+    if (!win.fbq) {
+      win.fbq = function () {
+        win.fbq.callMethod
+          ? win.fbq.callMethod.apply(win.fbq, arguments)
+          : win.fbq.queue.push(arguments)
+      }
+      win.fbq.push = win.fbq
+      win.fbq.loaded = true
+      win.fbq.version = '2.0'
+      win.fbq.queue = []
+    }
+
+    // Initialize pixel
+    win.fbq('init', this.metaPixelId)
+
+    // Track standard PageView
+    win.fbq('track', 'PageView')
+
+    if (this.debug) {
+      console.log('[Pixel] Meta Pixel initialized:', this.metaPixelId)
+    }
+  }
+
+  /**
+   * Initialize Google Ads (gtag).
+   * Adds Google Ads conversion tracking script.
+   */
+  private initializeGoogleAds(): void {
+    // Check if gtag already exists
+    if ((window as any).gtag) {
+      if (this.debug) {
+        console.log('[Pixel] Google Ads already initialized')
+      }
+      return
+    }
+
+    // Create gtag object
+    ;(window as any).dataLayer = (window as any).dataLayer || []
+    ;(window as any).gtag = function () {
+      ;(window as any).dataLayer.push(arguments)
+    }
+    ;(window as any).gtag('js', new Date())
+
+    if (this.debug) {
+      console.log('[Pixel] Google Ads initialized')
+    }
+  }
+
+  /**
+   * Generate a unique event ID for deduplication.
+   * Should be the same on client and server for proper dedup.
+   * @returns Unique event ID
+   */
+  private generateEventId(): string {
+    return `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+  }
+
+  /**
+   * Get GCLID from URL or localStorage.
+   * GCLID is set by Google Ads and used for conversion attribution.
+   * @returns GCLID or empty string
+   */
+  private getGclid(): string {
+    // Try to get from URL params
+    const params = new URLSearchParams(window.location.search)
+    const gclid = params.get('gclid')
+    if (gclid) {
+      // Store in session storage for later use
+      try {
+        sessionStorage.setItem('stowstack_gclid', gclid)
+      } catch (e) {
+        // sessionStorage might be disabled
+      }
+      return gclid
+    }
+
+    // Try to get from session storage
+    try {
+      return sessionStorage.getItem('stowstack_gclid') || ''
+    } catch (e) {
+      return ''
+    }
+  }
+
+  /**
+   * Get FBCLID from URL or localStorage.
+   * FBCLID is set by Facebook Ads for conversion tracking.
+   * @returns FBCLID or empty string
+   */
+  private getFbclid(): string {
+    // Try to get from URL params
+    const params = new URLSearchParams(window.location.search)
+    const fbclid = params.get('fbclid')
+    if (fbclid) {
+      // Store in session storage for later use
+      try {
+        sessionStorage.setItem('stowstack_fbclid', fbclid)
+      } catch (e) {
+        // sessionStorage might be disabled
+      }
+      return fbclid
+    }
+
+    // Try to get from session storage
+    try {
+      return sessionStorage.getItem('stowstack_fbclid') || ''
+    } catch (e) {
+      return ''
+    }
+  }
+
+  /**
+   * Fire an event on the browser-side Meta Pixel.
+   * This tracks conversions in the Meta Pixel UI.
+   * @param eventName - Event name (PageView, Lead, Purchase, etc.)
+   * @param customData - Optional custom data for the event
+   */
+  public fireClientMetaEvent(
+    eventName: string,
+    customData?: Record<string, any>
+  ): void {
+    if (!this.metaPixelId || !(window as any).fbq) {
+      if (this.debug) {
+        console.warn('[Pixel] Meta Pixel not available')
+      }
+      return
+    }
+
+    const eventData = customData || {}
+    ;(window as any).fbq('track', eventName, eventData)
+
+    if (this.debug) {
+      console.log('[Pixel] Meta client event:', eventName, eventData)
+    }
+  }
+
+  /**
+   * Fire an event on the browser-side Google Ads (gtag).
+   * @param eventName - Event name or conversion ID
+   * @param customData - Optional custom data for the event
+   */
+  public fireClientGoogleEvent(
+    eventName: string,
+    customData?: Record<string, any>
+  ): void {
+    if (!(window as any).gtag) {
+      if (this.debug) {
+        console.warn('[Pixel] Google Ads not available')
+      }
+      return
+    }
+
+    const eventData = customData || {}
+    ;(window as any).gtag('event', eventName, eventData)
+
+    if (this.debug) {
+      console.log('[Pixel] Google client event:', eventName, eventData)
+    }
+  }
+
+  /**
+   * Send an event to Meta CAPI for server-side conversion tracking.
+   * Provides better event matching, lower pixel wait, and cross-domain tracking.
+   * @param event - StowStack event data
+   * @returns Promise resolving to the API response
+   */
+  public async fireServerMetaEvent(event: StowStackEvent): Promise<any> {
+    if (!this.metaPixelId) {
+      if (this.debug) {
+        console.warn('[Pixel] Meta Pixel not configured')
+      }
+      return null
+    }
+
+    // Add client context if not provided
+    const eventData = {
+      ...event,
+      event_time: event.event_time || Math.floor(Date.now() / 1000),
+      event_id: event.event_id || this.generateEventId(),
+    }
+
+    try {
+      const response = await fetch(this.capiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (this.debug) {
+        console.log('[Pixel] Meta CAPI response:', data)
+      }
+
+      return data
+    } catch (error) {
+      console.error('[Pixel] Meta CAPI error:', error)
+      return null
+    }
+  }
+
+  /**
+   * Send a conversion to Google Ads API for server-side tracking.
+   * Provides better matching and attribution.
+   * @param event - StowStack event data
+   * @returns Promise resolving to the API response
+   */
+  public async fireServerGoogleEvent(event: StowStackEvent): Promise<any> {
+    if (!this.googleConversionId) {
+      if (this.debug) {
+        console.warn('[Pixel] Google Ads not configured')
+      }
+      return null
+    }
+
+    const eventData = {
+      ...event,
+      event_time: event.event_time || Math.floor(Date.now() / 1000),
+      conversion_id: this.googleConversionId,
+      conversion_label: this.googleConversionLabel,
+      gclid: event.gclid || this.getGclid(),
+    }
+
+    try {
+      const response = await fetch(this.googleConversionEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (this.debug) {
+        console.log('[Pixel] Google Conversion response:', data)
+      }
+
+      return data
+    } catch (error) {
+      console.error('[Pixel] Google Conversion error:', error)
+      return null
+    }
+  }
+
+  /**
+   * Send a conversion to both Meta and Google simultaneously.
+   * This is the primary method for tracking conversions.
+   * Handles deduplication with event_id.
+   * @param event - StowStack event data
+   * @returns Promise resolving to { meta: response, google: response }
+   */
+  public async sendConversion(event: StowStackEvent): Promise<{
+    meta: any
+    google: any
+  }> {
+    // Enrich event with auto-captured data
+    const enrichedEvent = {
+      ...event,
+      gclid: event.gclid || this.getGclid(),
+      fbclid: event.fbclid || this.getFbclid(),
+      event_id: event.event_id || this.generateEventId(),
+    }
+
+    if (this.debug) {
+      console.log('[Pixel] Sending conversion:', enrichedEvent.event_name)
+    }
+
+    // Fire both browser pixels
+    this.fireClientMetaEvent(enrichedEvent.event_name, enrichedEvent.custom_data)
+    this.fireClientGoogleEvent(enrichedEvent.event_name, enrichedEvent.custom_data)
+
+    // Fire both server-side APIs in parallel
+    const [metaResponse, googleResponse] = await Promise.all([
+      this.fireServerMetaEvent(enrichedEvent),
+      this.fireServerGoogleEvent(enrichedEvent),
+    ])
+
+    if (this.debug) {
+      console.log('[Pixel] Conversion complete', {
+        meta: metaResponse?.success || metaResponse?.status,
+        google: googleResponse?.success || googleResponse?.status,
+      })
+    }
+
+    return {
+      meta: metaResponse,
+      google: googleResponse,
+    }
+  }
+
+  /**
+   * Track a page view.
+   */
+  public trackPageView(): void {
+    this.fireClientMetaEvent('PageView')
+    this.fireClientGoogleEvent('page_view')
+
+    if (this.debug) {
+      console.log('[Pixel] Page view tracked')
+    }
+  }
+
+  /**
+   * Track a lead / form submission.
+   * @param userData - User information from form
+   * @param value - Optional lead value
+   */
+  public async trackLead(
+    userData: StowStackEvent['user_data'],
+    value?: number
+  ): Promise<{ meta: any; google: any }> {
+    return this.sendConversion({
+      event_name: 'Lead',
+      user_data: userData,
+      custom_data: {
+        value: value,
+        currency: 'USD',
+        content_name: 'Audit Form Lead',
+      },
+    })
+  }
+
+  /**
+   * Track a reservation initiation (move-in started).
+   * @param userData - User information
+   * @param value - Reservation value
+   */
+  public async trackReservationStart(
+    userData: StowStackEvent['user_data'],
+    value?: number
+  ): Promise<{ meta: any; google: any }> {
+    return this.sendConversion({
+      event_name: 'InitiateCheckout',
+      user_data: userData,
+      custom_data: {
+        value: value,
+        currency: 'USD',
+        content_name: 'Reservation Started',
+        content_type: 'reservation',
+      },
+    })
+  }
+
+  /**
+   * Track a move-in completion / purchase.
+   * @param userData - User information
+   * @param value - Move-in revenue
+   */
+  public async trackMoveInCompleted(
+    userData: StowStackEvent['user_data'],
+    value: number
+  ): Promise<{ meta: any; google: any }> {
+    return this.sendConversion({
+      event_name: 'Purchase',
+      user_data: userData,
+      custom_data: {
+        value: value,
+        currency: 'USD',
+        content_name: 'Move-In Completed',
+        content_type: 'move_in',
+      },
+    })
+  }
+
+  /**
+   * Track a unit view / ViewContent.
+   * @param userData - User information (optional)
+   * @param unitData - Unit information
+   */
+  public async trackUnitViewed(
+    userData: StowStackEvent['user_data'] | undefined,
+    unitData?: {
+      unit_id?: string
+      unit_size?: string
+      unit_type?: string
+      price?: number
+    }
+  ): Promise<{ meta: any; google: any }> {
+    return this.sendConversion({
+      event_name: 'ViewContent',
+      user_data: userData,
+      custom_data: {
+        value: unitData?.price,
+        currency: 'USD',
+        content_name: `${unitData?.unit_size} ${unitData?.unit_type}`,
+        content_id: unitData?.unit_id,
+        content_type: 'unit',
+      },
+    })
+  }
+
+  /**
+   * Enable debug logging.
+   */
+  public setDebug(debug: boolean): void {
+    this.debug = debug
+  }
+}
+
+/**
+ * Global pixel instance.
+ */
+let pixelInstance: PixelManager | null = null
+
+/**
+ * Initialize the pixel manager.
+ * Call this once on app startup with your config.
+ * @param config - Pixel configuration
+ * @returns PixelManager instance
+ */
+export function initializePixel(config: PixelConfig): PixelManager {
+  if (pixelInstance) {
+    console.warn('[Pixel] Already initialized')
+    return pixelInstance
+  }
+
+  pixelInstance = new PixelManager(config)
+  return pixelInstance
+}
+
+/**
+ * Get the global pixel instance.
+ * Must call initializePixel() first.
+ * @returns PixelManager instance
+ */
+export function getPixel(): PixelManager {
+  if (!pixelInstance) {
+    throw new Error(
+      '[Pixel] Must call initializePixel() before using pixel tracking'
+    )
+  }
+  return pixelInstance
+}
+
+/**
+ * Quick conversion tracking method.
+ * @param event - StowStack event
+ * @returns Promise resolving to { meta, google } responses
+ */
+export async function trackConversion(event: StowStackEvent): Promise<{
+  meta: any
+  google: any
+}> {
+  return getPixel().sendConversion(event)
+}
+
+/**
+ * Quick lead tracking.
+ * @param userData - User data from form
+ * @param value - Optional lead value
+ * @returns Promise resolving to { meta, google } responses
+ */
+export async function trackLead(
+  userData: StowStackEvent['user_data'],
+  value?: number
+): Promise<{ meta: any; google: any }> {
+  return getPixel().trackLead(userData, value)
+}
+
+/**
+ * Quick move-in tracking.
+ * @param userData - User data
+ * @param value - Move-in revenue
+ * @returns Promise resolving to { meta, google } responses
+ */
+export async function trackMoveIn(
+  userData: StowStackEvent['user_data'],
+  value: number
+): Promise<{ meta: any; google: any }> {
+  return getPixel().trackMoveInCompleted(userData, value)
+}
+
+export default PixelManager

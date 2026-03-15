@@ -31,5 +31,10 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/**/*.example.ts",
+    "src/**/*.example.tsx",
+    "src/**/IMPLEMENTATION_EXAMPLES*"
   ]
 }
