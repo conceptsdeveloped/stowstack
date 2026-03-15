@@ -45,50 +45,50 @@ const VIDEO_TEMPLATES = {
     name: 'Facility Showcase',
     description: 'Cinematic walkthrough of storage units with smooth camera motion',
     mode: 'image_to_video',
-    promptTemplate: (facility) =>
-      `Smooth cinematic camera push forward through a clean, well-lit self-storage facility hallway. Rows of orange and blue storage unit doors on both sides. Professional, commercial quality. Bright fluorescent lighting. Clean concrete floors. No people. The camera slowly glides forward revealing more units. ${facility.name} storage facility.`,
+    promptTemplate: () =>
+      `Smooth cinematic camera push forward through a clean well-lit storage facility hallway. Rows of storage unit doors on both sides. Professional commercial quality. Bright lighting. Clean floors. No people. Camera slowly glides forward.`,
   },
   hero_shot: {
     name: 'Hero B-Roll',
     description: 'Beautiful establishing shot of a storage facility exterior',
     mode: 'text_to_video',
-    promptTemplate: (facility) =>
-      `Wide establishing shot of a modern self-storage facility exterior at golden hour. Clean building with rows of unit doors, well-maintained landscaping, American flag. Camera slowly pushes in or tracks sideways. No people. Warm sunset lighting. Commercial real estate quality. ${facility.location}.`,
+    promptTemplate: () =>
+      `Wide establishing shot of a modern storage facility exterior at golden hour. Clean building with rows of unit doors and landscaping. Camera slowly pushes in. No people. Warm sunset lighting. Commercial quality.`,
   },
   seasonal_promo: {
     name: 'Seasonal Promo',
     description: 'Eye-catching space transformation for promotions',
     mode: 'text_to_video',
-    promptTemplate: (facility) =>
-      `Dynamic visual transformation. A cluttered, overflowing garage with boxes stacked everywhere smoothly transforms into a clean, organized space. No people, no dialogue. Fast-paced transitions. Storage units appear with doors rolling up to reveal neatly organized belongings. Bright, energetic colors. Modern commercial style.`,
+    promptTemplate: () =>
+      `A cluttered garage with boxes everywhere smoothly transforms into a clean organized space. No people. Storage unit doors roll up to reveal neatly organized belongings. Bright energetic colors. Modern commercial style.`,
   },
   quick_cta: {
     name: 'Quick CTA',
     description: '5-second punchy visual for ads',
     mode: 'image_to_video',
-    promptTemplate: (facility) =>
-      `Dramatic reveal shot of a storage facility gate opening smoothly. Camera pushes through revealing a pristine row of storage units. Golden hour lighting. No people. Professional commercial quality. Cinematic. The facility looks secure, clean, and inviting. Quick dynamic movement.`,
+    promptTemplate: () =>
+      `Dramatic reveal of a storage facility gate opening smoothly. Camera pushes through revealing a row of clean storage units. Golden hour lighting. No people. Professional cinematic quality. Quick dynamic movement.`,
   },
   packing_asmr: {
     name: 'Packing ASMR',
     description: 'Satisfying overhead shot of boxes being packed',
     mode: 'text_to_video',
-    promptTemplate: (facility) =>
-      `Top-down overhead shot of hands neatly packing cardboard boxes with bubble wrap and tape. No face visible, only hands and workspace. Organized packing station with labels and markers. Satisfying, methodical movements. ASMR-style packing. Clean workspace. Professional lighting. No dialogue.`,
+    promptTemplate: () =>
+      `Top-down overhead shot of hands neatly packing cardboard boxes with bubble wrap and tape. Only hands visible. Organized packing station with labels. Satisfying methodical movements. Clean workspace. Professional lighting.`,
   },
   before_after: {
     name: 'Before & After',
     description: 'Cluttered space transforming into organized storage',
     mode: 'text_to_video',
-    promptTemplate: (facility) =>
-      `Smooth morph transition from a messy, overflowing garage with boxes stacked haphazardly, bikes, holiday decorations everywhere, into the same items perfectly organized inside a clean, well-lit storage unit with shelving and labeled boxes. No people, no dialogue. Satisfying transformation. Before and after reveal.`,
+    promptTemplate: () =>
+      `Smooth transition from a messy overflowing garage with boxes stacked everywhere into the same items perfectly organized inside a clean well-lit storage unit with shelving and labeled boxes. No people. Satisfying transformation.`,
   },
   custom: {
     name: 'Custom Prompt',
     description: 'Write your own prompt — full creative control over the generated video',
     mode: 'text_to_video',
-    promptTemplate: (facility) =>
-      `A professional, cinematic video related to self-storage. ${facility.name} in ${facility.location}. High quality, commercial grade.`,
+    promptTemplate: () =>
+      `A professional cinematic video related to self storage. High quality commercial grade.`,
   },
 }
 
@@ -108,15 +108,20 @@ async function generateVideoPrompt(template, facility, customNotes) {
     max_tokens: 300,
     messages: [{
       role: 'user',
-      content: `You are writing a prompt for an AI video generator (like Runway ML). The video is for a self-storage facility's marketing.
+      content: `You are writing a prompt for an AI video generator (Runway ML). The video is b-roll footage for a storage facility's marketing.
+
+IMPORTANT RULES:
+- Do NOT include any business names, addresses, or location names in the prompt
+- Do NOT include any text that should appear on screen
+- Focus ONLY on visual scene descriptions: camera movement, lighting, objects, composition
+- No people talking or dialogue. Hands-only if people are needed.
+- Keep under 150 words
 
 Template type: ${template.name}
 Base prompt: ${basePrompt}
-Facility: ${facility.name} in ${facility.location}
-${facility.google_rating ? `Rating: ${facility.google_rating} stars` : ''}
-${customNotes ? `Custom notes from the operator: ${customNotes}` : ''}
+${customNotes ? `Operator notes: ${customNotes}` : ''}
 
-Refine and enhance the base prompt to be more specific and visually compelling. Keep it under 200 words. Focus on visual descriptions that a video AI can render well. Return ONLY the prompt text, nothing else.`
+Refine the base prompt to be more visually compelling. Return ONLY the prompt text, nothing else.`
     }],
   })
 
