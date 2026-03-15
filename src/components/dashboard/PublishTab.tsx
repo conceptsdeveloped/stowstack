@@ -113,9 +113,9 @@ export default function PublishTab({ facility, adminKey, darkMode }: { facility:
               <div key={platform.id} className={`border rounded-xl p-4 ${card}`}>
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold ${
-                    platform.id === 'meta' ? 'bg-blue-600' : 'bg-red-500'
+                    platform.id === 'meta' ? 'bg-blue-600' : platform.id === 'tiktok' ? 'bg-black' : 'bg-red-500'
                   }`}>
-                    {platform.id === 'meta' ? 'M' : 'G'}
+                    {platform.id === 'meta' ? 'M' : platform.id === 'tiktok' ? 'T' : 'G'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold ${text}`}>{platform.name}</p>
@@ -153,13 +153,15 @@ export default function PublishTab({ facility, adminKey, darkMode }: { facility:
                             href={platform.connectUrl || '#'}
                             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700"
                           >
-                            Connect {platform.id === 'meta' ? 'Facebook' : 'Google'} Account
+                            Connect {platform.id === 'meta' ? 'Facebook' : platform.id === 'tiktok' ? 'TikTok' : 'Google'} Account
                           </a>
                         ) : (
                           <div className={`p-3 rounded-lg border border-dashed ${darkMode ? 'border-slate-600' : 'border-slate-300'}`}>
                             <p className={`text-xs ${sub}`}>
                               {platform.id === 'meta'
                                 ? 'Requires META_APP_ID and META_APP_SECRET environment variables.'
+                                : platform.id === 'tiktok'
+                                ? 'Requires TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET environment variables.'
                                 : 'Requires GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, and GOOGLE_ADS_DEVELOPER_TOKEN environment variables.'}
                             </p>
                             <p className={`text-[10px] ${sub} mt-1`}>Add these in Vercel → Settings → Environment Variables</p>
@@ -206,7 +208,7 @@ export default function PublishTab({ facility, adminKey, darkMode }: { facility:
                 <option value="">Select platform...</option>
                 {connectedPlatforms.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.platform === 'meta' ? 'Meta' : 'Google Ads'} — {c.account_name || c.account_id}
+                    {c.platform === 'meta' ? 'Meta' : c.platform === 'tiktok' ? 'TikTok' : 'Google Ads'} — {c.account_name || c.account_id}
                   </option>
                 ))}
               </select>
@@ -279,9 +281,9 @@ export default function PublishTab({ facility, adminKey, darkMode }: { facility:
             {publishLog.map(log => (
               <div key={log.id} className={`flex items-center gap-3 p-3 border rounded-lg ${card}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
-                  log.platform === 'meta' ? 'bg-blue-600' : 'bg-red-500'
+                  log.platform === 'meta' ? 'bg-blue-600' : log.platform === 'tiktok' ? 'bg-black' : 'bg-red-500'
                 }`}>
-                  {log.platform === 'meta' ? 'M' : 'G'}
+                  {log.platform === 'meta' ? 'M' : log.platform === 'tiktok' ? 'T' : 'G'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`text-xs font-medium ${text}`}>

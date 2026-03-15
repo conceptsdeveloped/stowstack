@@ -59,6 +59,21 @@ function getOAuthUrl(platform, facilityId) {
     return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code&access_type=offline&prompt=consent`
   }
 
+  if (platform === 'tiktok') {
+    const clientKey = process.env.TIKTOK_CLIENT_KEY
+    if (!clientKey) return null
+
+    const redirectUri = `${baseUrl}/api/auth/tiktok/callback`
+    const scopes = [
+      'video.publish',
+      'video.upload',
+      'user.info.basic',
+    ].join(',')
+
+    // TikTok uses client_key (not client_id) and uses CSRF state
+    return `https://www.tiktok.com/v2/auth/authorize/?client_key=${clientKey}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&state=${state}`
+  }
+
   return null
 }
 
@@ -99,6 +114,14 @@ export default async function handler(req, res) {
           configured: !!process.env.GOOGLE_ADS_CLIENT_ID,
           connectUrl: getOAuthUrl('google_ads', facilityId),
           icon: 'google',
+        },
+        {
+          id: 'tiktok',
+          name: 'TikTok',
+          description: 'Post organic content to target local audiences on TikTok',
+          configured: !!process.env.TIKTOK_CLIENT_KEY,
+          connectUrl: getOAuthUrl('tiktok', facilityId),
+          icon: 'tiktok',
         },
       ]
 

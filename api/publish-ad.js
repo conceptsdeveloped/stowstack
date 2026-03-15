@@ -213,6 +213,102 @@ async function refreshGoogleToken(connection) {
   throw new Error('Failed to refresh Google token')
 }
 
+// ── TikTok Publishing ──
+
+async function publishToTikTok(variation, connection, imageUrl) {
+  const content = variation.content_json
+  const accessToken = connection.access_token
+
+  // Refresh token if expired
+  if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
+    const newToken = await refreshTikTokToken(connection)
+    if (newToken) connection.access_token = newToken
+  }
+
+  // TikTok Content Posting API — photo post with caption
+  // Step 1: Initialize the post
+  const caption = [
+    content.primaryText || content.headline || '',
+    '',
+    content.description || '',
+    '',
+    '#selfstorage #storage #moving #storageunit #declutter #organization',
+  ].filter(Boolean).join('\n').slice(0, 2200) // TikTok caption limit
+
+  if (imageUrl) {
+    // Photo post via URL
+    const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/content/init/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${connection.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        post_info: {
+          title: caption,
+          privacy_level: 'PUBLIC_TO_EVERYONE',
+          disable_duet: false,
+          disable_comment: false,
+          disable_stitch: false,
+        },
+        source_info: {
+          source: 'PULL_FROM_URL',
+          photo_cover_index: 0,
+          photo_images: [imageUrl],
+        },
+        post_mode: 'DIRECT_POST',
+        media_type: 'PHOTO',
+      }),
+    })
+    const initData = await initRes.json()
+
+    if (initData.error?.code && initData.error.code !== 'ok') {
+      throw new Error(`TikTok post failed: ${initData.error.message || initData.error.code}`)
+    }
+
+    return {
+      externalId: initData.data?.publish_id || null,
+      externalUrl: connection.metadata?.username
+        ? `https://www.tiktok.com/@${connection.metadata.username}`
+        : 'https://www.tiktok.com',
+      response: {
+        publishId: initData.data?.publish_id,
+        status: 'posted',
+        note: 'Photo posted to TikTok. It may take a few minutes to appear on the profile.',
+      },
+    }
+  }
+
+  // Text-only — TikTok requires media, so we can't post without an image/video
+  throw new Error('TikTok requires an image or video. Select an image before publishing.')
+}
+
+async function refreshTikTokToken(connection) {
+  const clientKey = process.env.TIKTOK_CLIENT_KEY
+  const clientSecret = process.env.TIKTOK_CLIENT_SECRET
+
+  const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_key: clientKey,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: connection.refresh_token,
+    }),
+  })
+  const data = await res.json()
+
+  if (data.access_token) {
+    await query(
+      `UPDATE platform_connections SET access_token = $1, refresh_token = COALESCE($2, refresh_token), token_expires_at = $3, updated_at = NOW() WHERE id = $4`,
+      [data.access_token, data.refresh_token || null, new Date(Date.now() + (data.expires_in || 86400) * 1000).toISOString(), connection.id]
+    )
+    return data.access_token
+  }
+  return null
+}
+
 // ── Handler ──
 
 export default async function handler(req, res) {
@@ -282,6 +378,8 @@ export default async function handler(req, res) {
           result = await publishToMeta(variation, connection, imageUrl)
         } else if (connection.platform === 'google_ads') {
           result = await publishToGoogle(variation, connection, imageUrl)
+        } else if (connection.platform === 'tiktok') {
+          result = await publishToTikTok(variation, connection, imageUrl)
         } else {
           throw new Error(`Unsupported platform: ${connection.platform}`)
         }
