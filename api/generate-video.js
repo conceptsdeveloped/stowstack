@@ -25,49 +25,63 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
-// Video templates with prompt engineering
+// Style references that users can select to influence video aesthetics
+const STYLE_PRESETS = {
+  none: { name: 'Default', suffix: '' },
+  cinematic: { name: 'Cinematic', suffix: 'Cinematic color grading, anamorphic lens flare, shallow depth of field, 35mm film grain, Hollywood commercial quality.' },
+  vintage: { name: 'Vintage / Retro', suffix: 'Vintage 70s film look, warm analog color palette, soft focus, Super 8 texture, nostalgic and warm.' },
+  wes_anderson: { name: 'Wes Anderson', suffix: 'Wes Anderson style symmetrical composition, pastel color palette, centered framing, whimsical and meticulously composed, flat perspective.' },
+  drone: { name: 'Aerial / Drone', suffix: 'Aerial drone shot, smooth overhead flyover, DJI Mavic quality, sweeping landscape view, golden hour from above.' },
+  minimal: { name: 'Clean / Minimal', suffix: 'Clean minimal aesthetic, lots of negative space, muted tones, modern Scandinavian design feel, quiet and elegant.' },
+  bold: { name: 'Bold / High Energy', suffix: 'Bold saturated colors, high contrast, dynamic camera movement, fast-paced energy, punchy commercial style like a Nike ad.' },
+  moody: { name: 'Moody / Dark', suffix: 'Moody dark tones, dramatic shadows, teal and orange color grade, cinematic noir feel, atmospheric and brooding.' },
+  iphone: { name: 'iPhone / Authentic', suffix: 'Shot on iPhone style, handheld casual feel, natural lighting, authentic and unpolished, real and relatable social media content.' },
+  timelapse: { name: 'Timelapse', suffix: 'Smooth timelapse footage, accelerated motion, clouds moving rapidly overhead, day passing quickly, hyperlapse movement.' },
+}
+
+// Video templates with prompt engineering — NO dialogue or talking heads
 const VIDEO_TEMPLATES = {
   facility_showcase: {
     name: 'Facility Showcase',
     description: 'Cinematic walkthrough of storage units with smooth camera motion',
-    mode: 'image_to_video', // Animates a facility photo
+    mode: 'image_to_video',
     promptTemplate: (facility) =>
-      `Smooth cinematic camera push forward through a clean, well-lit self-storage facility hallway. Rows of orange and blue storage unit doors on both sides. Professional, commercial quality. Bright fluorescent lighting. Clean concrete floors. Security cameras visible. The camera slowly moves forward revealing more units. ${facility.name} storage facility.`,
+      `Smooth cinematic camera push forward through a clean, well-lit self-storage facility hallway. Rows of orange and blue storage unit doors on both sides. Professional, commercial quality. Bright fluorescent lighting. Clean concrete floors. No people. The camera slowly glides forward revealing more units. ${facility.name} storage facility.`,
   },
-  customer_testimonial: {
-    name: 'Customer Testimonial',
-    description: 'Satisfied customer speaking about their storage experience',
+  hero_shot: {
+    name: 'Hero B-Roll',
+    description: 'Beautiful establishing shot of a storage facility exterior',
     mode: 'text_to_video',
     promptTemplate: (facility) =>
-      `A friendly, relatable person in their 30s standing in front of a clean storage unit, speaking directly to camera with a genuine smile. They gesture naturally while talking. Behind them are organized boxes inside a storage unit. Warm, natural lighting. Shot on iPhone style, authentic and casual. The person looks happy and relieved. Located in ${facility.location}.`,
+      `Wide establishing shot of a modern self-storage facility exterior at golden hour. Clean building with rows of unit doors, well-maintained landscaping, American flag. Camera slowly pushes in or tracks sideways. No people. Warm sunset lighting. Commercial real estate quality. ${facility.location}.`,
   },
   seasonal_promo: {
     name: 'Seasonal Promo',
-    description: 'Eye-catching promotional video for special offers',
+    description: 'Eye-catching space transformation for promotions',
     mode: 'text_to_video',
     promptTemplate: (facility) =>
-      `Dynamic, eye-catching motion graphics style video. A cluttered living room with boxes everywhere transforms smoothly into a clean, organized space. Fast-paced transitions. Storage units appear with doors rolling up to reveal organized belongings. Bright, energetic colors. Commercial advertising style. Modern and professional. ${facility.location} area.`,
+      `Dynamic visual transformation. A cluttered, overflowing garage with boxes stacked everywhere smoothly transforms into a clean, organized space. No people, no dialogue. Fast-paced transitions. Storage units appear with doors rolling up to reveal neatly organized belongings. Bright, energetic colors. Modern commercial style.`,
   },
   quick_cta: {
     name: 'Quick CTA',
-    description: '5-second punchy call-to-action for ads',
+    description: '5-second punchy visual for ads',
     mode: 'image_to_video',
     promptTemplate: (facility) =>
-      `Dramatic reveal shot of a storage facility gate opening smoothly. Camera pushes through revealing a pristine row of storage units. Golden hour lighting. Professional commercial quality. Cinematic. The facility looks secure, clean, and inviting. Quick dynamic movement. ${facility.name}.`,
+      `Dramatic reveal shot of a storage facility gate opening smoothly. Camera pushes through revealing a pristine row of storage units. Golden hour lighting. No people. Professional commercial quality. Cinematic. The facility looks secure, clean, and inviting. Quick dynamic movement.`,
   },
-  educational_tip: {
-    name: 'Packing Tips',
-    description: 'Educational content showing storage organization tips',
+  packing_asmr: {
+    name: 'Packing ASMR',
+    description: 'Satisfying overhead shot of boxes being packed',
     mode: 'text_to_video',
     promptTemplate: (facility) =>
-      `Top-down overhead shot of someone neatly packing cardboard boxes with bubble wrap and tape. Organized packing station with labels and markers. Satisfying, methodical movements. ASMR-style packing. Clean workspace. Professional lighting. The person's hands carefully wrap items and place them in labeled boxes. Storage preparation tutorial style.`,
+      `Top-down overhead shot of hands neatly packing cardboard boxes with bubble wrap and tape. No face visible, only hands and workspace. Organized packing station with labels and markers. Satisfying, methodical movements. ASMR-style packing. Clean workspace. Professional lighting. No dialogue.`,
   },
   before_after: {
     name: 'Before & After',
     description: 'Cluttered space transforming into organized storage',
     mode: 'text_to_video',
     promptTemplate: (facility) =>
-      `Split screen transformation: On the left, a messy, overflowing garage with boxes stacked haphazardly, bikes, holiday decorations everywhere. The scene smoothly transitions/morphs into the right side showing the same items perfectly organized inside a clean, well-lit storage unit with shelving and labeled boxes. Satisfying transformation. Before and after reveal.`,
+      `Smooth morph transition from a messy, overflowing garage with boxes stacked haphazardly, bikes, holiday decorations everywhere, into the same items perfectly organized inside a clean, well-lit storage unit with shelving and labeled boxes. No people, no dialogue. Satisfying transformation. Before and after reveal.`,
   },
   custom: {
     name: 'Custom Prompt',
@@ -225,15 +239,17 @@ export default async function handler(req, res) {
       description: t.description,
       mode: t.mode,
     }))
+    const styles = Object.entries(STYLE_PRESETS).map(([id, s]) => ({ id, name: s.name }))
     return res.status(200).json({
       templates,
+      styles,
       configured: !!process.env.RUNWAY_API_KEY,
     })
   }
 
   // POST — start video generation
   if (req.method === 'POST') {
-    const { templateId, facilityId, imageUrl, customNotes, promptOverride } = req.body || {}
+    const { templateId, facilityId, imageUrl, customNotes, promptOverride, stylePreset } = req.body || {}
     if (!templateId || !facilityId) {
       return res.status(400).json({ error: 'templateId and facilityId required' })
     }
@@ -248,7 +264,13 @@ export default async function handler(req, res) {
       const facility = facilities[0]
 
       // Use override prompt if provided, otherwise generate one
-      const prompt = promptOverride?.trim() || await generateVideoPrompt(template, facility, customNotes)
+      let prompt = promptOverride?.trim() || await generateVideoPrompt(template, facility, customNotes)
+
+      // Append style preset if selected
+      const style = STYLE_PRESETS[stylePreset]
+      if (style?.suffix) {
+        prompt = `${prompt} ${style.suffix}`
+      }
 
       // For image_to_video mode, we need an image
       const sourceImage = imageUrl || null

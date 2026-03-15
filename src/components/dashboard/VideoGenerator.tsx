@@ -23,21 +23,21 @@ interface GenerationJob {
 
 const TEMPLATE_ICONS: Record<string, string> = {
   facility_showcase: '🏢',
-  customer_testimonial: '🗣️',
+  hero_shot: '🌅',
   seasonal_promo: '🎉',
   quick_cta: '⚡',
-  educational_tip: '📦',
+  packing_asmr: '📦',
   before_after: '✨',
   custom: '✏️',
 }
 
 const TEMPLATE_PREVIEWS: Record<string, string> = {
-  facility_showcase: 'Cinematic camera push through clean hallways of storage units. Professional, commercial feel.',
-  customer_testimonial: 'Real-looking person speaking to camera about their positive storage experience.',
-  seasonal_promo: 'Dynamic transformation from cluttered space to organized storage. Fast-paced and energetic.',
+  facility_showcase: 'Cinematic camera push through clean hallways of storage units. No people, pure facility footage.',
+  hero_shot: 'Beautiful wide establishing shot of a storage facility exterior at golden hour. No people.',
+  seasonal_promo: 'Dynamic transformation from cluttered space to organized storage. No dialogue, pure visual.',
   quick_cta: 'Dramatic gate-opening reveal of a pristine storage facility. 5 seconds, high impact.',
-  educational_tip: 'Satisfying overhead shot of someone expertly packing and labeling boxes. Tutorial style.',
-  before_after: 'Split-screen transformation from messy garage to perfectly organized storage unit.',
+  packing_asmr: 'Satisfying overhead shot of hands packing and labeling boxes. No face, just hands. ASMR style.',
+  before_after: 'Smooth morph from messy garage to perfectly organized storage unit. No people.',
   custom: 'Write exactly what you want to see. Describe the scene, camera movement, lighting, and subjects in detail.',
 }
 
@@ -50,9 +50,11 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
   const [templates, setTemplates] = useState<VideoTemplate[]>([])
   const [configured, setConfigured] = useState(false)
   const [assets, setAssets] = useState<Asset[]>([])
+  const [styles, setStyles] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedStyle, setSelectedStyle] = useState('none')
   const [customNotes, setCustomNotes] = useState('')
   const [promptOverride, setPromptOverride] = useState('')
   const [showPromptEditor, setShowPromptEditor] = useState(false)
@@ -76,6 +78,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
         setSelectedTemplate(videoData.templates[0]?.id || null)
       }
       setConfigured(videoData.configured || false)
+      if (videoData.styles) setStyles(videoData.styles)
       if (assetData.assets) {
         const photos = assetData.assets.filter((a: Asset) => a.type === 'photo')
         setAssets(photos)
@@ -123,6 +126,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
           imageUrl: template.mode === 'image_to_video' ? (overrideImage || selectedImage) : undefined,
           customNotes: customNotes.trim() || undefined,
           promptOverride: overridePrompt || promptOverride.trim() || undefined,
+          stylePreset: selectedStyle !== 'none' ? selectedStyle : undefined,
         }),
       })
       const data = await res.json()
@@ -232,7 +236,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
               <p className={`text-sm ${text}`}>{TEMPLATE_PREVIEWS[activeTemplate.id] || activeTemplate.description}</p>
             </div>
 
-            {/* Image selector for image_to_video templates */}
+            {/* Image selector — only for image_to_video templates */}
             {activeTemplate.mode === 'image_to_video' && (
               <div>
                 <label className={`text-xs font-medium ${sub} block mb-1.5`}>Source Image</label>
@@ -251,6 +255,28 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
                   {assets.length === 0 && (
                     <p className={`col-span-6 text-xs ${sub} py-2`}>No images. Upload or scrape in Assets tab.</p>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Style preset */}
+            {styles.length > 0 && (
+              <div>
+                <label className={`text-xs font-medium ${sub} block mb-1.5`}>Visual Style</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {styles.map(style => (
+                    <button
+                      key={style.id}
+                      onClick={() => setSelectedStyle(style.id)}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                        selectedStyle === style.id
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {style.name}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
