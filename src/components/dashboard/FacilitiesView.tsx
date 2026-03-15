@@ -8,8 +8,9 @@ import LandingPagesTab from './LandingPagesTab'
 import UTMLinksTab from './UTMLinksTab'
 import PublishTab from './PublishTab'
 import TikTokCreator from './TikTokCreator'
+import VideoGenerator from './VideoGenerator'
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'landing-pages' | 'utm-links' | 'publish'
+type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
   facility: Facility
@@ -77,6 +78,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
           ['assets', 'Assets'],
           ['ad-preview', 'Ad Preview'],
           ['tiktok', 'TikTok'],
+          ['video', 'Video AI'],
           ['landing-pages', 'Landing Pages'],
           ['utm-links', 'UTM Links'],
           ['publish', 'Publish'],
@@ -197,6 +199,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {subTab === 'tiktok' && (
         <TikTokCreator facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'video' && (
+        <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'publish' && (
