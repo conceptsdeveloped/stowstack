@@ -432,7 +432,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}x`} />
                     <Tooltip
-                      formatter={(v: number) => [`${v}x`, 'ROAS']}
+                      formatter={(v) => [`${v}x`, 'ROAS']}
                       contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
                     />
                     <Bar dataKey="roas" radius={[6, 6, 0, 0]} maxBarSize={36}>

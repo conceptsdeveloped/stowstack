@@ -245,8 +245,6 @@ export default function OnboardingWizard({ accessCode, adminKey, clientEmail, on
     if (step > 0) setStep(step - 1)
   }
 
-  const currentStepKey = STEP_KEYS[step]
-
   // Loading state
   if (loading) {
     return (

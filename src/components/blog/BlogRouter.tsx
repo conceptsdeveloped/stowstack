@@ -17,7 +17,7 @@ function parseBlogPath(pathname: string) {
   return { type: 'post' as const, value: path };
 }
 
-export default function BlogRouter({ onBack }: Props) {
+export default function BlogRouter({ onBack: _onBack }: Props) {
   const [route, setRoute] = useState(() => parseBlogPath(window.location.pathname));
   const [fadeIn, setFadeIn] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);

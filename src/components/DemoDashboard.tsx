@@ -170,7 +170,7 @@ function OccupancyChart({ data }: { data: typeof MONTHS }) {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
           <YAxis domain={[55, 100]} tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
           <Tooltip
-            formatter={(v: number | string) => [`${v}%`, 'Occupancy'] as [string, string]}
+            formatter={(v) => [`${v}%`, 'Occupancy']}
             contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
           />
           <Area type="monotone" dataKey="occupancy" stroke="#10b981" strokeWidth={2.5} fill="url(#occGrad)" dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
@@ -196,7 +196,7 @@ function CplChart({ data }: { data: typeof MONTHS }) {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
           <Tooltip
-            formatter={(v: number) => [`$${Number(v).toFixed(2)}`, 'CPL']}
+            formatter={(v) => [`$${Number(v).toFixed(2)}`, 'CPL']}
             contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
           />
           <Bar dataKey="cpl" radius={[6, 6, 0, 0]} maxBarSize={40}>
@@ -361,7 +361,7 @@ function MonthlyBreakdownTable({ data }: { data: typeof MONTHS }) {
             </tr>
           </thead>
           <tbody>
-            {data.map((m, i) => (
+            {data.map((m) => (
               <tr key={m.month} className="border-t border-slate-100 hover:bg-slate-50/50">
                 <td className="px-5 py-3 font-medium">{m.month}</td>
                 <td className="px-5 py-3 text-right text-slate-600">${m.spend.toLocaleString()}</td>
