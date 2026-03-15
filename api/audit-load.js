@@ -47,6 +47,7 @@ export default async function handler(req, res) {
       audit: record.audit_json,
       facilityName: record.facility_name,
       createdAt: record.created_at,
+      expiresAt: record.expires_at,
       views: (record.views || 0) + 1,
     })
   } catch (err) {

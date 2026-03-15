@@ -48,6 +48,44 @@ export interface Facility {
   reviews: { author: string; rating: number; text: string; time: string }[] | null
 }
 
+export interface MetaAdContent {
+  angle: string
+  angleLabel: string
+  primaryText: string
+  headline: string
+  description: string
+  cta: string
+  targetingNote: string
+}
+
+export interface GoogleRSAContent {
+  name: string
+  headlines: { text: string; pin_position?: number | null }[]
+  descriptions: { text: string }[]
+  finalUrl: string
+  sitelinks: { title: string; description: string }[]
+  keywords?: string[]
+}
+
+export interface LandingPageContent {
+  sections: { section_type: string; sort_order: number; config: Record<string, unknown> }[]
+  meta_title: string
+  meta_description: string
+}
+
+export interface EmailDripContent {
+  sequence: {
+    step: number
+    delayDays: number
+    subject: string
+    preheader: string
+    body: string
+    ctaText: string
+    ctaUrl: string
+    label: string
+  }[]
+}
+
 export interface AdVariation {
   id: string
   facility_id: string
@@ -56,15 +94,7 @@ export interface AdVariation {
   platform: string
   format: string
   angle: string
-  content_json: {
-    angle: string
-    angleLabel: string
-    primaryText: string
-    headline: string
-    description: string
-    cta: string
-    targetingNote: string
-  }
+  content_json: MetaAdContent | GoogleRSAContent | LandingPageContent | EmailDripContent | Record<string, unknown>
   asset_urls: Record<string, string> | null
   status: string
   feedback: string | null
@@ -240,7 +270,7 @@ export interface Invoice {
   pdfUrl?: string
 }
 
-export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'whats-new'
+export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'whats-new'
 
 export type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'landing-pages' | 'utm-links' | 'publish'
 
@@ -311,7 +341,26 @@ export const ANGLE_ICONS: Record<string, string> = {
   convenience: '📍',
   urgency: '⏰',
   lifestyle: '🏡',
+  rsa: '🔍',
+  full_page: '📄',
+  nurture_sequence: '📧',
 }
+
+export const PLATFORM_LABELS: Record<string, string> = {
+  meta_feed: 'Meta Ads',
+  google_search: 'Google RSA',
+  landing_page: 'Landing Page',
+  email_drip: 'Email Drip',
+}
+
+export const PLATFORM_ICONS: Record<string, string> = {
+  meta_feed: '📱',
+  google_search: '🔍',
+  landing_page: '📄',
+  email_drip: '📧',
+}
+
+export type GenerationPlatform = 'meta_feed' | 'google_search' | 'landing_page' | 'email_drip' | 'all'
 
 export const STOCK_CATEGORIES = ['all', 'exterior', 'interior', 'moving', 'packing', 'lifestyle', 'vehicle'] as const
 

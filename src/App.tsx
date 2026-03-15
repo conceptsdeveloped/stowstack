@@ -7,6 +7,7 @@ import DemoDashboard from '@/components/DemoDashboard'
 import GuidePage from '@/components/GuidePage'
 import LandingPageView from '@/components/LandingPageView'
 import BlogRouter from '@/components/blog/BlogRouter'
+import SharedAuditView from '@/components/SharedAuditView'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -1805,7 +1806,7 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog'
+type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog' | 'shared-audit'
 
 function pathToView(pathname: string): View {
   if (pathname === '/admin') return 'admin'
@@ -1816,6 +1817,7 @@ function pathToView(pathname: string): View {
   if (pathname === '/demo') return 'demo'
   if (pathname === '/guide') return 'guide'
   if (pathname.startsWith('/lp/')) return 'landing-page'
+  if (pathname.startsWith('/audit/')) return 'shared-audit'
   if (pathname.startsWith('/blog')) return 'blog'
   return 'website'
 }
@@ -1839,6 +1841,7 @@ export default function App() {
   if (view === 'demo') return <DemoDashboard onBack={goHome} />
   if (view === 'guide') return <GuidePage onBack={goHome} />
   if (view === 'landing-page') return <LandingPageView slug={window.location.pathname.replace('/lp/', '')} />
+  if (view === 'shared-audit') return <SharedAuditView slug={window.location.pathname.replace('/audit/', '')} />
   if (view === 'blog') return <BlogRouter onBack={goHome} />
 
   return (

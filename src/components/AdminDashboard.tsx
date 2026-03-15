@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   Download, CalendarClock, CheckSquare,
   Settings, Columns3, CreditCard, Moon, Sun,
-  Bell, Sparkles, BookOpen, BarChart3
+  Bell, Sparkles, BookOpen, BarChart3, Share2
 } from 'lucide-react'
 
 import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
@@ -22,6 +22,7 @@ import FacilitiesView from './dashboard/FacilitiesView'
 import PortfolioView from './dashboard/PortfolioView'
 import InsightsView from './dashboard/InsightsView'
 import SequencesView from './dashboard/SequencesView'
+import SharedAuditsView from './dashboard/SharedAuditsView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
 
@@ -359,6 +360,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['settings', 'Settings', Settings],
             ['facilities', 'Facilities', Building2],
             ['sequences', 'Sequences', CalendarClock],
+            ['shared-audits', 'Shared Audits', Share2],
             ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -454,6 +456,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'sequences' && (
           <SequencesView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'shared-audits' && (
+          <SharedAuditsView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'whats-new' && (

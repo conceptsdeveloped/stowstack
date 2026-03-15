@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, MapPin, Clock, ChevronUp, ChevronDown, Mail, Phone, Calendar, CalendarClock, StickyNote, KeyRound, Copy, Loader2, Plus, BarChart3, Trash2, Target, MessageSquare, FileText, Sparkles, Send, CheckCircle2, ClipboardList } from 'lucide-react'
+import { Building2, MapPin, Clock, ChevronUp, ChevronDown, Mail, Phone, Calendar, CalendarClock, StickyNote, KeyRound, Copy, Loader2, Plus, BarChart3, Trash2, Target, MessageSquare, FileText, Sparkles, Send, CheckCircle2, ClipboardList, Share2, ExternalLink } from 'lucide-react'
 import { Lead, STATUSES, STATUS_MAP, OCCUPANCY_LABELS, UNITS_LABELS, ISSUE_LABELS } from './types'
 import { timeAgo, formatDate } from './utils'
 import OnboardingWizard from '../OnboardingWizard'
@@ -652,6 +652,9 @@ function AuditReportSection({ leadId, adminKey }: { leadId: string; adminKey: st
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
+  const [shareUrl, setShareUrl] = useState('')
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const generate = async (force = false) => {
     setLoading(true)
@@ -681,6 +684,36 @@ function AuditReportSection({ leadId, adminKey }: { leadId: string; adminKey: st
     setLoading(false)
   }
 
+  const shareReport = async () => {
+    if (!report) return
+    setSharing(true)
+    try {
+      const payload = {
+        ...report,
+        overall_score: report.marketOpportunity.score,
+        facility_summary: { name: report.facility.name },
+      }
+      const res = await fetch('/api/audit-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audit: payload }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setShareUrl(data.url)
+      }
+    } catch {
+      setError('Failed to generate share link')
+    }
+    setSharing(false)
+  }
+
+  const copyShareUrl = () => {
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const gradeColor = report ? (
     report.marketOpportunity.grade === 'Excellent' ? 'text-emerald-600' :
     report.marketOpportunity.grade === 'Strong' ? 'text-blue-600' :
@@ -699,6 +732,13 @@ function AuditReportSection({ leadId, adminKey }: { leadId: string; adminKey: st
               {expanded ? 'Collapse' : 'Expand'}
             </button>
           )}
+          {report && (
+            <button onClick={shareReport} disabled={sharing}
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+              {sharing ? <Loader2 size={10} className="animate-spin" /> : <Share2 size={10} />}
+              {sharing ? 'Sharing...' : 'Share'}
+            </button>
+          )}
           <button onClick={() => generate(!report)} disabled={loading}
             className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
             {loading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
@@ -708,6 +748,19 @@ function AuditReportSection({ leadId, adminKey }: { leadId: string; adminKey: st
       </div>
 
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+
+      {shareUrl && (
+        <div className="flex items-center gap-2 mb-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+          <ExternalLink size={12} className="text-indigo-500 flex-shrink-0" />
+          <a href={shareUrl} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-indigo-600 hover:underline truncate flex-1">{shareUrl}</a>
+          <button onClick={copyShareUrl}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 flex-shrink-0">
+            {copied ? <CheckCircle2 size={10} /> : <Copy size={10} />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      )}
 
       {report && expanded && (
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4 text-sm">
