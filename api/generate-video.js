@@ -107,7 +107,7 @@ async function callRunway(prompt, imageUrl, mode) {
   const runwayKey = process.env.RUNWAY_API_KEY
   if (!runwayKey) throw new Error('RUNWAY_API_KEY not configured. Add it in Vercel → Settings → Environment Variables.')
 
-  const baseUrl = 'https://api.runwayml.com/v1'
+  const baseUrl = 'https://api.dev.runwayml.com/v1'
   const endpoint = mode === 'image_to_video'
     ? `${baseUrl}/image_to_video`
     : `${baseUrl}/text_to_video`
@@ -154,7 +154,7 @@ async function pollRunwayTask(taskId) {
   let attempts = 0
 
   while (attempts < maxAttempts) {
-    const res = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+    const res = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
       headers: {
         Authorization: `Bearer ${runwayKey}`,
         'X-Runway-Version': '2024-11-06',
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
         const runwayKey = process.env.RUNWAY_API_KEY
         if (!runwayKey) return res.status(500).json({ error: 'RUNWAY_API_KEY not configured' })
 
-        const taskRes = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+        const taskRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
           headers: {
             Authorization: `Bearer ${runwayKey}`,
             'X-Runway-Version': '2024-11-06',
