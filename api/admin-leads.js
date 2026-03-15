@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -25,6 +25,29 @@ function checkAuth(req) {
 function esc(str) {
   if (!str) return ''
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// Map a Postgres facility row to the lead shape the frontend expects
+function facilityToLead(row, notes) {
+  return {
+    id: row.id,
+    name: row.contact_name || '',
+    email: row.contact_email || '',
+    phone: row.contact_phone || '',
+    facilityName: row.name || '',
+    location: row.location || '',
+    occupancyRange: row.occupancy_range || '',
+    totalUnits: row.total_units || '',
+    biggestIssue: row.biggest_issue || '',
+    formNotes: row.form_notes || null,
+    status: row.pipeline_status || 'submitted',
+    pmsUploaded: row.pms_uploaded || false,
+    followUpDate: row.follow_up_date || null,
+    accessCode: row.access_code || null,
+    notes: notes || [],
+    createdAt: row.created_at?.toISOString?.() || row.created_at || '',
+    updatedAt: row.updated_at?.toISOString?.() || row.updated_at || '',
+  }
 }
 
 async function sendWelcomeEmail(record, accessCode) {
@@ -80,28 +103,12 @@ async function sendWelcomeEmail(record, accessCode) {
   }
 }
 
-function logActivity(redis, { type, leadId, leadName, facilityName, detail, meta }) {
-  if (!redis) return
-  const entry = JSON.stringify({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type, leadId, leadName, facilityName,
-    detail: (detail || '').slice(0, 500),
-    meta: meta || {},
-    timestamp: new Date().toISOString(),
-  })
-  // Fire and forget — don't block the response
-  Promise.all([
-    redis.lpush('activity:global', entry).then(() => redis.ltrim('activity:global', 0, 499)),
-    redis.lpush(`activity:lead:${leadId}`, entry).then(() => redis.ltrim(`activity:lead:${leadId}`, 0, 99)),
-  ]).catch(err => console.error('Activity log error:', err))
-}
-
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
+function logActivity({ type, facilityId, leadName, facilityName, detail, meta }) {
+  query(
+    `INSERT INTO activity_log (type, facility_id, lead_name, facility_name, detail, meta)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [type, facilityId, leadName || '', facilityName || '', (detail || '').slice(0, 500), JSON.stringify(meta || {})]
+  ).catch(err => console.error('Activity log error:', err))
 }
 
 export default async function handler(req, res) {
@@ -115,64 +122,68 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const redis = getRedis()
-  if (!redis) {
-    // No Redis configured (local dev) — return empty data
-    if (req.method === 'GET') return res.status(200).json({ leads: [], auditCount: 0 })
-    return res.status(200).json({ success: true })
-  }
-
   // GET — list all leads
   if (req.method === 'GET') {
     try {
-      // Get all lead keys
-      const keys = await redis.keys('lead:*')
-      if (!keys.length) return res.status(200).json({ leads: [] })
+      const facilities = await query(
+        `SELECT * FROM facilities ORDER BY created_at DESC`
+      )
 
-      const pipeline = redis.pipeline()
-      keys.forEach(k => pipeline.get(k))
-      const results = await pipeline.exec()
+      // Batch-fetch notes for all facilities
+      const noteRows = await query(
+        `SELECT facility_id, text, created_at FROM lead_notes ORDER BY created_at ASC`
+      )
+      const notesByFacility = {}
+      for (const n of noteRows) {
+        if (!notesByFacility[n.facility_id]) notesByFacility[n.facility_id] = []
+        notesByFacility[n.facility_id].push({ text: n.text, at: n.created_at?.toISOString?.() || n.created_at })
+      }
 
-      const leads = results
-        .map((raw, i) => {
-          const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-          if (!record) return null
-          return { id: keys[i].replace('lead:', ''), ...record }
-        })
-        .filter(Boolean)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      const leads = facilities.map(f => facilityToLead(f, notesByFacility[f.id] || []))
 
-      // Also get audit counts
-      const auditKeys = await redis.keys('audit:*')
+      // Count shared audits
+      const auditCountRows = await query(`SELECT COUNT(*) as count FROM shared_audits`)
+      const auditCount = parseInt(auditCountRows[0]?.count || 0)
 
-      return res.status(200).json({ leads, auditCount: auditKeys.length })
+      return res.status(200).json({ leads, auditCount })
     } catch (err) {
       console.error('Admin leads list error:', err)
       return res.status(500).json({ error: 'Failed to list leads' })
     }
   }
 
-  // POST — create a new lead (called from audit-form.js submission)
+  // POST — create a new lead
   if (req.method === 'POST') {
     const { lead } = req.body || {}
     if (!lead?.email) return res.status(400).json({ error: 'Missing lead data' })
 
     try {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-      const record = {
-        ...lead,
-        status: 'submitted', // submitted | form_sent | form_completed | audit_generated | call_scheduled | client_signed | lost
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        notes: [],
-      }
+      const rows = await query(
+        `INSERT INTO facilities
+          (name, location, contact_name, contact_email, contact_phone,
+           occupancy_range, total_units, biggest_issue, notes, status,
+           pipeline_status, form_notes, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'intake', 'submitted', $10, NOW())
+         RETURNING id`,
+        [
+          lead.facilityName || '',
+          lead.location || '',
+          lead.name || '',
+          lead.email,
+          lead.phone || '',
+          lead.occupancyRange || '',
+          lead.totalUnits || '',
+          lead.biggestIssue || '',
+          lead.notes || null,
+          lead.notes || null,
+        ]
+      )
 
-      await redis.set(`lead:${id}`, JSON.stringify(record))
+      const id = rows[0].id
 
-      // Log activity
-      logActivity(redis, {
+      logActivity({
         type: 'lead_created',
-        leadId: id,
+        facilityId: id,
         leadName: lead.name || '',
         facilityName: lead.facilityName || '',
         detail: `New lead from ${lead.facilityName || 'unknown facility'}`,
@@ -191,70 +202,122 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: 'Missing lead ID' })
 
     try {
-      const raw = await redis.get(`lead:${id}`)
-      if (!raw) return res.status(404).json({ error: 'Lead not found' })
+      const facility = await queryOne(`SELECT * FROM facilities WHERE id = $1`, [id])
+      if (!facility) return res.status(404).json({ error: 'Lead not found' })
 
-      const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-      if (status) record.status = status
-      if (note) record.notes = [...(record.notes || []), { text: note, at: new Date().toISOString() }]
-      if (pmsUploaded !== undefined) record.pmsUploaded = pmsUploaded
-      if (followUpDate !== undefined) record.followUpDate = followUpDate || null
-      record.updatedAt = new Date().toISOString()
+      // Build dynamic UPDATE
+      const updates = []
+      const values = []
+      let paramIdx = 1
 
-      // When a lead becomes a signed client, provision portal access + send welcome email
-      if (status === 'client_signed' && !record.accessCode) {
-        const code = Math.random().toString(36).slice(2, 10).toUpperCase()
-        record.accessCode = code
-        // Store client portal record keyed by access code
-        await redis.set(`client:${code}`, JSON.stringify({
-          email: record.email,
-          name: record.name,
-          facilityName: record.facilityName,
-          location: record.location,
-          occupancyRange: record.occupancyRange,
-          totalUnits: record.totalUnits,
-          signedAt: new Date().toISOString(),
-          accessCode: code,
-          campaigns: [],
-        }))
-        // Fire-and-forget welcome email with portal credentials
-        sendWelcomeEmail(record, code)
+      if (status) {
+        updates.push(`pipeline_status = $${paramIdx++}`)
+        values.push(status)
+      }
+      if (pmsUploaded !== undefined) {
+        updates.push(`pms_uploaded = $${paramIdx++}`)
+        values.push(pmsUploaded)
+      }
+      if (followUpDate !== undefined) {
+        updates.push(`follow_up_date = $${paramIdx++}`)
+        values.push(followUpDate || null)
+      }
+      updates.push(`updated_at = NOW()`)
+
+      if (updates.length > 1) { // more than just updated_at
+        values.push(id)
+        await query(
+          `UPDATE facilities SET ${updates.join(', ')} WHERE id = $${paramIdx}`,
+          values
+        )
       }
 
-      await redis.set(`lead:${id}`, JSON.stringify(record))
+      // Add note
+      if (note) {
+        await query(
+          `INSERT INTO lead_notes (facility_id, text) VALUES ($1, $2)`,
+          [id, note]
+        )
+      }
+
+      // When a lead becomes a signed client, provision portal access
+      if (status === 'client_signed' && !facility.access_code) {
+        const code = Math.random().toString(36).slice(2, 10).toUpperCase()
+
+        // Set access code on facility
+        await query(`UPDATE facilities SET access_code = $1 WHERE id = $2`, [code, id])
+
+        // Create client record
+        await query(
+          `INSERT INTO clients (facility_id, email, name, facility_name, location, occupancy_range, total_units, access_code)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            id,
+            facility.contact_email,
+            facility.contact_name,
+            facility.name,
+            facility.location,
+            facility.occupancy_range,
+            facility.total_units,
+            code,
+          ]
+        )
+
+        // Create empty onboarding record
+        await query(
+          `INSERT INTO client_onboarding (client_id, access_code, steps)
+           SELECT id, access_code, '{}'::jsonb FROM clients WHERE access_code = $1
+           ON CONFLICT (client_id) DO NOTHING`,
+          [code]
+        )
+
+        // Fire-and-forget welcome email
+        const leadForEmail = facilityToLead({ ...facility, access_code: code }, [])
+        sendWelcomeEmail(leadForEmail, code)
+      }
 
       // Log activities
+      const leadName = facility.contact_name || ''
+      const facilityName = facility.name || ''
+
       if (status) {
-        const actType = status === 'client_signed' ? 'client_signed' : 'status_change'
-        logActivity(redis, {
-          type: actType,
-          leadId: id,
-          leadName: record.name || '',
-          facilityName: record.facilityName || '',
+        logActivity({
+          type: status === 'client_signed' ? 'client_signed' : 'status_change',
+          facilityId: id,
+          leadName,
+          facilityName,
           detail: status === 'client_signed'
-            ? `${record.facilityName} signed as client`
+            ? `${facilityName} signed as client`
             : `Status changed to "${status}"`,
           meta: { to: status },
         })
       }
       if (note) {
-        logActivity(redis, {
+        logActivity({
           type: 'note_added',
-          leadId: id,
-          leadName: record.name || '',
-          facilityName: record.facilityName || '',
+          facilityId: id,
+          leadName,
+          facilityName,
           detail: `Note added: "${note.slice(0, 100)}"`,
         })
       }
       if (pmsUploaded) {
-        logActivity(redis, {
+        logActivity({
           type: 'pms_uploaded',
-          leadId: id,
-          leadName: record.name || '',
-          facilityName: record.facilityName || '',
-          detail: `PMS report uploaded for ${record.facilityName}`,
+          facilityId: id,
+          leadName,
+          facilityName,
+          detail: `PMS report uploaded for ${facilityName}`,
         })
       }
+
+      // Fetch updated record with notes
+      const updated = await queryOne(`SELECT * FROM facilities WHERE id = $1`, [id])
+      const notes = await query(
+        `SELECT text, created_at FROM lead_notes WHERE facility_id = $1 ORDER BY created_at ASC`,
+        [id]
+      )
+      const record = facilityToLead(updated, notes.map(n => ({ text: n.text, at: n.created_at?.toISOString?.() || n.created_at })))
 
       return res.status(200).json({ success: true, record })
     } catch (err) {

@@ -1,61 +1,26 @@
-import { Redis } from '@upstash/redis'
+import { query } from '../_db.js'
 import { SEQUENCES } from '../drip-sequences.js'
 
 /*
   Vercel Cron: Process Drip Sequences
   Schedule: Every hour (0 * * * *)
 
-  Scans all drip:* keys in Redis, sends due emails, and advances sequences.
+  Queries drip_sequences with status='active' and next_send_at <= NOW(),
+  sends due emails, and advances sequences.
   Auto-cancels sequences when lead status changes to call_scheduled/client_signed/lost.
 */
 
 const CANCEL_STATUSES = ['call_scheduled', 'client_signed', 'lost']
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
+function logActivity({ type, facilityId, leadName, facilityName, detail, meta }) {
+  query(
+    `INSERT INTO activity_log (type, facility_id, lead_name, facility_name, detail, meta)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [type, facilityId, leadName || '', facilityName || '', (detail || '').slice(0, 500), JSON.stringify(meta || {})]
+  ).catch(err => console.error('Activity log error:', err))
 }
 
-function esc(str) {
-  if (!str) return ''
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function logActivity(redis, { type, leadId, leadName, facilityName, detail, meta }) {
-  if (!redis) return
-  const entry = JSON.stringify({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type, leadId, leadName, facilityName,
-    detail: (detail || '').slice(0, 500),
-    meta: meta || {},
-    timestamp: new Date().toISOString(),
-  })
-  return Promise.all([
-    redis.lpush('activity:global', entry).then(() => redis.ltrim('activity:global', 0, 499)),
-    redis.lpush(`activity:lead:${leadId}`, entry).then(() => redis.ltrim(`activity:lead:${leadId}`, 0, 99)),
-  ]).catch(err => console.error('Activity log error:', err))
-}
-
-// Import template definitions inline to avoid circular deps with handler
-// We only need subject + body generation, which lives in send-template.js TEMPLATES
-// For the cron, we re-import the templates directly
-async function getTemplates() {
-  // Dynamic import to get TEMPLATES from send-template
-  // Since Vercel serverless bundles each file independently, we inline the template lookup
-  const mod = await import('../send-template.js')
-  // send-template.js default export is the handler, but TEMPLATES is not exported
-  // So we need to fetch template subject/body via the send-template API
-  // Instead, we'll send directly using Resend with the lead data
-  return null
-}
-
-async function sendTemplateEmail(templateId, lead, apiKey) {
-  // We need the template definitions — since they're not exported from send-template.js,
-  // we'll call the Resend API directly with the lead data.
-  // The cron processor sends emails by hitting the send-template endpoint internally.
+async function sendTemplateEmail(templateId, lead) {
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000'
@@ -80,135 +45,121 @@ async function sendTemplateEmail(templateId, lead, apiKey) {
 }
 
 export default async function handler(req, res) {
-  // Vercel Cron sends GET requests with Authorization header
-  // Verify the cron secret to prevent unauthorized access
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = (process.env.CRON_SECRET || '').trim()
   if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' })
-  }
-
-  const redis = getRedis()
-  if (!redis) {
-    return res.status(200).json({ message: 'No data store configured, skipping' })
   }
 
   const now = new Date()
   const results = { processed: 0, sent: 0, cancelled: 0, completed: 0, errors: [] }
 
   try {
-    // Scan for all drip:* keys
-    const dripKeys = []
-    let cursor = 0
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, { match: 'drip:*', count: 100 })
-      cursor = Number(nextCursor)
-      dripKeys.push(...keys)
-    } while (cursor !== 0)
+    // Get all active drip sequences with their facility data
+    const drips = await query(
+      `SELECT ds.*, f.contact_name, f.contact_email, f.name AS facility_name,
+              f.pipeline_status, f.biggest_issue, f.occupancy_range, f.total_units
+       FROM drip_sequences ds
+       JOIN facilities f ON ds.facility_id = f.id
+       WHERE ds.status = 'active'`
+    )
 
-    for (const key of dripKeys) {
+    for (const drip of drips) {
       try {
-        const raw = await redis.get(key)
-        if (!raw) continue
-        const drip = typeof raw === 'string' ? JSON.parse(raw) : raw
-
-        // Skip non-active drips
-        if (drip.status !== 'active') continue
         results.processed++
 
         // Check if lead status should cancel the sequence
-        const leadRaw = await redis.get(`lead:${drip.leadId}`)
-        if (!leadRaw) {
-          // Lead deleted — cancel drip
-          drip.status = 'cancelled'
-          drip.cancelledAt = now.toISOString()
-          drip.cancelReason = 'lead_deleted'
-          await redis.set(key, JSON.stringify(drip))
-          results.cancelled++
-          continue
-        }
-
-        const lead = typeof leadRaw === 'string' ? JSON.parse(leadRaw) : leadRaw
-        lead.id = drip.leadId // ensure id is available for send-template
-
-        if (CANCEL_STATUSES.includes(lead.status)) {
-          drip.status = 'cancelled'
-          drip.cancelledAt = now.toISOString()
-          drip.cancelReason = `lead_status_${lead.status}`
-          await redis.set(key, JSON.stringify(drip))
-          await logActivity(redis, {
+        if (CANCEL_STATUSES.includes(drip.pipeline_status)) {
+          await query(
+            `UPDATE drip_sequences SET status = 'cancelled', cancelled_at = NOW(),
+             cancel_reason = $1 WHERE id = $2`,
+            [`lead_status_${drip.pipeline_status}`, drip.id]
+          )
+          logActivity({
             type: 'drip_cancelled',
-            leadId: drip.leadId,
-            leadName: lead.name || '',
-            facilityName: lead.facilityName || '',
-            detail: `Drip sequence auto-cancelled: lead status changed to ${lead.status}`,
-            meta: { sequenceId: drip.sequenceId },
+            facilityId: drip.facility_id,
+            leadName: drip.contact_name || '',
+            facilityName: drip.facility_name || '',
+            detail: `Drip sequence auto-cancelled: lead status changed to ${drip.pipeline_status}`,
+            meta: { sequenceId: drip.sequence_id },
           })
           results.cancelled++
           continue
         }
 
         // Check if it's time to send
-        const nextSendAt = new Date(drip.nextSendAt)
-        if (nextSendAt > now) continue // Not due yet
+        const nextSendAt = new Date(drip.next_send_at)
+        if (nextSendAt > now) continue
 
-        const sequence = SEQUENCES[drip.sequenceId]
+        const sequence = SEQUENCES[drip.sequence_id]
         if (!sequence) continue
 
-        const step = sequence.steps[drip.currentStep]
+        const step = sequence.steps[drip.current_step]
         if (!step) {
-          // No more steps — mark complete
-          drip.status = 'completed'
-          drip.completedAt = now.toISOString()
-          await redis.set(key, JSON.stringify(drip))
+          await query(
+            `UPDATE drip_sequences SET status = 'completed', completed_at = NOW() WHERE id = $1`,
+            [drip.id]
+          )
           results.completed++
           continue
         }
 
-        // Send the email
-        try {
-          await sendTemplateEmail(step.templateId, lead, process.env.RESEND_API_KEY)
+        // Build lead object for send-template
+        const lead = {
+          id: drip.facility_id,
+          name: drip.contact_name,
+          email: drip.contact_email,
+          facilityName: drip.facility_name,
+          biggestIssue: drip.biggest_issue,
+          occupancyRange: drip.occupancy_range,
+          totalUnits: drip.total_units,
+        }
 
-          // Record in history
-          drip.history.push({
-            step: drip.currentStep,
+        try {
+          await sendTemplateEmail(step.templateId, lead)
+
+          const history = [...(drip.history || []), {
+            step: drip.current_step,
             templateId: step.templateId,
             sentAt: now.toISOString(),
-          })
+          }]
 
-          // Advance to next step
-          drip.currentStep++
+          const nextStep = drip.current_step + 1
 
-          if (drip.currentStep >= sequence.steps.length) {
-            // Sequence complete
-            drip.status = 'completed'
-            drip.completedAt = now.toISOString()
+          if (nextStep >= sequence.steps.length) {
+            await query(
+              `UPDATE drip_sequences SET status = 'completed', completed_at = NOW(),
+               current_step = $1, history = $2 WHERE id = $3`,
+              [nextStep, JSON.stringify(history), drip.id]
+            )
             results.completed++
           } else {
-            // Calculate next send time
-            const nextStep = sequence.steps[drip.currentStep]
-            const enrolledAt = new Date(drip.enrolledAt)
-            drip.nextSendAt = new Date(enrolledAt.getTime() + nextStep.delayDays * 24 * 60 * 60 * 1000).toISOString()
+            const nextStepDef = sequence.steps[nextStep]
+            const enrolledAt = new Date(drip.enrolled_at)
+            const newNextSendAt = new Date(enrolledAt.getTime() + nextStepDef.delayDays * 24 * 60 * 60 * 1000)
+
+            await query(
+              `UPDATE drip_sequences SET current_step = $1, next_send_at = $2, history = $3 WHERE id = $4`,
+              [nextStep, newNextSendAt.toISOString(), JSON.stringify(history), drip.id]
+            )
           }
 
-          await redis.set(key, JSON.stringify(drip))
-
-          await logActivity(redis, {
+          logActivity({
             type: 'drip_sent',
-            leadId: drip.leadId,
-            leadName: lead.name || '',
-            facilityName: lead.facilityName || '',
+            facilityId: drip.facility_id,
+            leadName: drip.contact_name || '',
+            facilityName: drip.facility_name || '',
             detail: `Drip email sent: "${step.label}" (${step.templateId})`,
-            meta: { sequenceId: drip.sequenceId, step: drip.currentStep - 1, templateId: step.templateId },
+            meta: { sequenceId: drip.sequence_id, step: drip.current_step, templateId: step.templateId },
           })
 
           results.sent++
         } catch (emailErr) {
-          console.error(`Failed to send drip email for lead ${drip.leadId}:`, emailErr.message)
-          results.errors.push({ leadId: drip.leadId, error: emailErr.message })
+          console.error(`Failed to send drip email for facility ${drip.facility_id}:`, emailErr.message)
+          results.errors.push({ facilityId: drip.facility_id, error: emailErr.message })
         }
       } catch (dripErr) {
-        console.error(`Error processing drip ${key}:`, dripErr.message)
-        results.errors.push({ key, error: dripErr.message })
+        console.error(`Error processing drip ${drip.id}:`, dripErr.message)
+        results.errors.push({ id: drip.id, error: dripErr.message })
       }
     }
 

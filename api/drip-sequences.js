@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -18,20 +18,8 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 /*
   Drip Sequence Definitions
-
-  Each sequence has an id, name, and ordered steps.
-  Steps reference template IDs from send-template.js and specify a delay in days
-  from the enrollment date.
 */
 
 export const SEQUENCES = {
@@ -48,13 +36,10 @@ export const SEQUENCES = {
   },
 }
 
-// Statuses that should auto-cancel a drip sequence
-const CANCEL_STATUSES = ['call_scheduled', 'client_signed', 'lost']
-
 /**
- * Enroll a lead in a drip sequence. Exported for use by audit-form.js and cron.
+ * Enroll a facility in a drip sequence via Postgres.
  */
-export async function enrollLead(redis, leadId, sequenceId = 'post_audit') {
+export async function enrollLead(facilityId, sequenceId = 'post_audit') {
   const sequence = SEQUENCES[sequenceId]
   if (!sequence) throw new Error(`Unknown sequence: ${sequenceId}`)
 
@@ -62,18 +47,15 @@ export async function enrollLead(redis, leadId, sequenceId = 'post_audit') {
   const firstStep = sequence.steps[0]
   const nextSendAt = new Date(now.getTime() + firstStep.delayDays * 24 * 60 * 60 * 1000)
 
-  const drip = {
-    sequenceId,
-    leadId,
-    currentStep: 0,
-    status: 'active',
-    enrolledAt: now.toISOString(),
-    nextSendAt: nextSendAt.toISOString(),
-    history: [],
-  }
+  const rows = await query(
+    `INSERT INTO drip_sequences (facility_id, sequence_id, current_step, status, enrolled_at, next_send_at, history)
+     VALUES ($1, $2, 0, 'active', $3, $4, '[]')
+     ON CONFLICT (facility_id) DO NOTHING
+     RETURNING *`,
+    [facilityId, sequenceId, now.toISOString(), nextSendAt.toISOString()]
+  )
 
-  await redis.set(`drip:${leadId}`, JSON.stringify(drip))
-  return drip
+  return rows[0] || null
 }
 
 export default async function handler(req, res) {
@@ -84,15 +66,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
 
-  const redis = getRedis()
-  if (!redis) {
-    return res.status(200).json({ success: true, preview: true, message: 'No data store configured' })
-  }
-
-  // GET — list all drip sequences + active drips for all leads
+  // GET — list all drip sequences
   if (req.method === 'GET') {
     try {
-      // Return sequence definitions
       const sequences = Object.values(SEQUENCES).map(s => ({
         id: s.id,
         name: s.name,
@@ -100,57 +76,60 @@ export default async function handler(req, res) {
         steps: s.steps,
       }))
 
-      // Scan for all active drips
-      const drips = []
-      let cursor = 0
-      do {
-        const [nextCursor, keys] = await redis.scan(cursor, { match: 'drip:*', count: 100 })
-        cursor = Number(nextCursor)
-        for (const key of keys) {
-          const raw = await redis.get(key)
-          if (raw) {
-            const drip = typeof raw === 'string' ? JSON.parse(raw) : raw
-            // Fetch lead name/facility for display
-            const leadRaw = await redis.get(`lead:${drip.leadId}`)
-            const lead = leadRaw ? (typeof leadRaw === 'string' ? JSON.parse(leadRaw) : leadRaw) : null
-            drips.push({
-              ...drip,
-              leadName: lead?.name || 'Unknown',
-              leadEmail: lead?.email || '',
-              facilityName: lead?.facilityName || 'Unknown',
-              leadStatus: lead?.status || '',
-            })
-          }
-        }
-      } while (cursor !== 0)
+      const drips = await query(
+        `SELECT ds.*, f.contact_name, f.contact_email, f.name AS facility_name, f.pipeline_status
+         FROM drip_sequences ds
+         JOIN facilities f ON ds.facility_id = f.id
+         ORDER BY ds.enrolled_at DESC`
+      )
 
-      return res.status(200).json({ sequences, drips })
+      const formattedDrips = drips.map(d => ({
+        sequenceId: d.sequence_id,
+        leadId: d.facility_id,
+        currentStep: d.current_step,
+        status: d.status,
+        enrolledAt: d.enrolled_at,
+        nextSendAt: d.next_send_at,
+        pausedAt: d.paused_at,
+        completedAt: d.completed_at,
+        cancelledAt: d.cancelled_at,
+        cancelReason: d.cancel_reason,
+        history: d.history || [],
+        leadName: d.contact_name || 'Unknown',
+        leadEmail: d.contact_email || '',
+        facilityName: d.facility_name || 'Unknown',
+        leadStatus: d.pipeline_status || '',
+      }))
+
+      return res.status(200).json({ sequences, drips: formattedDrips })
     } catch (err) {
       console.error('Drip sequences GET error:', err)
       return res.status(500).json({ error: 'Failed to fetch drip data' })
     }
   }
 
-  // POST — manually enroll a lead in a sequence
+  // POST — manually enroll a lead
   if (req.method === 'POST') {
     const { leadId, sequenceId = 'post_audit' } = req.body || {}
     if (!leadId) return res.status(400).json({ error: 'Missing leadId' })
 
     try {
-      // Check if lead exists
-      const leadRaw = await redis.get(`lead:${leadId}`)
-      if (!leadRaw) return res.status(404).json({ error: 'Lead not found' })
+      const facility = await queryOne(`SELECT id FROM facilities WHERE id = $1`, [leadId])
+      if (!facility) return res.status(404).json({ error: 'Lead not found' })
 
-      // Check if already enrolled
-      const existing = await redis.get(`drip:${leadId}`)
-      if (existing) {
-        const parsed = typeof existing === 'string' ? JSON.parse(existing) : existing
-        if (parsed.status === 'active' || parsed.status === 'paused') {
-          return res.status(400).json({ error: 'Lead already has an active drip sequence' })
-        }
+      const existing = await queryOne(
+        `SELECT * FROM drip_sequences WHERE facility_id = $1`, [leadId]
+      )
+      if (existing && (existing.status === 'active' || existing.status === 'paused')) {
+        return res.status(400).json({ error: 'Lead already has an active drip sequence' })
       }
 
-      const drip = await enrollLead(redis, leadId, sequenceId)
+      // Delete old completed/cancelled record so we can re-enroll
+      if (existing) {
+        await query(`DELETE FROM drip_sequences WHERE facility_id = $1`, [leadId])
+      }
+
+      const drip = await enrollLead(leadId, sequenceId)
       return res.status(200).json({ success: true, drip })
     } catch (err) {
       console.error('Drip enroll error:', err)
@@ -158,7 +137,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // PATCH — pause or resume a drip
+  // PATCH — pause or resume
   if (req.method === 'PATCH') {
     const { leadId, action } = req.body || {}
     if (!leadId || !['pause', 'resume'].includes(action)) {
@@ -166,9 +145,8 @@ export default async function handler(req, res) {
     }
 
     try {
-      const raw = await redis.get(`drip:${leadId}`)
-      if (!raw) return res.status(404).json({ error: 'No drip sequence found for this lead' })
-      const drip = typeof raw === 'string' ? JSON.parse(raw) : raw
+      const drip = await queryOne(`SELECT * FROM drip_sequences WHERE facility_id = $1`, [leadId])
+      if (!drip) return res.status(404).json({ error: 'No drip sequence found for this lead' })
 
       if (action === 'pause' && drip.status !== 'active') {
         return res.status(400).json({ error: 'Can only pause active sequences' })
@@ -178,43 +156,44 @@ export default async function handler(req, res) {
       }
 
       if (action === 'pause') {
-        drip.status = 'paused'
-        drip.pausedAt = new Date().toISOString()
+        await query(
+          `UPDATE drip_sequences SET status = 'paused', paused_at = NOW() WHERE facility_id = $1`,
+          [leadId]
+        )
       } else {
-        // Resume: recalculate nextSendAt based on remaining delay
-        const sequence = SEQUENCES[drip.sequenceId]
-        if (sequence && drip.currentStep < sequence.steps.length) {
-          const step = sequence.steps[drip.currentStep]
-          const now = new Date()
-          // Give at least 1 day from resume
-          const nextSendAt = new Date(now.getTime() + Math.max(1, step.delayDays - drip.currentStep) * 24 * 60 * 60 * 1000)
-          drip.nextSendAt = nextSendAt.toISOString()
+        const sequence = SEQUENCES[drip.sequence_id]
+        let nextSendAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // default 1 day
+        if (sequence && drip.current_step < sequence.steps.length) {
+          const step = sequence.steps[drip.current_step]
+          nextSendAt = new Date(Date.now() + Math.max(1, step.delayDays - drip.current_step) * 24 * 60 * 60 * 1000)
         }
-        drip.status = 'active'
-        delete drip.pausedAt
+        await query(
+          `UPDATE drip_sequences SET status = 'active', paused_at = NULL, next_send_at = $1 WHERE facility_id = $2`,
+          [nextSendAt.toISOString(), leadId]
+        )
       }
 
-      await redis.set(`drip:${leadId}`, JSON.stringify(drip))
-      return res.status(200).json({ success: true, drip })
+      const updated = await queryOne(`SELECT * FROM drip_sequences WHERE facility_id = $1`, [leadId])
+      return res.status(200).json({ success: true, drip: updated })
     } catch (err) {
       console.error('Drip patch error:', err)
       return res.status(500).json({ error: 'Failed to update drip' })
     }
   }
 
-  // DELETE — cancel a drip sequence
+  // DELETE — cancel
   if (req.method === 'DELETE') {
     const { leadId } = req.body || {}
     if (!leadId) return res.status(400).json({ error: 'Missing leadId' })
 
     try {
-      const raw = await redis.get(`drip:${leadId}`)
-      if (!raw) return res.status(404).json({ error: 'No drip sequence found' })
-      const drip = typeof raw === 'string' ? JSON.parse(raw) : raw
+      const drip = await queryOne(`SELECT * FROM drip_sequences WHERE facility_id = $1`, [leadId])
+      if (!drip) return res.status(404).json({ error: 'No drip sequence found' })
 
-      drip.status = 'cancelled'
-      drip.cancelledAt = new Date().toISOString()
-      await redis.set(`drip:${leadId}`, JSON.stringify(drip))
+      await query(
+        `UPDATE drip_sequences SET status = 'cancelled', cancelled_at = NOW() WHERE facility_id = $1`,
+        [leadId]
+      )
 
       return res.status(200).json({ success: true })
     } catch (err) {

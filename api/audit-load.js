@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -28,27 +28,26 @@ export default async function handler(req, res) {
   if (!slug) return res.status(400).json({ error: 'Missing slug parameter' })
 
   try {
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    })
+    const record = await queryOne(
+      `SELECT * FROM shared_audits WHERE slug = $1 AND expires_at > NOW()`,
+      [slug]
+    )
 
-    const raw = await redis.get(`audit:${slug}`)
-    if (!raw) {
+    if (!record) {
       return res.status(404).json({ error: 'Audit not found or has expired' })
     }
 
-    const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-
     // Increment view count (fire and forget)
-    record.views = (record.views || 0) + 1
-    redis.set(`audit:${slug}`, JSON.stringify(record), { keepttl: true }).catch(() => {})
+    query(
+      `UPDATE shared_audits SET views = views + 1 WHERE slug = $1`,
+      [slug]
+    ).catch(() => {})
 
     return res.status(200).json({
-      audit: record.audit,
-      facilityName: record.facilityName,
-      createdAt: record.createdAt,
-      views: record.views,
+      audit: record.audit_json,
+      facilityName: record.facility_name,
+      createdAt: record.created_at,
+      views: (record.views || 0) + 1,
     })
   } catch (err) {
     console.error('Audit load error:', err)

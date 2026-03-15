@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -18,14 +18,6 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 function esc(str) {
   if (!str) return ''
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -33,22 +25,6 @@ function esc(str) {
 
 /*
   Quick Action Email Templates
-
-  Pre-built email templates for common pipeline actions.
-  Each template can be customized with lead data before sending via Resend.
-
-  Templates:
-  1. follow_up — Warm follow-up after initial audit submission
-  2. audit_delivery — Send the generated audit report link
-  3. proposal — Send pricing/proposal details with next steps
-  4. check_in — Periodic check-in for leads that have gone quiet
-  5. onboarding_reminder — Remind signed client to complete onboarding
-  6. campaign_update — Share campaign performance highlights
-  7. value_add — Personalized tip based on facility's biggest challenge (drip sequence)
-  8. last_chance — Final soft touch before marking lead cold (drip sequence)
-
-  GET — list available templates
-  POST — send a template email to a lead
 */
 
 const TEMPLATES = {
@@ -291,19 +267,12 @@ const TEMPLATES = {
   },
 }
 
-function logActivity(redis, { type, leadId, leadName, facilityName, detail, meta }) {
-  if (!redis) return
-  const entry = JSON.stringify({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    type, leadId, leadName, facilityName,
-    detail: (detail || '').slice(0, 500),
-    meta: meta || {},
-    timestamp: new Date().toISOString(),
-  })
-  Promise.all([
-    redis.lpush('activity:global', entry).then(() => redis.ltrim('activity:global', 0, 499)),
-    redis.lpush(`activity:lead:${leadId}`, entry).then(() => redis.ltrim(`activity:lead:${leadId}`, 0, 99)),
-  ]).catch(err => console.error('Activity log error:', err))
+function logActivity({ type, facilityId, leadName, facilityName, detail, meta }) {
+  query(
+    `INSERT INTO activity_log (type, facility_id, lead_name, facility_name, detail, meta)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [type, facilityId, leadName || '', facilityName || '', (detail || '').slice(0, 500), JSON.stringify(meta || {})]
+  ).catch(err => console.error('Activity log error:', err))
 }
 
 export default async function handler(req, res) {
@@ -336,15 +305,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Unknown template' })
     }
 
-    const redis = getRedis()
-    if (!redis) {
-      return res.status(200).json({ success: true, preview: true, message: 'No data store — email not sent' })
-    }
-
     try {
-      const raw = await redis.get(`lead:${leadId}`)
-      if (!raw) return res.status(404).json({ error: 'Lead not found' })
-      const lead = typeof raw === 'string' ? JSON.parse(raw) : raw
+      const facility = await queryOne(`SELECT * FROM facilities WHERE id = $1`, [leadId])
+      if (!facility) return res.status(404).json({ error: 'Lead not found' })
+
+      const lead = {
+        name: facility.contact_name || '',
+        email: facility.contact_email || '',
+        facilityName: facility.name || '',
+        biggestIssue: facility.biggest_issue || '',
+        occupancyRange: facility.occupancy_range || '',
+        totalUnits: facility.total_units || '',
+      }
 
       if (!lead.email) {
         return res.status(400).json({ error: 'Lead has no email address' })
@@ -353,7 +325,6 @@ export default async function handler(req, res) {
       const subject = template.subject(lead)
       const html = template.body(lead)
 
-      // Send via Resend
       const apiKey = process.env.RESEND_API_KEY
       if (!apiKey) {
         return res.status(200).json({
@@ -388,12 +359,11 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to send email' })
       }
 
-      // Log activity
-      logActivity(redis, {
+      logActivity({
         type: 'note_added',
-        leadId,
-        leadName: lead.name || '',
-        facilityName: lead.facilityName || '',
+        facilityId: leadId,
+        leadName: lead.name,
+        facilityName: lead.facilityName,
         detail: `Sent "${template.name}" email to ${lead.email}`,
         meta: { templateId },
       })

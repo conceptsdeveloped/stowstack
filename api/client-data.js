@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { queryOne } from './_db.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -16,14 +16,6 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 export default async function handler(req, res) {
   const origin = req.headers.origin || ''
   const cors = getCorsHeaders(origin)
@@ -38,24 +30,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Email and access code required' })
     }
 
-    const redis = getRedis()
-    if (!redis) {
-      return res.status(200).json({ error: 'No data store configured' })
-    }
-
     try {
-      // Look up client record by access code
-      const clientData = await redis.get(`client:${accessCode}`)
-      if (!clientData) {
+      const client = await queryOne(
+        `SELECT * FROM clients WHERE access_code = $1`,
+        [accessCode]
+      )
+      if (!client) {
         return res.status(401).json({ error: 'Invalid access code' })
       }
 
-      const record = typeof clientData === 'string' ? JSON.parse(clientData) : clientData
-      if (record.email.toLowerCase() !== email.trim().toLowerCase()) {
+      if (client.email.toLowerCase() !== email.trim().toLowerCase()) {
         return res.status(401).json({ error: 'Invalid credentials' })
       }
 
-      return res.status(200).json({ client: record })
+      return res.status(200).json({
+        client: {
+          email: client.email,
+          name: client.name,
+          facilityName: client.facility_name,
+          location: client.location,
+          occupancyRange: client.occupancy_range,
+          totalUnits: client.total_units,
+          signedAt: client.signed_at,
+          accessCode: client.access_code,
+          monthlyGoal: client.monthly_goal || 0,
+        },
+      })
     } catch (err) {
       console.error('Client auth error:', err)
       return res.status(500).json({ error: 'Internal error' })

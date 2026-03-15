@@ -1,7 +1,6 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
-const IDEAS_KEY = 'stowstack:ideas'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -23,14 +22,6 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 export default async function handler(req, res) {
   const cors = getCorsHeaders(req.headers.origin)
   if (req.method === 'OPTIONS') return res.status(200).json({})
@@ -38,13 +29,15 @@ export default async function handler(req, res) {
 
   if (!checkAuth(req)) return res.status(401).json({ error: 'Unauthorized' })
 
-  const redis = getRedis()
-  if (!redis) return res.status(500).json({ error: 'Redis not configured' })
-
   // GET — list all ideas
   if (req.method === 'GET') {
-    const ideas = (await redis.get(IDEAS_KEY)) || []
-    return res.json({ ideas })
+    try {
+      const ideas = await query(`SELECT * FROM ideas ORDER BY created_at DESC`)
+      return res.json({ ideas })
+    } catch (err) {
+      console.error('Ideas GET error:', err)
+      return res.status(500).json({ error: 'Failed to fetch ideas' })
+    }
   }
 
   // POST — add new idea
@@ -52,21 +45,18 @@ export default async function handler(req, res) {
     const { title, description, category, priority } = req.body || {}
     if (!title?.trim()) return res.status(400).json({ error: 'Title is required' })
 
-    const ideas = (await redis.get(IDEAS_KEY)) || []
-    const idea = {
-      id: `idea_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      title: title.trim(),
-      description: (description || '').trim(),
-      category: category || 'general',
-      priority: priority || 'medium',
-      status: 'new',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      votes: 0,
+    try {
+      const rows = await query(
+        `INSERT INTO ideas (title, description, category, priority, status, votes)
+         VALUES ($1, $2, $3, $4, 'new', 0)
+         RETURNING *`,
+        [title.trim(), (description || '').trim(), category || 'general', priority || 'medium']
+      )
+      return res.json({ idea: rows[0] })
+    } catch (err) {
+      console.error('Ideas POST error:', err)
+      return res.status(500).json({ error: 'Failed to create idea' })
     }
-    ideas.unshift(idea)
-    await redis.set(IDEAS_KEY, ideas)
-    return res.json({ idea })
   }
 
   // PATCH — update idea
@@ -74,17 +64,33 @@ export default async function handler(req, res) {
     const { id, ...updates } = req.body || {}
     if (!id) return res.status(400).json({ error: 'id is required' })
 
-    const ideas = (await redis.get(IDEAS_KEY)) || []
-    const idx = ideas.findIndex(i => i.id === id)
-    if (idx === -1) return res.status(404).json({ error: 'Idea not found' })
+    try {
+      const existing = await queryOne(`SELECT * FROM ideas WHERE id = $1`, [id])
+      if (!existing) return res.status(404).json({ error: 'Idea not found' })
 
-    const allowed = ['title', 'description', 'category', 'priority', 'status', 'votes']
-    for (const key of allowed) {
-      if (updates[key] !== undefined) ideas[idx][key] = updates[key]
+      const allowed = ['title', 'description', 'category', 'priority', 'status', 'votes']
+      const setClauses = []
+      const values = []
+      let paramIdx = 1
+
+      for (const key of allowed) {
+        if (updates[key] !== undefined) {
+          setClauses.push(`${key} = $${paramIdx++}`)
+          values.push(updates[key])
+        }
+      }
+      setClauses.push(`updated_at = NOW()`)
+      values.push(id)
+
+      const rows = await query(
+        `UPDATE ideas SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+        values
+      )
+      return res.json({ idea: rows[0] })
+    } catch (err) {
+      console.error('Ideas PATCH error:', err)
+      return res.status(500).json({ error: 'Failed to update idea' })
     }
-    ideas[idx].updatedAt = new Date().toISOString()
-    await redis.set(IDEAS_KEY, ideas)
-    return res.json({ idea: ideas[idx] })
   }
 
   // DELETE — remove idea
@@ -92,10 +98,13 @@ export default async function handler(req, res) {
     const { id } = req.body || {}
     if (!id) return res.status(400).json({ error: 'id is required' })
 
-    let ideas = (await redis.get(IDEAS_KEY)) || []
-    ideas = ideas.filter(i => i.id !== id)
-    await redis.set(IDEAS_KEY, ideas)
-    return res.json({ success: true })
+    try {
+      await query(`DELETE FROM ideas WHERE id = $1`, [id])
+      return res.json({ success: true })
+    } catch (err) {
+      console.error('Ideas DELETE error:', err)
+      return res.status(500).json({ error: 'Failed to delete idea' })
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' })

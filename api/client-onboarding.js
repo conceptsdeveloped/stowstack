@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -16,14 +16,6 @@ function getCorsHeaders(origin) {
     'Access-Control-Allow-Methods': 'GET, PATCH, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Key',
   }
-}
-
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
 }
 
 const VALID_STEPS = ['facilityDetails', 'targetDemographics', 'unitMix', 'competitorIntel', 'adPreferences']
@@ -122,16 +114,16 @@ function sanitizeStepData(step, data) {
 }
 
 function computeCompletion(onboarding) {
-  const completed = VALID_STEPS.filter(s => onboarding.steps[s]?.completed).length
+  const steps = onboarding.steps || {}
+  const completed = VALID_STEPS.filter(s => steps[s]?.completed).length
   return Math.round((completed / VALID_STEPS.length) * 100)
 }
 
-async function verifyClientAuth(redis, code, email) {
+async function verifyClientAuth(code, email) {
   if (!code || !email) return false
-  const raw = await redis.get(`client:${code}`)
-  if (!raw) return false
-  const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-  return record.email && record.email.toLowerCase() === email.trim().toLowerCase()
+  const client = await queryOne(`SELECT email FROM clients WHERE access_code = $1`, [code])
+  if (!client) return false
+  return client.email.toLowerCase() === email.trim().toLowerCase()
 }
 
 export default async function handler(req, res) {
@@ -141,28 +133,37 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end()
 
-  const redis = getRedis()
   const isAdmin = req.headers['x-admin-key'] === ADMIN_KEY
 
-  // GET /api/client-onboarding?code=XXXX[&email=xxx] — get onboarding data
+  // GET /api/client-onboarding?code=XXXX[&email=xxx]
   if (req.method === 'GET') {
     const url = new URL(req.url, `http://${req.headers.host}`)
     const code = url.searchParams.get('code')
     if (!code) return res.status(400).json({ error: 'Missing access code' })
 
-    // Auth: admin key or client email
     if (!isAdmin) {
       const email = url.searchParams.get('email')
-      if (!redis) return res.status(200).json({ onboarding: emptyScaffold(code), completionPct: 0 })
-      const valid = await verifyClientAuth(redis, code, email)
+      const valid = await verifyClientAuth(code, email)
       if (!valid) return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    if (!redis) return res.status(200).json({ onboarding: emptyScaffold(code), completionPct: 0 })
-
     try {
-      const raw = await redis.get(`onboarding:${code}`)
-      const onboarding = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : emptyScaffold(code)
+      const row = await queryOne(
+        `SELECT * FROM client_onboarding WHERE access_code = $1`, [code]
+      )
+
+      if (!row) {
+        const scaffold = emptyScaffold(code)
+        return res.status(200).json({ onboarding: scaffold, completionPct: 0 })
+      }
+
+      const onboarding = {
+        accessCode: row.access_code,
+        updatedAt: row.updated_at,
+        completedAt: row.completed_at,
+        steps: row.steps || {},
+      }
+
       return res.status(200).json({ onboarding, completionPct: computeCompletion(onboarding) })
     } catch (err) {
       console.error('Get onboarding error:', err)
@@ -171,41 +172,55 @@ export default async function handler(req, res) {
   }
 
   // PATCH /api/client-onboarding — save a step
-  // body: { code, step, data, email? }
   if (req.method === 'PATCH') {
     const { code, step, data, email } = req.body || {}
     if (!code || !step || !data) return res.status(400).json({ error: 'Missing code, step, or data' })
     if (!VALID_STEPS.includes(step)) return res.status(400).json({ error: 'Invalid step' })
 
-    // Auth
     if (!isAdmin) {
-      if (!redis) return res.status(200).json({ success: true, onboarding: emptyScaffold(code), completionPct: 0 })
-      const valid = await verifyClientAuth(redis, code, email)
+      const valid = await verifyClientAuth(code, email)
       if (!valid) return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    if (!redis) return res.status(200).json({ success: true, onboarding: emptyScaffold(code), completionPct: 0 })
-
     try {
-      const raw = await redis.get(`onboarding:${code}`)
-      const onboarding = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : emptyScaffold(code)
+      // Get or create onboarding record
+      let row = await queryOne(`SELECT * FROM client_onboarding WHERE access_code = $1`, [code])
 
+      if (!row) {
+        // Create from scaffold
+        const client = await queryOne(`SELECT id FROM clients WHERE access_code = $1`, [code])
+        if (!client) return res.status(404).json({ error: 'Client not found' })
+
+        const scaffold = emptyScaffold(code)
+        await query(
+          `INSERT INTO client_onboarding (client_id, access_code, steps) VALUES ($1, $2, $3)`,
+          [client.id, code, JSON.stringify(scaffold.steps)]
+        )
+        row = await queryOne(`SELECT * FROM client_onboarding WHERE access_code = $1`, [code])
+      }
+
+      const steps = row.steps || {}
       const sanitized = sanitizeStepData(step, data)
-      onboarding.steps[step] = {
+      steps[step] = {
         completed: isStepComplete(step, sanitized),
         data: sanitized,
       }
-      onboarding.updatedAt = new Date().toISOString()
 
-      // Check if all steps complete
-      const allDone = VALID_STEPS.every(s => onboarding.steps[s]?.completed)
-      if (allDone && !onboarding.completedAt) {
-        onboarding.completedAt = new Date().toISOString()
-      } else if (!allDone) {
-        onboarding.completedAt = null
+      const allDone = VALID_STEPS.every(s => steps[s]?.completed)
+      const completedAt = allDone ? new Date().toISOString() : null
+
+      await query(
+        `UPDATE client_onboarding SET steps = $1, completed_at = $2, updated_at = NOW() WHERE access_code = $3`,
+        [JSON.stringify(steps), completedAt, code]
+      )
+
+      const onboarding = {
+        accessCode: code,
+        updatedAt: new Date().toISOString(),
+        completedAt,
+        steps,
       }
 
-      await redis.set(`onboarding:${code}`, JSON.stringify(onboarding))
       return res.status(200).json({ success: true, onboarding, completionPct: computeCompletion(onboarding) })
     } catch (err) {
       console.error('Save onboarding step error:', err)

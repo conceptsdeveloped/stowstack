@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query } from './_db.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -40,23 +40,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    })
-
     const facilityName = audit.facility_summary?.name || 'facility'
     const slug = generateSlug(facilityName)
 
-    const record = {
-      audit,
-      createdAt: new Date().toISOString(),
-      facilityName,
-      views: 0,
-    }
-
-    // Store with 90-day TTL (7,776,000 seconds)
-    await redis.set(`audit:${slug}`, JSON.stringify(record), { ex: 7776000 })
+    await query(
+      `INSERT INTO shared_audits (slug, facility_name, audit_json, views, expires_at)
+       VALUES ($1, $2, $3, 0, NOW() + INTERVAL '90 days')`,
+      [slug, facilityName, JSON.stringify(audit)]
+    )
 
     const baseUrl = origin.includes('localhost')
       ? origin

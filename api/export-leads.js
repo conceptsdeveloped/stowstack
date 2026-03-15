@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -18,14 +18,6 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 function escapeCsv(val) {
   if (val == null) return ''
   const str = String(val)
@@ -34,6 +26,8 @@ function escapeCsv(val) {
   }
   return str
 }
+
+const CSV_HEADER = 'Name,Email,Phone,Facility,Location,Occupancy,Units,Issue,Status,Created,Updated,Follow-Up,Notes Count'
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || ''
@@ -44,54 +38,34 @@ export default async function handler(req, res) {
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const redis = getRedis()
-  if (!redis) {
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', 'attachment; filename=stowstack-leads.csv')
-    return res.end('Name,Email,Phone,Facility,Location,Occupancy,Units,Issue,Status,Created,Updated,Follow-Up,Notes Count\n')
-  }
-
   try {
-    const keys = await redis.keys('lead:*')
-    if (!keys.length) {
-      res.setHeader('Content-Type', 'text/csv')
-      res.setHeader('Content-Disposition', 'attachment; filename=stowstack-leads.csv')
-      return res.end('Name,Email,Phone,Facility,Location,Occupancy,Units,Issue,Status,Created,Updated,Follow-Up,Notes Count\n')
-    }
+    const facilities = await query(
+      `SELECT f.*,
+              (SELECT COUNT(*) FROM lead_notes WHERE facility_id = f.id) AS notes_count
+       FROM facilities f
+       ORDER BY f.created_at DESC`
+    )
 
-    const pipeline = redis.pipeline()
-    keys.forEach(k => pipeline.get(k))
-    const results = await pipeline.exec()
-
-    const leads = results
-      .map((raw, i) => {
-        const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-        if (!record) return null
-        return { id: keys[i].replace('lead:', ''), ...record }
-      })
-      .filter(Boolean)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-
-    const headers = ['Name', 'Email', 'Phone', 'Facility', 'Location', 'Occupancy', 'Units', 'Issue', 'Status', 'Created', 'Updated', 'Follow-Up', 'Notes Count']
-    const rows = leads.map(l => [
-      escapeCsv(l.name),
-      escapeCsv(l.email),
-      escapeCsv(l.phone),
-      escapeCsv(l.facilityName),
-      escapeCsv(l.location),
-      escapeCsv(l.occupancyRange),
-      escapeCsv(l.totalUnits),
-      escapeCsv(l.biggestIssue),
-      escapeCsv(l.status),
-      escapeCsv(l.createdAt ? new Date(l.createdAt).toLocaleDateString() : ''),
-      escapeCsv(l.updatedAt ? new Date(l.updatedAt).toLocaleDateString() : ''),
-      escapeCsv(l.followUpDate || ''),
-      escapeCsv(l.notes ? l.notes.length : 0),
+    const headers = CSV_HEADER
+    const rows = facilities.map(f => [
+      escapeCsv(f.contact_name),
+      escapeCsv(f.contact_email),
+      escapeCsv(f.contact_phone),
+      escapeCsv(f.name),
+      escapeCsv(f.location),
+      escapeCsv(f.occupancy_range),
+      escapeCsv(f.total_units),
+      escapeCsv(f.biggest_issue),
+      escapeCsv(f.pipeline_status),
+      escapeCsv(f.created_at ? new Date(f.created_at).toLocaleDateString() : ''),
+      escapeCsv(f.updated_at ? new Date(f.updated_at).toLocaleDateString() : ''),
+      escapeCsv(f.follow_up_date || ''),
+      escapeCsv(f.notes_count || 0),
     ].join(','))
 
-    const csv = [headers.join(','), ...rows].join('\n')
-
+    const csv = [headers, ...rows].join('\n')
     const date = new Date().toISOString().slice(0, 10)
+
     res.setHeader('Content-Type', 'text/csv')
     res.setHeader('Content-Disposition', `attachment; filename=stowstack-leads-${date}.csv`)
     return res.end(csv)

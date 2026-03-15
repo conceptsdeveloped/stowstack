@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -31,43 +31,32 @@ export default async function handler(req, res) {
   }
 
   try {
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    })
+    // Save PMS report
+    const rows = await query(
+      `INSERT INTO pms_reports (facility_name, email, report_type, file_name, report_data)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [facilityName, email, reportType || 'unknown', fileName || 'report.csv', JSON.stringify(reportData)]
+    )
+    const reportId = rows[0].id
 
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-    const record = {
-      facilityName,
-      email,
-      reportType: reportType || 'unknown',
-      fileName: fileName || 'report.csv',
-      reportData, // parsed CSV data
-      uploadedAt: new Date().toISOString(),
+    // Match to facility by email and update
+    const facility = await queryOne(
+      `SELECT id FROM facilities WHERE contact_email = $1 LIMIT 1`,
+      [email.toLowerCase()]
+    )
+    if (facility) {
+      await query(
+        `UPDATE facilities SET pms_uploaded = true, updated_at = NOW() WHERE id = $1`,
+        [facility.id]
+      )
+      await query(
+        `UPDATE pms_reports SET facility_id = $1 WHERE id = $2`,
+        [facility.id, reportId]
+      )
     }
 
-    await redis.set(`pms:${id}`, JSON.stringify(record), { ex: 7776000 }) // 90-day TTL
-
-    // Try to find and update matching lead
-    const leadKeys = await redis.keys('lead:*')
-    if (leadKeys.length) {
-      const pipeline = redis.pipeline()
-      leadKeys.forEach(k => pipeline.get(k))
-      const results = await pipeline.exec()
-
-      for (let i = 0; i < results.length; i++) {
-        const lead = typeof results[i] === 'string' ? JSON.parse(results[i]) : results[i]
-        if (lead?.email?.toLowerCase() === email.toLowerCase()) {
-          lead.pmsUploaded = true
-          lead.pmsReportId = id
-          lead.updatedAt = new Date().toISOString()
-          await redis.set(leadKeys[i], JSON.stringify(lead))
-          break
-        }
-      }
-    }
-
-    // Send notification email via Resend
+    // Send notification email
     const apiKey = process.env.RESEND_API_KEY
     if (apiKey) {
       await fetch('https://api.resend.com/emails', {
@@ -89,7 +78,7 @@ export default async function handler(req, res) {
       }).catch(err => console.error('PMS notification email failed:', err.message))
     }
 
-    return res.status(200).json({ id, success: true })
+    return res.status(200).json({ id: reportId, success: true })
   } catch (err) {
     console.error('PMS upload error:', err)
     return res.status(500).json({ error: 'Failed to save PMS report' })

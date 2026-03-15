@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -18,18 +18,21 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
 const PIPELINE_ORDER = ['submitted', 'form_sent', 'form_completed', 'audit_generated', 'call_scheduled', 'client_signed']
 
 function daysBetween(a, b) {
   return Math.max(0, Math.round((new Date(b) - new Date(a)) / (1000 * 60 * 60 * 24)))
+}
+
+const EMPTY_RESPONSE = {
+  totalLeads: 0,
+  funnel: {},
+  conversionRate: 0,
+  avgDaysToSign: 0,
+  avgDaysInPipeline: 0,
+  weeklyVelocity: [],
+  stageDistribution: {},
+  lostRate: 0,
 }
 
 export default async function handler(req, res) {
@@ -41,46 +44,19 @@ export default async function handler(req, res) {
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const redis = getRedis()
-  if (!redis) {
-    return res.status(200).json({
-      totalLeads: 0,
-      funnel: {},
-      conversionRate: 0,
-      avgDaysToSign: 0,
-      avgDaysInPipeline: 0,
-      weeklyVelocity: [],
-      stageDistribution: {},
-      lostRate: 0,
-    })
-  }
-
   try {
-    const keys = await redis.keys('lead:*')
-    if (!keys.length) {
-      return res.status(200).json({
-        totalLeads: 0,
-        funnel: {},
-        conversionRate: 0,
-        avgDaysToSign: 0,
-        avgDaysInPipeline: 0,
-        weeklyVelocity: [],
-        stageDistribution: {},
-        lostRate: 0,
-      })
-    }
+    const facilities = await query(
+      `SELECT id, pipeline_status, created_at, updated_at FROM facilities`
+    )
 
-    const pipeline = redis.pipeline()
-    keys.forEach(k => pipeline.get(k))
-    const results = await pipeline.exec()
+    if (!facilities.length) return res.status(200).json(EMPTY_RESPONSE)
 
-    const leads = results
-      .map((raw, i) => {
-        const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-        if (!record) return null
-        return { id: keys[i].replace('lead:', ''), ...record }
-      })
-      .filter(Boolean)
+    const leads = facilities.map(f => ({
+      id: f.id,
+      status: f.pipeline_status || 'submitted',
+      createdAt: f.created_at,
+      updatedAt: f.updated_at,
+    }))
 
     // Stage distribution
     const stageDistribution = {}
@@ -88,7 +64,7 @@ export default async function handler(req, res) {
       stageDistribution[l.status] = (stageDistribution[l.status] || 0) + 1
     })
 
-    // Funnel: count of leads that reached each stage (cumulative)
+    // Funnel
     const funnel = {}
     PIPELINE_ORDER.forEach(stage => {
       const stageIdx = PIPELINE_ORDER.indexOf(stage)
@@ -98,26 +74,22 @@ export default async function handler(req, res) {
       }).length
     })
 
-    // Conversion rate: signed / total (excluding lost)
     const signed = leads.filter(l => l.status === 'client_signed').length
     const lost = leads.filter(l => l.status === 'lost').length
     const conversionRate = leads.length > 0 ? Math.round((signed / leads.length) * 100) : 0
     const lostRate = leads.length > 0 ? Math.round((lost / leads.length) * 100) : 0
 
-    // Avg days to sign (for signed clients)
     const signedLeads = leads.filter(l => l.status === 'client_signed')
     const avgDaysToSign = signedLeads.length > 0
       ? Math.round(signedLeads.reduce((sum, l) => sum + daysBetween(l.createdAt, l.updatedAt), 0) / signedLeads.length)
       : 0
 
-    // Avg days in pipeline (for active leads)
     const activeLeads = leads.filter(l => !['lost', 'client_signed'].includes(l.status))
     const now = new Date().toISOString()
     const avgDaysInPipeline = activeLeads.length > 0
       ? Math.round(activeLeads.reduce((sum, l) => sum + daysBetween(l.createdAt, now), 0) / activeLeads.length)
       : 0
 
-    // Weekly velocity: leads created per week (last 8 weeks)
     const weeklyVelocity = []
     const nowMs = Date.now()
     for (let w = 7; w >= 0; w--) {

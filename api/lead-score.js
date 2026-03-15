@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+import { query, queryOne } from './_db.js'
 
 const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
@@ -18,78 +18,43 @@ function getCorsHeaders(origin) {
   }
 }
 
-function getRedis() {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-}
-
-/*
-  Lead scoring criteria (0-100):
-  - Facility size (totalUnits): larger = higher value client
-  - Occupancy range: lower occupancy = more urgency = higher score
-  - Biggest issue: "filling-units" scores highest
-  - Pipeline progress: further along = more engaged
-  - Recency: newer leads score higher (engagement signal)
-  - Has notes: engagement indicator
-  - Has form notes: extra detail = more serious
-  - Onboarding started: high engagement signal
-*/
-
 function scoreLead(lead, hasOnboarding) {
   let score = 0
   const breakdown = {}
 
-  // Facility size (0-20 points)
   const unitScores = { 'under-100': 8, '100-300': 14, '300-500': 18, '500+': 20 }
   const unitScore = unitScores[lead.totalUnits] || 10
   score += unitScore
   breakdown.facilitySize = unitScore
 
-  // Occupancy — lower = more need (0-25 points)
   const occScores = { 'below-60': 25, '60-75': 20, '75-85': 15, '85-95': 8, 'above-95': 3 }
   const occScore = occScores[lead.occupancyRange] || 10
   score += occScore
   breakdown.occupancy = occScore
 
-  // Issue type (0-15 points)
   const issueScores = {
-    'filling-units': 15,
-    'lowering-costs': 12,
-    'digital-presence': 10,
-    'competitive-pressure': 13,
-    'seasonal-fluctuations': 11,
-    'other': 5,
+    'filling-units': 15, 'lowering-costs': 12, 'digital-presence': 10,
+    'competitive-pressure': 13, 'seasonal-fluctuations': 11, 'other': 5,
   }
   const issueScore = issueScores[lead.biggestIssue] || 5
   score += issueScore
   breakdown.issue = issueScore
 
-  // Pipeline stage (0-15 points) — further along = more engaged
   const stageScores = {
-    'submitted': 3,
-    'form_sent': 5,
-    'form_completed': 8,
-    'audit_generated': 10,
-    'call_scheduled': 13,
-    'client_signed': 15,
-    'lost': 0,
+    'submitted': 3, 'form_sent': 5, 'form_completed': 8,
+    'audit_generated': 10, 'call_scheduled': 13, 'client_signed': 15, 'lost': 0,
   }
   const stageScore = stageScores[lead.status] || 0
   score += stageScore
   breakdown.pipelineProgress = stageScore
 
-  // Recency (0-10 points) — leads from last 7 days score highest
   const ageInDays = Math.max(0, (Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24))
   const recencyScore = ageInDays <= 1 ? 10 : ageInDays <= 3 ? 8 : ageInDays <= 7 ? 6 : ageInDays <= 14 ? 4 : ageInDays <= 30 ? 2 : 1
   score += recencyScore
   breakdown.recency = recencyScore
 
-  // Engagement signals (0-15 points)
   let engagementScore = 0
-  if (lead.notes && lead.notes.length > 0) engagementScore += 3
+  if (lead.notesCount > 0) engagementScore += 3
   if (lead.formNotes) engagementScore += 3
   if (lead.pmsUploaded) engagementScore += 4
   if (hasOnboarding) engagementScore += 5
@@ -113,73 +78,80 @@ export default async function handler(req, res) {
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const redis = getRedis()
-  if (!redis) {
-    return res.status(200).json({ scores: {} })
-  }
-
   try {
     const url = new URL(req.url, `http://${req.headers.host}`)
     const leadId = url.searchParams.get('id')
 
     // Single lead score
     if (leadId) {
-      const raw = await redis.get(`lead:${leadId}`)
-      if (!raw) return res.status(404).json({ error: 'Lead not found' })
-      const lead = typeof raw === 'string' ? JSON.parse(raw) : raw
+      const facility = await queryOne(`SELECT * FROM facilities WHERE id = $1`, [leadId])
+      if (!facility) return res.status(404).json({ error: 'Lead not found' })
 
-      // Check onboarding status
+      const noteCount = await queryOne(
+        `SELECT COUNT(*) as count FROM lead_notes WHERE facility_id = $1`, [leadId]
+      )
+
       let hasOnboarding = false
-      if (lead.accessCode) {
-        const onb = await redis.get(`onboarding:${lead.accessCode}`)
-        if (onb) {
-          const parsed = typeof onb === 'string' ? JSON.parse(onb) : onb
-          hasOnboarding = Object.values(parsed.steps || {}).some(s => s.completed)
+      if (facility.access_code) {
+        const onb = await queryOne(
+          `SELECT steps FROM client_onboarding WHERE access_code = $1`, [facility.access_code]
+        )
+        if (onb?.steps) {
+          hasOnboarding = Object.values(onb.steps).some(s => s.completed)
         }
+      }
+
+      const lead = {
+        totalUnits: facility.total_units,
+        occupancyRange: facility.occupancy_range,
+        biggestIssue: facility.biggest_issue,
+        status: facility.pipeline_status,
+        createdAt: facility.created_at,
+        notesCount: parseInt(noteCount?.count || 0),
+        formNotes: facility.form_notes,
+        pmsUploaded: facility.pms_uploaded,
       }
 
       return res.status(200).json({ score: scoreLead(lead, hasOnboarding) })
     }
 
     // All lead scores
-    const keys = await redis.keys('lead:*')
-    if (!keys.length) return res.status(200).json({ scores: {} })
+    const facilities = await query(`SELECT * FROM facilities`)
+    if (!facilities.length) return res.status(200).json({ scores: {} })
 
-    const pipeline = redis.pipeline()
-    keys.forEach(k => pipeline.get(k))
-    const results = await pipeline.exec()
+    // Batch note counts
+    const noteCounts = await query(
+      `SELECT facility_id, COUNT(*) as count FROM lead_notes GROUP BY facility_id`
+    )
+    const noteCountMap = {}
+    for (const n of noteCounts) noteCountMap[n.facility_id] = parseInt(n.count)
 
-    // Batch check onboarding for signed clients
-    const onboardingCodes = new Set()
-    const leads = results
-      .map((raw, i) => {
-        const record = typeof raw === 'string' ? JSON.parse(raw) : raw
-        if (!record) return null
-        if (record.accessCode) onboardingCodes.add(record.accessCode)
-        return { id: keys[i].replace('lead:', ''), ...record }
-      })
-      .filter(Boolean)
-
-    // Fetch onboarding records
+    // Batch onboarding check
+    const onboardingRows = await query(
+      `SELECT co.access_code, co.steps FROM client_onboarding co`
+    )
     const onboardingMap = {}
-    if (onboardingCodes.size > 0) {
-      const obPipeline = redis.pipeline()
-      const codes = [...onboardingCodes]
-      codes.forEach(c => obPipeline.get(`onboarding:${c}`))
-      const obResults = await obPipeline.exec()
-      codes.forEach((c, i) => {
-        if (obResults[i]) {
-          const parsed = typeof obResults[i] === 'string' ? JSON.parse(obResults[i]) : obResults[i]
-          onboardingMap[c] = parsed.steps ? Object.values(parsed.steps).some(s => s.completed) : false
-        }
-      })
+    for (const o of onboardingRows) {
+      if (o.steps) {
+        onboardingMap[o.access_code] = Object.values(o.steps).some(s => s.completed)
+      }
     }
 
     const scores = {}
-    leads.forEach(lead => {
-      const hasOnboarding = lead.accessCode ? !!onboardingMap[lead.accessCode] : false
-      scores[lead.id] = scoreLead(lead, hasOnboarding)
-    })
+    for (const f of facilities) {
+      const lead = {
+        totalUnits: f.total_units,
+        occupancyRange: f.occupancy_range,
+        biggestIssue: f.biggest_issue,
+        status: f.pipeline_status,
+        createdAt: f.created_at,
+        notesCount: noteCountMap[f.id] || 0,
+        formNotes: f.form_notes,
+        pmsUploaded: f.pms_uploaded,
+      }
+      const hasOnboarding = f.access_code ? !!onboardingMap[f.access_code] : false
+      scores[f.id] = scoreLead(lead, hasOnboarding)
+    }
 
     return res.status(200).json({ scores })
   } catch (err) {

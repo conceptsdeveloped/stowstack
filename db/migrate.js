@@ -214,6 +214,159 @@ CREATE INDEX IF NOT EXISTS idx_facilities_status ON facilities(status);
 CREATE INDEX IF NOT EXISTS idx_platform_connections_facility ON platform_connections(facility_id);
 CREATE INDEX IF NOT EXISTS idx_publish_log_facility ON publish_log(facility_id);
 CREATE INDEX IF NOT EXISTS idx_publish_log_variation ON publish_log(variation_id);
+
+-- ============================================================
+-- Lead pipeline tables (migrated from Redis)
+-- ============================================================
+
+-- Extend facilities with pipeline tracking columns
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS pipeline_status TEXT DEFAULT 'submitted';
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS follow_up_date DATE;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS pms_uploaded BOOLEAN DEFAULT FALSE;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS access_code VARCHAR(16) UNIQUE;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS form_notes TEXT;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS lead_score INTEGER;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_facilities_pipeline_status ON facilities(pipeline_status);
+CREATE INDEX IF NOT EXISTS idx_facilities_access_code ON facilities(access_code);
+
+-- Lead notes: admin notes attached to a facility/lead
+CREATE TABLE IF NOT EXISTS lead_notes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  text        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_lead_notes_facility ON lead_notes(facility_id);
+
+-- Activity log: replaces Redis activity:global and activity:lead:* lists
+CREATE TABLE IF NOT EXISTS activity_log (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type          TEXT NOT NULL,
+  facility_id   UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  lead_name     TEXT,
+  facility_name TEXT,
+  detail        TEXT,
+  meta          JSONB DEFAULT '{}',
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_log_facility ON activity_log(facility_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at DESC);
+
+-- Clients: portal access records (replaces Redis client:* keys)
+CREATE TABLE IF NOT EXISTS clients (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  email         TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  facility_name TEXT,
+  location      TEXT,
+  occupancy_range TEXT,
+  total_units   TEXT,
+  access_code   VARCHAR(16) NOT NULL UNIQUE,
+  monthly_goal  INTEGER DEFAULT 0,
+  signed_at     TIMESTAMPTZ DEFAULT NOW(),
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_clients_access_code ON clients(access_code);
+CREATE INDEX IF NOT EXISTS idx_clients_facility ON clients(facility_id);
+
+-- Client campaign metrics per month
+CREATE TABLE IF NOT EXISTS client_campaigns (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id        UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  month            TEXT NOT NULL,
+  spend            NUMERIC(10,2) NOT NULL DEFAULT 0,
+  leads            INTEGER NOT NULL DEFAULT 0,
+  cpl              NUMERIC(10,2) DEFAULT 0,
+  move_ins         INTEGER DEFAULT 0,
+  cost_per_move_in NUMERIC(10,2) DEFAULT 0,
+  roas             NUMERIC(6,2) DEFAULT 0,
+  occupancy_delta  NUMERIC(5,2) DEFAULT 0,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_id, month)
+);
+CREATE INDEX IF NOT EXISTS idx_client_campaigns_client ON client_campaigns(client_id);
+
+-- Client onboarding wizard state
+CREATE TABLE IF NOT EXISTS client_onboarding (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id     UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  access_code   VARCHAR(16) NOT NULL,
+  steps         JSONB NOT NULL DEFAULT '{}',
+  completed_at  TIMESTAMPTZ,
+  updated_at    TIMESTAMPTZ DEFAULT NOW(),
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_id)
+);
+CREATE INDEX IF NOT EXISTS idx_client_onboarding_code ON client_onboarding(access_code);
+
+-- Drip email sequences
+CREATE TABLE IF NOT EXISTS drip_sequences (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  sequence_id   TEXT NOT NULL DEFAULT 'post_audit',
+  current_step  INTEGER NOT NULL DEFAULT 0,
+  status        TEXT NOT NULL DEFAULT 'active',
+  enrolled_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  next_send_at  TIMESTAMPTZ,
+  paused_at     TIMESTAMPTZ,
+  completed_at  TIMESTAMPTZ,
+  cancelled_at  TIMESTAMPTZ,
+  cancel_reason TEXT,
+  history       JSONB DEFAULT '[]',
+  UNIQUE(facility_id)
+);
+CREATE INDEX IF NOT EXISTS idx_drip_sequences_status ON drip_sequences(status);
+CREATE INDEX IF NOT EXISTS idx_drip_sequences_next_send ON drip_sequences(next_send_at);
+
+-- Shared audit reports (public shareable links)
+CREATE TABLE IF NOT EXISTS shared_audits (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug          VARCHAR(60) NOT NULL UNIQUE,
+  facility_name TEXT,
+  audit_json    JSONB NOT NULL,
+  views         INTEGER DEFAULT 0,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_shared_audits_slug ON shared_audits(slug);
+
+-- Cached audit reports per facility
+CREATE TABLE IF NOT EXISTS audit_report_cache (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  report_json   JSONB NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id)
+);
+
+-- PMS report uploads
+CREATE TABLE IF NOT EXISTS pms_reports (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id    UUID REFERENCES facilities(id) ON DELETE SET NULL,
+  facility_name  TEXT,
+  email          TEXT,
+  report_type    TEXT DEFAULT 'unknown',
+  file_name      TEXT DEFAULT 'report.csv',
+  report_data    JSONB NOT NULL,
+  uploaded_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_reports_facility ON pms_reports(facility_id);
+
+-- Ideas / feature requests
+CREATE TABLE IF NOT EXISTS ideas (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title       TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  category    TEXT DEFAULT 'general',
+  priority    TEXT DEFAULT 'medium',
+  status      TEXT DEFAULT 'new',
+  votes       INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
 `
 
 async function migrate() {

@@ -1,6 +1,4 @@
-import { Redis } from '@upstash/redis'
 import { query } from './_db.js'
-import { enrollLead } from './drip-sequences.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -218,7 +216,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Validation failed', fields: errors })
     }
 
-    // Store lead in Redis for admin pipeline tracking
     const leadData = {
       name: body.name.trim(),
       email: body.email.trim().toLowerCase(),
@@ -233,14 +230,15 @@ export default async function handler(req, res) {
 
     console.log('New audit lead:', JSON.stringify({ ...leadData, submittedAt: new Date().toISOString() }))
 
-    // Save to Postgres
+    // Save to Postgres (single source of truth)
     let facilityId = null
     try {
       const rows = await query(
         `INSERT INTO facilities
           (name, location, contact_name, contact_email, contact_phone,
-           occupancy_range, total_units, biggest_issue, notes, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'intake')
+           occupancy_range, total_units, biggest_issue, notes, status,
+           pipeline_status, form_notes, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'intake', 'submitted', $10, NOW())
          RETURNING id`,
         [
           leadData.facilityName,
@@ -252,47 +250,43 @@ export default async function handler(req, res) {
           leadData.totalUnits,
           leadData.biggestIssue,
           leadData.notes,
+          leadData.notes,
         ]
       )
       facilityId = rows[0].id
       console.log('Facility saved to Postgres:', facilityId)
     } catch (dbErr) {
       console.error('Failed to save facility to Postgres:', dbErr.message)
+      return res.status(500).json({ error: 'Failed to save lead' })
     }
 
-    try {
-      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        const redis = new Redis({
-          url: process.env.KV_REST_API_URL,
-          token: process.env.KV_REST_API_TOKEN,
-        })
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-        await redis.set(`lead:${id}`, JSON.stringify({
-          ...leadData,
-          formNotes: leadData.notes || null,
-          notes: [],
-          status: 'form_sent',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }))
+    // Log activity
+    query(
+      `INSERT INTO activity_log (type, facility_id, lead_name, facility_name, detail)
+       VALUES ('lead_created', $1, $2, $3, $4)`,
+      [facilityId, leadData.name, leadData.facilityName, `New lead from ${leadData.facilityName}`]
+    ).catch(err => console.error('Activity log error:', err.message))
 
-        // Enroll lead in post-audit drip sequence
-        try {
-          await enrollLead(redis, id, 'post_audit')
-          console.log('Lead enrolled in drip sequence:', id)
-        } catch (dripErr) {
-          console.error('Failed to enroll lead in drip:', dripErr.message)
-        }
-      }
-    } catch (kvErr) {
-      console.error('Failed to store lead in KV:', kvErr.message)
+    // Enroll in drip sequence
+    try {
+      const now = new Date()
+      const nextSendAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000) // 2 days
+      await query(
+        `INSERT INTO drip_sequences (facility_id, sequence_id, current_step, status, enrolled_at, next_send_at, history)
+         VALUES ($1, 'post_audit', 0, 'active', $2, $3, '[]')
+         ON CONFLICT (facility_id) DO NOTHING`,
+        [facilityId, now.toISOString(), nextSendAt.toISOString()]
+      )
+      console.log('Lead enrolled in drip sequence:', facilityId)
+    } catch (dripErr) {
+      console.error('Failed to enroll lead in drip:', dripErr.message)
     }
 
     // Send emails
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       console.error('RESEND_API_KEY not configured')
-      return res.status(200).json({ success: true })
+      return res.status(200).json({ success: true, facilityId })
     }
 
     await Promise.all([
