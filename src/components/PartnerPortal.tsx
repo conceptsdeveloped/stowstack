@@ -92,13 +92,22 @@ const STATUS_COLORS: Record<string, string> = {
 /* ── Login ── */
 
 function PartnerLogin({ onAuth }: { onAuth: (auth: AuthState) => void }) {
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [orgSlug, setOrgSlug] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const submit = async (e: React.FormEvent) => {
+  // Signup fields
+  const [companyName, setCompanyName] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [facilityCount, setFacilityCount] = useState('')
+  const [plan, setPlan] = useState('starter')
+  const [signupSuccess, setSignupSuccess] = useState<{ slug: string; tempPassword: string } | null>(null)
+
+  const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !orgSlug.trim()) return
     setLoading(true)
@@ -124,6 +133,64 @@ function PartnerLogin({ onAuth }: { onAuth: (auth: AuthState) => void }) {
     }
   }
 
+  const submitSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!companyName.trim() || !contactName.trim() || !email.trim()) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/partner-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: companyName.trim(),
+          contactName: contactName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          facilityCount: facilityCount.trim(),
+          plan,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setError(data.error || 'Signup failed')
+        setLoading(false)
+        return
+      }
+      setSignupSuccess({ slug: data.organization.slug, tempPassword: data.tempPassword })
+      setLoading(false)
+    } catch {
+      setError('Connection error. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  if (signupSuccess) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-600/20">
+            <CheckCircle2 size={24} className="text-white" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight mb-2">Account Created!</h1>
+          <p className="text-sm text-slate-500 mb-6">Your partner account is ready. Save your credentials below.</p>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-left mb-4 space-y-2">
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Organization:</span><code className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{signupSuccess.slug}</code></div>
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Email:</span><span className="font-medium">{email}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Temp Password:</span><code className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-xs font-mono">{signupSuccess.tempPassword}</code></div>
+          </div>
+          <button
+            onClick={() => { setMode('login'); setOrgSlug(signupSuccess.slug); setSignupSuccess(null) }}
+            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 transition-all"
+          >
+            Sign In Now
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -132,39 +199,62 @@ function PartnerLogin({ onAuth }: { onAuth: (auth: AuthState) => void }) {
             <Building2 size={24} className="text-white" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Partner Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">Sign in to your management dashboard</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {mode === 'login' ? 'Sign in to your management dashboard' : 'Create your partner account'}
+          </p>
         </div>
-        <form onSubmit={submit} className="space-y-3">
-          <input
-            type="text"
-            placeholder="Organization slug"
-            value={orgSlug}
-            onChange={e => setOrgSlug(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-          />
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-          />
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        {/* Tab toggle */}
+        <div className="flex bg-slate-100 rounded-lg p-1 mb-4">
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Sign In'}
-          </button>
-        </form>
+            onClick={() => { setMode('login'); setError('') }}
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+          >Sign In</button>
+          <button
+            onClick={() => { setMode('signup'); setError('') }}
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+          >Get Started</button>
+        </div>
+
+        {mode === 'login' ? (
+          <form onSubmit={submitLogin} className="space-y-3">
+            <input type="text" placeholder="Organization slug" value={orgSlug} onChange={e => setOrgSlug(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all">
+              {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Sign In'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={submitSignup} className="space-y-3">
+            <input type="text" placeholder="Company name" value={companyName} onChange={e => setCompanyName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="text" placeholder="Your name" value={contactName} onChange={e => setContactName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="tel" placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="text" placeholder="How many facilities do you manage?" value={facilityCount} onChange={e => setFacilityCount(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <select value={plan} onChange={e => setPlan(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 bg-white">
+              <option value="starter">Starter — up to 10 facilities</option>
+              <option value="growth">Growth — up to 50 facilities</option>
+              <option value="enterprise">Enterprise — unlimited</option>
+            </select>
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all">
+              {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Create Partner Account'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
@@ -639,7 +729,7 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
 
 /* ── Main Partner Portal ── */
 
-type PartnerTab = 'portfolio' | 'team' | 'branding' | 'settings'
+type PartnerTab = 'portfolio' | 'benchmarks' | 'billing' | 'team' | 'branding' | 'settings'
 
 function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; onLogout: () => void; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<PartnerTab>('portfolio')
@@ -723,6 +813,8 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px">
           {([
             ['portfolio', 'Portfolio', BarChart3],
+            ['benchmarks', 'Benchmarks', Target],
+            ...(isAdmin ? [['billing', 'Billing', DollarSign]] : []),
             ...(isAdmin ? [['team', 'Team', Users]] : []),
             ...(isAdmin ? [['branding', 'Branding', Palette]] : []),
             ...(isAdmin ? [['settings', 'Settings', Settings]] : []),
@@ -799,6 +891,126 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
         {activeTab === 'portfolio' && selectedFacility && (
           <FacilityDetail facility={selectedFacility} primaryColor={primaryColor} onBack={() => setSelectedFacility(null)} />
         )}
+
+        {/* Benchmarks Tab */}
+        {activeTab === 'benchmarks' && (
+          <div>
+            <h2 className="text-lg font-bold mb-4">Facility Benchmarks</h2>
+            {facilities.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+                <Target size={32} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">No facilities to benchmark yet</p>
+              </div>
+            ) : (() => {
+              const benchmarks = facilities.map(f => {
+                const campaigns = f.campaigns || []
+                const t = campaigns.reduce((acc, c) => ({
+                  spend: acc.spend + Number(c.spend), leads: acc.leads + Number(c.leads), moveIns: acc.moveIns + Number(c.moveIns),
+                }), { spend: 0, leads: 0, moveIns: 0 })
+                return { ...f, t, cpl: t.leads > 0 ? t.spend / t.leads : 0, cpmi: t.moveIns > 0 ? t.spend / t.moveIns : 0, roas: campaigns.length > 0 ? Number(campaigns[campaigns.length - 1].roas) : 0 }
+              }).sort((a, b) => b.roas - a.roas)
+              const avgCpl = benchmarks.reduce((s, b) => s + b.cpl, 0) / (benchmarks.length || 1)
+              return (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        <th className="text-left px-4 py-2.5 font-medium text-slate-600">#</th>
+                        <th className="text-left px-4 py-2.5 font-medium text-slate-600">Facility</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Spend</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Leads</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">CPL</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Move-Ins</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Cost/MI</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">ROAS</th>
+                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">vs Avg CPL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {benchmarks.map((b, i) => {
+                        const diff = avgCpl > 0 ? ((b.cpl - avgCpl) / avgCpl * 100) : 0
+                        return (
+                          <tr key={b.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                            <td className={`px-4 py-2.5 ${i === 0 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>{i + 1}</td>
+                            <td className="px-4 py-2.5 font-medium">{b.name}<span className="block text-[10px] text-slate-400">{b.location}</span></td>
+                            <td className="px-4 py-2.5 text-right">${b.t.spend.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right">{b.t.leads}</td>
+                            <td className="px-4 py-2.5 text-right">${b.cpl.toFixed(0)}</td>
+                            <td className="px-4 py-2.5 text-right">{b.t.moveIns}</td>
+                            <td className="px-4 py-2.5 text-right">${b.cpmi.toFixed(0)}</td>
+                            <td className={`px-4 py-2.5 text-right font-medium ${b.roas >= 3 ? 'text-green-600' : ''}`}>{b.roas.toFixed(1)}x</td>
+                            <td className="px-4 py-2.5 text-right">
+                              <span className={`text-xs font-medium ${diff < 0 ? 'text-green-600' : diff > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                {diff < 0 ? <ArrowDownRight size={10} className="inline" /> : diff > 0 ? <ArrowUpRight size={10} className="inline" /> : <Minus size={10} className="inline" />}
+                                {' '}{Math.abs(diff).toFixed(0)}%
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* Billing Tab */}
+        {activeTab === 'billing' && isAdmin && (() => {
+          const PLAN_PRICING: Record<string, number> = { starter: 499, growth: 1499, enterprise: 3999 }
+          const baseFee = PLAN_PRICING[org.plan] || 499
+          const perFacility = 99
+          const totalMonthly = baseFee + perFacility * facilities.length
+          return (
+            <div>
+              <h2 className="text-lg font-bold mb-4">Billing</h2>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <p className="text-xs text-slate-500 mb-1">Platform Fee</p>
+                  <p className="text-xl font-bold">${baseFee}/mo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 capitalize">{org.plan} plan</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <p className="text-xs text-slate-500 mb-1">Facility Fees</p>
+                  <p className="text-xl font-bold">${(perFacility * facilities.length).toLocaleString()}/mo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{facilities.length} x ${perFacility}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm" style={{ borderColor: primaryColor + '40' }}>
+                  <p className="text-xs text-slate-500 mb-1">Total Monthly</p>
+                  <p className="text-xl font-bold" style={{ color: primaryColor }}>${totalMonthly.toLocaleString()}/mo</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">excl. ad spend</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <h3 className="text-sm font-semibold px-4 py-3 border-b border-slate-100">Per-Facility Breakdown</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      <th className="text-left px-4 py-2 font-medium text-slate-600">Facility</th>
+                      <th className="text-right px-4 py-2 font-medium text-slate-600">Ad Spend (All Time)</th>
+                      <th className="text-right px-4 py-2 font-medium text-slate-600">Platform Fee</th>
+                      <th className="text-right px-4 py-2 font-medium text-slate-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {facilities.map(f => {
+                      const totalSpend = (f.campaigns || []).reduce((s, c) => s + Number(c.spend), 0)
+                      return (
+                        <tr key={f.id} className="border-b border-slate-50">
+                          <td className="px-4 py-2.5 font-medium">{f.name}<span className="block text-[10px] text-slate-400">{f.location}</span></td>
+                          <td className="px-4 py-2.5 text-right">${totalSpend.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right">${perFacility}/mo</td>
+                          <td className="px-4 py-2.5 text-right"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>{f.status}</span></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
 
         {activeTab === 'team' && isAdmin && (
           <TeamTab orgToken={orgToken} orgUser={auth.user} primaryColor={primaryColor} />

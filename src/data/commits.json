@@ -1,5 +1,35 @@
 [
   {
+    "hash": "496c3c091480433fc8efec36ccfd26dfe6306d9e",
+    "short": "496c3c0",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-15T18:38:02-04:00",
+    "subject": "Add white-label partner portal for facility management companies",
+    "body": "Introduces a multi-tenant organization system so regional management\ncompanies (managing 50-200 facilities) can access a branded partner\nportal with portfolio-level dashboards, team management, and\nwhite-label branding controls.\n\n- Database: organizations + org_users tables, facilities.organization_id FK\n- API: /api/organizations (CRUD, login, invite), /api/org-users, /api/org-facilities\n- Partner Portal (/partner): login, portfolio dashboard, facility detail,\n  team invite/management, branding editor, org settings\n- Admin: Partners tab for creating/managing partner organizations\n- Landing pages: inherit org branding (logo, colors, white-label footer)",
+    "category": "feature",
+    "area": "client",
+    "coAuthor": "Claude Opus 4.6",
+    "filesChanged": 9,
+    "insertions": 626,
+    "deletions": 17
+  },
+  {
+    "hash": "aa7a703f463ea8c35fefa7c68bd8304ede462c16",
+    "short": "aa7a703",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-15T18:33:58-04:00",
+    "subject": "Fix pre-existing TypeScript errors blocking Vercel deploy",
+    "body": "- TikTokCreator: cast content_json to Record for property access\n- PartnerPortal: remove unused imports and variables\n- PartnersView: remove unused Lucide icon imports",
+    "category": "fix",
+    "area": "general",
+    "coAuthor": "Claude Opus 4.6",
+    "filesChanged": 4,
+    "insertions": 1391,
+    "deletions": 3
+  },
+  {
     "hash": "91822afd5bc9bdbc094ea2bc6864ee8b5d871243",
     "short": "91822af",
     "author": "Blake",
