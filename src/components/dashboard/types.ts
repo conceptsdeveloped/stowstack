@@ -270,9 +270,9 @@ export interface Invoice {
   pdfUrl?: string
 }
 
-export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'whats-new'
+export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'whats-new' | 'partners'
 
-export type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'landing-pages' | 'utm-links' | 'publish'
+export type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'landing-pages' | 'utm-links' | 'calls' | 'publish'
 
 export type AdFormat = 'instagram_post' | 'instagram_story' | 'google_display' | 'facebook_feed'
 
@@ -361,6 +361,50 @@ export const PLATFORM_ICONS: Record<string, string> = {
 }
 
 export type GenerationPlatform = 'meta_feed' | 'google_search' | 'landing_page' | 'email_drip' | 'all'
+
+export interface CallTrackingNumber {
+  id: string
+  facility_id: string
+  landing_page_id: string | null
+  utm_link_id: string | null
+  label: string
+  twilio_sid: string
+  phone_number: string
+  forward_to: string
+  status: string
+  call_count: number
+  total_duration: number
+  created_at: string
+  landing_page_title?: string
+  utm_label?: string
+}
+
+export interface CallLog {
+  id: string
+  tracking_number_id: string
+  facility_id: string
+  twilio_call_sid: string
+  caller_number: string | null
+  caller_city: string | null
+  caller_state: string | null
+  duration: number
+  status: string
+  recording_url: string | null
+  started_at: string
+  ended_at: string | null
+  created_at: string
+  tracking_label?: string
+  tracking_number?: string
+}
+
+export interface CallSummary {
+  total_calls: number
+  completed_calls: number
+  avg_duration: number
+  unique_callers: number
+  calls_today: number
+  calls_this_week: number
+}
 
 export const STOCK_CATEGORIES = ['all', 'exterior', 'interior', 'moving', 'packing', 'lifestyle', 'vehicle'] as const
 

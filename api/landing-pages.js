@@ -66,7 +66,36 @@ async function handleGet(req, res) {
        WHERE landing_page_id = $1 ORDER BY sort_order`,
       [page.id]
     )
-    return res.json({ success: true, data: { ...page, sections } })
+
+    // Inherit org branding if facility belongs to an organization
+    let orgBranding = null
+    const orgRows = await query(
+      `SELECT o.name, o.logo_url, o.primary_color, o.accent_color, o.white_label
+       FROM organizations o
+       JOIN facilities f ON f.organization_id = o.id
+       WHERE f.id = $1 AND o.status = 'active'`,
+      [page.facility_id]
+    )
+    if (orgRows.length > 0) {
+      const org = orgRows[0]
+      orgBranding = {
+        orgName: org.name,
+        logoUrl: org.logo_url,
+        primaryColor: org.primary_color,
+        accentColor: org.accent_color,
+        whiteLabel: org.white_label,
+      }
+      // Apply org colors as fallback if page has no theme
+      if (!page.theme || (!page.theme.primaryColor && org.primary_color)) {
+        page.theme = {
+          ...page.theme,
+          primaryColor: page.theme?.primaryColor || org.primary_color,
+          accentColor: page.theme?.accentColor || org.accent_color,
+        }
+      }
+    }
+
+    return res.json({ success: true, data: { ...page, sections, orgBranding } })
   }
 
   // Admin: fetch by id

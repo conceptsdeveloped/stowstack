@@ -8,6 +8,7 @@ import GuidePage from '@/components/GuidePage'
 import LandingPageView from '@/components/LandingPageView'
 import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
+import PartnerPortal from '@/components/PartnerPortal'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -1806,7 +1807,7 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog' | 'shared-audit'
+type View = 'website' | 'admin' | 'portal' | 'partner' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog' | 'shared-audit'
 
 function pathToView(pathname: string): View {
   if (pathname === '/admin') return 'admin'
@@ -1814,6 +1815,7 @@ function pathToView(pathname: string): View {
   if (pathname === '/privacy') return 'privacy'
   if (pathname === '/terms') return 'terms'
   if (pathname === '/data-deletion') return 'data-deletion'
+  if (pathname === '/partner') return 'partner'
   if (pathname === '/demo') return 'demo'
   if (pathname === '/guide') return 'guide'
   if (pathname.startsWith('/lp/')) return 'landing-page'
@@ -1835,6 +1837,7 @@ export default function App() {
 
   if (view === 'admin') return <AdminDashboard onBack={goHome} />
   if (view === 'portal') return <ClientPortal onBack={goHome} />
+  if (view === 'partner') return <PartnerPortal onBack={goHome} />
   if (view === 'privacy') return <PrivacyPolicy onBack={goHome} />
   if (view === 'terms') return <TermsOfService onBack={goHome} />
   if (view === 'data-deletion') return <DataDeletion onBack={goHome} />

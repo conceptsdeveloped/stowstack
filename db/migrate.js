@@ -216,6 +216,51 @@ CREATE INDEX IF NOT EXISTS idx_publish_log_facility ON publish_log(facility_id);
 CREATE INDEX IF NOT EXISTS idx_publish_log_variation ON publish_log(variation_id);
 
 -- ============================================================
+-- Organizations (white-label partner management companies)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT NOT NULL,
+  slug              VARCHAR(60) NOT NULL UNIQUE,
+  logo_url          TEXT,
+  primary_color     VARCHAR(7) DEFAULT '#16a34a',
+  accent_color      VARCHAR(7) DEFAULT '#4f46e5',
+  custom_domain     TEXT,
+  contact_email     TEXT,
+  contact_phone     TEXT,
+  billing_email     TEXT,
+  plan              TEXT DEFAULT 'starter',  -- starter | growth | enterprise
+  facility_limit    INTEGER DEFAULT 10,
+  white_label       BOOLEAN DEFAULT FALSE,
+  status            TEXT DEFAULT 'active',   -- active | suspended | cancelled
+  settings          JSONB DEFAULT '{}',
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_custom_domain ON organizations(custom_domain);
+
+-- Org users: role-based access within an organization
+CREATE TABLE IF NOT EXISTS org_users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email             TEXT NOT NULL,
+  name              TEXT NOT NULL,
+  role              TEXT NOT NULL DEFAULT 'viewer',  -- org_admin | facility_manager | viewer
+  password_hash     TEXT,
+  invite_token      VARCHAR(64),
+  invite_expires_at TIMESTAMPTZ,
+  last_login_at     TIMESTAMPTZ,
+  status            TEXT DEFAULT 'invited',  -- invited | active | disabled
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(organization_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_org_users_email ON org_users(email);
+CREATE INDEX IF NOT EXISTS idx_org_users_org ON org_users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_users_invite ON org_users(invite_token);
+
+-- ============================================================
 -- Lead pipeline tables (migrated from Redis)
 -- ============================================================
 
@@ -227,6 +272,10 @@ ALTER TABLE facilities ADD COLUMN IF NOT EXISTS access_code VARCHAR(16) UNIQUE;
 ALTER TABLE facilities ADD COLUMN IF NOT EXISTS form_notes TEXT;
 ALTER TABLE facilities ADD COLUMN IF NOT EXISTS lead_score INTEGER;
 ALTER TABLE facilities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Link facilities to organizations
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_facilities_organization ON facilities(organization_id);
 
 CREATE INDEX IF NOT EXISTS idx_facilities_pipeline_status ON facilities(pipeline_status);
 CREATE INDEX IF NOT EXISTS idx_facilities_access_code ON facilities(access_code);
@@ -449,6 +498,48 @@ CREATE INDEX IF NOT EXISTS idx_partial_leads_recovery ON partial_leads(recovery_
 CREATE INDEX IF NOT EXISTS idx_partial_leads_session ON partial_leads(session_id);
 CREATE INDEX IF NOT EXISTS idx_partial_leads_landing_page ON partial_leads(landing_page_id);
 CREATE INDEX IF NOT EXISTS idx_partial_leads_created ON partial_leads(created_at DESC);
+
+-- ============================================================
+-- Call tracking tables
+-- ============================================================
+
+-- Tracking numbers: Twilio-provisioned numbers per facility/campaign
+CREATE TABLE IF NOT EXISTS call_tracking_numbers (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  landing_page_id UUID REFERENCES landing_pages(id) ON DELETE SET NULL,
+  utm_link_id     UUID REFERENCES utm_links(id) ON DELETE SET NULL,
+  label           TEXT NOT NULL,
+  twilio_sid      TEXT NOT NULL UNIQUE,
+  phone_number    TEXT NOT NULL,
+  forward_to      TEXT NOT NULL,
+  status          TEXT DEFAULT 'active',  -- active | paused | released
+  call_count      INTEGER DEFAULT 0,
+  total_duration  INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_call_tracking_facility ON call_tracking_numbers(facility_id);
+CREATE INDEX IF NOT EXISTS idx_call_tracking_phone ON call_tracking_numbers(phone_number);
+
+-- Call logs: individual call records from Twilio webhooks
+CREATE TABLE IF NOT EXISTS call_logs (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tracking_number_id  UUID NOT NULL REFERENCES call_tracking_numbers(id) ON DELETE CASCADE,
+  facility_id         UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  twilio_call_sid     TEXT NOT NULL UNIQUE,
+  caller_number       TEXT,
+  caller_city         TEXT,
+  caller_state        TEXT,
+  duration            INTEGER DEFAULT 0,
+  status              TEXT NOT NULL,       -- ringing | in-progress | completed | no-answer | busy | failed
+  recording_url       TEXT,
+  started_at          TIMESTAMPTZ NOT NULL,
+  ended_at            TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_call_logs_tracking ON call_logs(tracking_number_id);
+CREATE INDEX IF NOT EXISTS idx_call_logs_facility ON call_logs(facility_id);
+CREATE INDEX IF NOT EXISTS idx_call_logs_created ON call_logs(created_at DESC);
 `
 
 async function migrate() {

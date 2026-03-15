@@ -440,17 +440,19 @@ interface ThemeConfig {
   accentColor?: string
 }
 
-export function RenderSection({ section, theme, widgetUrl }: { section: Section; theme?: ThemeConfig; widgetUrl?: string }) {
+export function RenderSection({ section, theme, widgetUrl, trackingPhone }: { section: Section; theme?: ThemeConfig; widgetUrl?: string; trackingPhone?: string | null }) {
   const { section_type, config } = section
+  // If a tracking phone is provisioned for this landing page, swap it into phone fields
+  const effectiveConfig = trackingPhone && config.phone ? { ...config, phone: trackingPhone } : config
   switch (section_type) {
-    case 'hero': return <HeroSection config={config} theme={theme} />
+    case 'hero': return <HeroSection config={effectiveConfig} theme={theme} />
     case 'trust_bar': return <TrustBarSection config={config} theme={theme} />
     case 'features': return <FeaturesSection config={config} theme={theme} />
     case 'unit_types': return <UnitTypesSection config={config} theme={theme} />
     case 'gallery': return <GallerySection config={config} />
     case 'testimonials': return <TestimonialsSection config={config} theme={theme} />
     case 'faq': return <FAQSection config={config} />
-    case 'cta': return <CTASection config={config} theme={theme} widgetUrl={widgetUrl} />
+    case 'cta': return <CTASection config={effectiveConfig} theme={theme} widgetUrl={widgetUrl} />
     case 'location_map': return <LocationMapSection config={config} theme={theme} />
     default: return null
   }
@@ -460,14 +462,29 @@ export function RenderSection({ section, theme, widgetUrl }: { section: Section;
 /*  LANDING PAGE SHELL                                      */
 /* ═══════════════════════════════════════════════════════ */
 
-function LandingPageNav({ facilityName }: { facilityName?: string }) {
+interface OrgBranding {
+  orgName?: string
+  logoUrl?: string | null
+  primaryColor?: string
+  accentColor?: string
+  whiteLabel?: boolean
+}
+
+function LandingPageNav({ facilityName, theme, orgBranding }: { facilityName?: string; theme?: ThemeConfig; orgBranding?: OrgBranding | null }) {
+  const pc = theme?.primaryColor || orgBranding?.primaryColor
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
       <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
-        <span className="text-sm font-bold text-slate-900">{facilityName || 'Self Storage'}</span>
+        <div className="flex items-center gap-2">
+          {orgBranding?.logoUrl && (
+            <img src={orgBranding.logoUrl} alt={orgBranding.orgName || ''} className="h-6 object-contain" />
+          )}
+          <span className="text-sm font-bold text-slate-900">{facilityName || 'Self Storage'}</span>
+        </div>
         <a
           href="#cta"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white transition-colors ${pc ? '' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+          style={pc ? { background: pc } : undefined}
         >
           Reserve Now
         </a>
@@ -476,12 +493,19 @@ function LandingPageNav({ facilityName }: { facilityName?: string }) {
   )
 }
 
-function LandingPageFooter() {
+function LandingPageFooter({ orgBranding }: { orgBranding?: OrgBranding | null }) {
+  const hideStowStack = orgBranding?.whiteLabel
   return (
     <footer className="py-8 bg-slate-950 text-center">
-      <p className="text-xs text-slate-500">
-        Powered by <a href="https://stowstack.co" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400">StowStack</a>
-      </p>
+      {hideStowStack ? (
+        orgBranding?.orgName && (
+          <p className="text-xs text-slate-500">{orgBranding.orgName}</p>
+        )
+      ) : (
+        <p className="text-xs text-slate-500">
+          Powered by <a href="https://stowstack.co" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400">StowStack</a>
+        </p>
+      )}
     </footer>
   )
 }
@@ -578,6 +602,8 @@ function ExitIntentPopup({
 
 export default function LandingPageView({ slug }: { slug: string }) {
   const [page, setPage] = useState<LandingPage | null>(null)
+  const [trackingPhone, setTrackingPhone] = useState<string | null>(null)
+  const [orgBranding, setOrgBranding] = useState<OrgBranding | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showExitPopup, setShowExitPopup] = useState(false)
@@ -632,6 +658,18 @@ export default function LandingPageView({ slug }: { slug: string }) {
         if (!res.ok) throw new Error('Failed to load page')
         const data = await res.json()
         setPage(data.data)
+        if (data.data?.orgBranding) setOrgBranding(data.data.orgBranding)
+
+        // Fetch tracking number for this landing page (if one is provisioned)
+        if (data.data?.id) {
+          try {
+            const tnRes = await fetch(`/api/call-tracking?landingPageId=${data.data.id}`)
+            if (tnRes.ok) {
+              const tnData = await tnRes.json()
+              if (tnData.trackingPhone) setTrackingPhone(tnData.trackingPhone)
+            }
+          } catch { /* silent — fall back to default phone */ }
+        }
 
         // Set SEO meta
         if (data.data.meta_title) document.title = data.data.meta_title
@@ -674,16 +712,16 @@ export default function LandingPageView({ slug }: { slug: string }) {
 
   return (
     <div className="min-h-screen bg-white">
-      <LandingPageNav facilityName={facilityName} />
+      <LandingPageNav facilityName={facilityName} theme={page.theme} orgBranding={orgBranding} />
       <main>
         {page.sections
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(section => (
-            <RenderSection key={section.id} section={section} theme={page.theme} widgetUrl={page.storedge_widget_url} />
+            <RenderSection key={section.id} section={section} theme={page.theme} widgetUrl={page.storedge_widget_url} trackingPhone={trackingPhone} />
           ))
         }
       </main>
-      <LandingPageFooter />
+      <LandingPageFooter orgBranding={orgBranding} />
 
       {/* Exit Intent Popup — captures email before bounce */}
       <ExitIntentPopup

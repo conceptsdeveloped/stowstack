@@ -24,6 +24,7 @@ import InsightsView from './dashboard/InsightsView'
 import SequencesView from './dashboard/SequencesView'
 import SharedAuditsView from './dashboard/SharedAuditsView'
 import RecoveryView from './dashboard/RecoveryView'
+import PartnersView from './dashboard/PartnersView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
 
@@ -363,6 +364,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['sequences', 'Sequences', CalendarClock],
             ['shared-audits', 'Shared Audits', Share2],
             ['recovery', 'Recovery', Flame],
+            ['partners', 'Partners', Building2],
             ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -467,6 +469,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'recovery' && (
           <RecoveryView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'partners' && (
+          <PartnersView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'whats-new' && (
