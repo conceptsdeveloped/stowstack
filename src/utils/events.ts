@@ -274,9 +274,6 @@ function enqueueEvent(attributedEvent: AttributedEvent): void {
     queue.push(queuedEvent);
     sessionStorage.setItem(STORAGE_KEYS.EVENT_QUEUE, JSON.stringify(queue));
 
-    if (import.meta.env.DEV) {
-      console.log('[Events] Event queued for retry', queuedEvent.id);
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[Events] Failed to enqueue event:', e);
@@ -316,9 +313,6 @@ export function removeQueuedEvent(queuedEventId: string): void {
       sessionStorage.setItem(STORAGE_KEYS.EVENT_QUEUE, JSON.stringify(filtered));
     }
 
-    if (import.meta.env.DEV) {
-      console.log('[Events] Queued event removed', queuedEventId);
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[Events] Failed to remove queued event:', e);
@@ -343,9 +337,6 @@ export function incrementQueuedEventRetry(queuedEventId: string, error?: string)
 
       if (event.retry_count >= MAX_RETRY_ATTEMPTS) {
         removeQueuedEvent(queuedEventId);
-        if (import.meta.env.DEV) {
-          console.log('[Events] Queued event exceeded max retries', queuedEventId);
-        }
       } else {
         sessionStorage.setItem(STORAGE_KEYS.EVENT_QUEUE, JSON.stringify(queue));
       }
@@ -524,10 +515,6 @@ async function fireAttributionApiEvent(attributedEvent: AttributedEvent): Promis
       throw new Error(`Attribution API error: ${response.status} ${error}`);
     }
 
-    if (import.meta.env.DEV) {
-      console.log('[Events] Attribution API event sent', attributedEvent);
-    }
-
     return true;
   } catch (e) {
     if (import.meta.env.DEV) {
@@ -549,9 +536,6 @@ async function fireAttributionApiEvent(attributedEvent: AttributedEvent): Promis
 export async function trackConversion(event: ConversionEvent): Promise<void> {
   // Check for duplicates
   if (isDuplicateEvent(event)) {
-    if (import.meta.env.DEV) {
-      console.log('[Events] Duplicate event ignored', event.type);
-    }
     return;
   }
 
@@ -576,15 +560,6 @@ export async function trackConversion(event: ConversionEvent): Promise<void> {
   if (!apiSuccess) {
     enqueueEvent(attributedEvent);
   }
-
-  // Dev logging
-  if (import.meta.env.DEV) {
-    console.log('[Events] Conversion tracked', {
-      type: event.type,
-      visitor_id: visitorId,
-      utm_params: utmParams,
-    });
-  }
 }
 
 /**
@@ -595,10 +570,6 @@ export async function processEventQueue(): Promise<void> {
 
   if (queue.length === 0) {
     return;
-  }
-
-  if (import.meta.env.DEV) {
-    console.log(`[Events] Processing ${queue.length} queued events`);
   }
 
   for (const queuedEvent of queue) {
@@ -654,9 +625,6 @@ export function clearEventQueue(): void {
     sessionStorage.removeItem(STORAGE_KEYS.EVENT_QUEUE);
     sessionStorage.removeItem(STORAGE_KEYS.EVENT_DEDUP);
 
-    if (import.meta.env.DEV) {
-      console.log('[Events] Event queue cleared');
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[Events] Failed to clear event queue:', e);

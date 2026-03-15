@@ -92,9 +92,6 @@ class PixelManager {
     // Initialize Google Ads
     this.initializeGoogleAds()
 
-    if (this.debug) {
-      console.log('[Pixel] Initialized with config:', this.config)
-    }
   }
 
   /**
@@ -106,10 +103,7 @@ class PixelManager {
 
     // Check if fbq already exists (if Meta Pixel script was loaded)
     if (win.fbq) {
-      if (this.debug) {
-        console.log('[Pixel] Meta Pixel already initialized')
-      }
-      return
+        return
     }
 
     // Create fbq object if not present
@@ -131,9 +125,6 @@ class PixelManager {
     // Track standard PageView
     win.fbq('track', 'PageView')
 
-    if (this.debug) {
-      console.log('[Pixel] Meta Pixel initialized:', this.metaPixelId)
-    }
   }
 
   /**
@@ -143,10 +134,7 @@ class PixelManager {
   private initializeGoogleAds(): void {
     // Check if gtag already exists
     if ((window as any).gtag) {
-      if (this.debug) {
-        console.log('[Pixel] Google Ads already initialized')
-      }
-      return
+        return
     }
 
     // Create gtag object
@@ -156,9 +144,6 @@ class PixelManager {
     }
     ;(window as any).gtag('js', new Date())
 
-    if (this.debug) {
-      console.log('[Pixel] Google Ads initialized')
-    }
   }
 
   /**
@@ -244,9 +229,6 @@ class PixelManager {
     const eventData = customData || {}
     ;(window as any).fbq('track', eventName, eventData)
 
-    if (this.debug) {
-      console.log('[Pixel] Meta client event:', eventName, eventData)
-    }
   }
 
   /**
@@ -268,9 +250,6 @@ class PixelManager {
     const eventData = customData || {}
     ;(window as any).gtag('event', eventName, eventData)
 
-    if (this.debug) {
-      console.log('[Pixel] Google client event:', eventName, eventData)
-    }
   }
 
   /**
@@ -308,10 +287,6 @@ class PixelManager {
       }
 
       const data = await response.json()
-
-      if (this.debug) {
-        console.log('[Pixel] Meta CAPI response:', data)
-      }
 
       return data
     } catch (error) {
@@ -357,10 +332,6 @@ class PixelManager {
 
       const data = await response.json()
 
-      if (this.debug) {
-        console.log('[Pixel] Google Conversion response:', data)
-      }
-
       return data
     } catch (error) {
       console.error('[Pixel] Google Conversion error:', error)
@@ -387,10 +358,6 @@ class PixelManager {
       event_id: event.event_id || this.generateEventId(),
     }
 
-    if (this.debug) {
-      console.log('[Pixel] Sending conversion:', enrichedEvent.event_name)
-    }
-
     // Fire both browser pixels
     this.fireClientMetaEvent(enrichedEvent.event_name, enrichedEvent.custom_data)
     this.fireClientGoogleEvent(enrichedEvent.event_name, enrichedEvent.custom_data)
@@ -400,13 +367,6 @@ class PixelManager {
       this.fireServerMetaEvent(enrichedEvent),
       this.fireServerGoogleEvent(enrichedEvent),
     ])
-
-    if (this.debug) {
-      console.log('[Pixel] Conversion complete', {
-        meta: metaResponse?.success || metaResponse?.status,
-        google: googleResponse?.success || googleResponse?.status,
-      })
-    }
 
     return {
       meta: metaResponse,
@@ -421,9 +381,6 @@ class PixelManager {
     this.fireClientMetaEvent('PageView')
     this.fireClientGoogleEvent('page_view')
 
-    if (this.debug) {
-      console.log('[Pixel] Page view tracked')
-    }
   }
 
   /**

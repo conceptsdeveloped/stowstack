@@ -463,7 +463,7 @@ function LandingPageFooter() {
   return (
     <footer className="py-8 bg-slate-950 text-center">
       <p className="text-xs text-slate-500">
-        Powered by <a href="https://stowstack.co" className="text-emerald-500 hover:text-emerald-400">StowStack</a>
+        Powered by <a href="https://stowstack.co" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400">StowStack</a>
       </p>
     </footer>
   )

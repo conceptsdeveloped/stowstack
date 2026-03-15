@@ -364,7 +364,6 @@ export function AggressiveTemplate(props: LandingPageTemplateProps) {
               style={{ background: pc }}
               onClick={() => {
                 // Pixel: CTA click event
-                console.log('Event: cta_click')
               }}
             >
               RESERVE NOW - {props.offer?.text || 'LIMITED UNITS'}

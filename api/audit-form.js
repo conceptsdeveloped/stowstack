@@ -228,8 +228,6 @@ export default async function handler(req, res) {
       notes: body.notes?.trim() || null,
     }
 
-    console.log('New audit lead:', JSON.stringify({ ...leadData, submittedAt: new Date().toISOString() }))
-
     // Save to Postgres (single source of truth)
     let facilityId = null
     try {
@@ -254,7 +252,6 @@ export default async function handler(req, res) {
         ]
       )
       facilityId = rows[0].id
-      console.log('Facility saved to Postgres:', facilityId)
     } catch (dbErr) {
       console.error('Failed to save facility to Postgres:', dbErr.message)
       return res.status(500).json({ error: 'Failed to save lead' })
@@ -277,7 +274,6 @@ export default async function handler(req, res) {
          ON CONFLICT (facility_id) DO NOTHING`,
         [facilityId, now.toISOString(), nextSendAt.toISOString()]
       )
-      console.log('Lead enrolled in drip sequence:', facilityId)
     } catch (dripErr) {
       console.error('Failed to enroll lead in drip:', dripErr.message)
     }

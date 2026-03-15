@@ -27,9 +27,9 @@ npm run lint       # ESLint
 
 ## Tech Stack
 
-- **React 18** with JSX (no TypeScript)
+- **React 18** with TypeScript
 - **Vite 5** as build tool
-- **Tailwind CSS 4** via `@tailwindcss/vite` plugin (configured in `vite.config.js`, theme in `src/index.css` using `@theme`)
+- **Tailwind CSS 4** via `@tailwindcss/vite` plugin (configured in `vite.config.ts`, theme in `src/index.css` using `@theme`)
 - **Lucide React** for icons
 - **Recharts** for dashboard charts
 - **Vercel** for deployment (see `vercel.json` for SPA rewrites and API routing)
@@ -41,17 +41,16 @@ The app uses **client-side view switching via React state** — no router. `App.
 
 ### Key files
 
-- `src/App.jsx` — Top-level view switcher with floating nav toggle (top-right corner)
-- `src/views/Website.jsx` — Main marketing landing page (single-file with all sections and data inline)
-- `src/views/Dashboard.jsx` — Internal analytics dashboard with mock data
-- `src/views/MetaAdsGuide.jsx` — Educational content about Meta ads for storage operators
-- `src/views/Library.jsx` — Resource library
-- `src/views/ClientLogin.jsx` / `ClientPortal.jsx` — Client auth (uses `localStorage` key `stowstack_client`)
-- `src/data/mockData.js` — Mock client/facility data used by Dashboard
-- `src/components/Chatbot.jsx` — Floating chatbot widget (present on all views)
-- `src/components/ScrollReveal.jsx` — IntersectionObserver wrapper for scroll-triggered animations
-- `src/components/sections/CTA.jsx` — CTA section with audit intake form
-- `src/components/forms/AuditIntakeForm.jsx` — Audit intake form component
+- `src/App.tsx` — Top-level view switcher with floating nav toggle (top-right corner)
+- `src/components/DemoDashboard.tsx` — Simulated facility analytics dashboard
+- `src/components/AdminDashboard.tsx` — Internal lead pipeline and ops dashboard
+- `src/components/ClientPortal.tsx` — Client-facing analytics portal
+- `src/components/OnboardingWizard.tsx` — Multi-step client onboarding flow
+- `src/components/LandingPageView.tsx` — Ad-specific landing page renderer
+- `src/components/ErrorBoundary.tsx` — React error boundary (catches render crashes)
+- `src/components/dashboard/` — Dashboard tab components (leads, landing pages, UTM, assets, creatives, publishing)
+- `src/utils/pixel.ts` — Unified Meta + Google conversion tracking (client + server CAPI)
+- `src/utils/ab-testing.ts` — Deterministic A/B testing with chi-square significance
 - `src/hooks/useAuditForm.js` — Form state, validation, and submission hook
 - `src/lib/formData.js` — Form field options as constants (shared between frontend and API)
 - `api/audit-form.js` — Vercel serverless function: validates, emails via Resend, returns JSON
@@ -65,6 +64,6 @@ The app uses **client-side view switching via React state** — no router. `App.
 
 ### Important notes
 
-- The `src/components/dashboard/` and `src/components/website/` directories exist but are empty — all component code is currently inline within the view files
-- No database yet — leads are logged to console and emailed. TODO: Vercel Postgres or Supabase
+- Database is PostgreSQL (connection via `api/_db.js`, schema in `db/migrate.js`)
 - No test framework is configured
+- CI runs lint, typecheck, and build on PRs via GitHub Actions (`.github/workflows/ci.yml`)

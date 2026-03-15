@@ -191,13 +191,6 @@ export function getVariant(testId: string, variants: ABTestVariant[]): ABTestVar
   // Store assignment
   storeAssignment(testId, selected, visitorId);
 
-  if (import.meta.env.DEV) {
-    console.log(`[AB Testing] Variant assigned for test "${testId}": ${selected.slug}`, {
-      hashPercent,
-      visitorId: visitorId.slice(0, 8) + '...',
-    });
-  }
-
   return selected;
 }
 
@@ -249,9 +242,6 @@ function storeAssignment(testId: string, variant: ABTestVariant, visitorId: stri
 export function clearAllAssignments(): void {
   try {
     localStorage.removeItem(STORAGE_KEYS.VARIANT_ASSIGNMENTS);
-    if (import.meta.env.DEV) {
-      console.log('[AB Testing] All variant assignments cleared');
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[AB Testing] Failed to clear assignments:', e);
@@ -295,9 +285,6 @@ export async function trackABEvent(
   // Record event locally
   recordEventLocally(testId, variantId, visitorId, eventName, metadata);
 
-  if (import.meta.env.DEV) {
-    console.log(`[AB Testing] Event tracked: test="${testId}" variant="${variantId}" event="${eventName}"`);
-  }
 }
 
 /**
@@ -356,9 +343,6 @@ function getAllEvents(): VariantEventData[] {
 export function clearAllEvents(): void {
   try {
     localStorage.removeItem(STORAGE_KEYS.AB_EVENTS);
-    if (import.meta.env.DEV) {
-      console.log('[AB Testing] All A/B test events cleared');
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[AB Testing] Failed to clear events:', e);
@@ -690,7 +674,4 @@ export function simulateEvents(
     }
   }
 
-  console.log(
-    `[AB Testing] Simulated ${conversionCount} conversions out of ${visitorCount} visitors for variant ${variantId}`
-  );
 }

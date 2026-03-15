@@ -259,14 +259,6 @@ export function initUtmTracking(): void {
     }
   }
 
-  // Log in dev mode
-  if (import.meta.env.DEV) {
-    console.log('[UTM] Tracking initialized', {
-      visitor_id: visitorId,
-      utm_params: utmParams,
-      first_visit: firstVisitTimestamp === now,
-    });
-  }
 }
 
 /**
@@ -382,9 +374,6 @@ export function clearUtmTracking(): void {
       localStorage.removeItem(key);
     });
 
-    if (import.meta.env.DEV) {
-      console.log('[UTM] Tracking data cleared');
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[UTM] Failed to clear tracking data:', e);
@@ -399,9 +388,6 @@ export function resetSession(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION);
 
-    if (import.meta.env.DEV) {
-      console.log('[UTM] Session reset');
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[UTM] Failed to reset session:', e);
@@ -433,9 +419,6 @@ export function updateSessionUtmParams(newParams: UtmParams): void {
   try {
     sessionStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(updatedSession));
 
-    if (import.meta.env.DEV) {
-      console.log('[UTM] Session UTM params updated', mergedParams);
-    }
   } catch (e) {
     if (import.meta.env.DEV) {
       console.warn('[UTM] Failed to update session UTM params:', e);

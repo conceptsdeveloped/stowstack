@@ -65,7 +65,6 @@ export default function EmailCapture({ variant = 'inline', source }: Props) {
     // Simulate submission delay
     setTimeout(() => {
       const entry = { email, timestamp: new Date().toISOString(), source: source || window.location.pathname };
-      console.log('[EmailCapture] Subscription:', entry);
       const subs = getSubscribers();
       subs.push(entry);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(subs));

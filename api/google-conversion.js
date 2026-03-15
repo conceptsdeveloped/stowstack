@@ -336,14 +336,7 @@ export default async function handler(req, res) {
     // In production, you'd use the Google Ads API with OAuth
     const googleResponse = await sendViaConversionAPI(conversionPayload)
 
-    console.log(
-      `Google Conversion: ${body.event_name} sent successfully`,
-      JSON.stringify({
-        gclid: body.gclid,
-        event: body.event_name,
-        response: googleResponse,
-      })
-    )
+
 
     return res.status(200).json({
       success: true,

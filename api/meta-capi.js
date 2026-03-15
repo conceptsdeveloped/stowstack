@@ -318,11 +318,6 @@ export default async function handler(req, res) {
       accessToken
     )
 
-    console.log(
-      `Meta CAPI: ${body.event_name} sent successfully`,
-      JSON.stringify({ event_id: body.event_id, response: metaResponse })
-    )
-
     return res.status(200).json({
       success: true,
       event_id: body.event_id,

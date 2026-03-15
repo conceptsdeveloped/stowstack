@@ -74,10 +74,6 @@ export default async function handler(req, res) {
     // Still return success to Facebook — we logged the request
   }
 
-  console.log(
-    `[FB Data Deletion] Request received for user ${userId} — code: ${confirmationCode}`
-  )
-
   const statusUrl = `${BASE_URL}/api/fb/data-deletion/status?code=${confirmationCode}`
 
   return res.json({

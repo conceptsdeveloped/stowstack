@@ -163,7 +163,6 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log('Drip cron results:', JSON.stringify(results))
     return res.status(200).json({ success: true, ...results })
   } catch (err) {
     console.error('Drip cron fatal error:', err)

@@ -45,7 +45,6 @@ export default function EmailCaptureBar() {
     setStatus('loading');
     setTimeout(() => {
       const entry = { email, timestamp: new Date().toISOString(), source: window.location.pathname };
-      console.log('[EmailCapture] Subscription:', entry);
       try {
         const subs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         subs.push(entry);
