@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "node scripts/generate-commits.js && tsc -b && vite build && node scripts/generate-sitemap.js",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

@@ -12,7 +12,7 @@ import {
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
   Star, Building2, DollarSign, Megaphone, Layers,
   Truck, Home, Heart, Package, GraduationCap, Hammer, Boxes,
-  Car, Calendar, Users, Shield, Rocket, Search, Eye, RefreshCw,
+  Car, Calendar, Shield, Rocket, Search, Eye, RefreshCw,
   Code, BarChart2, Key, Calculator, ArrowUpRight,
   XCircle, CheckCircle2, Crosshair, Timer, Cpu,
   SlidersHorizontal, Sparkles,
