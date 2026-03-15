@@ -25,70 +25,76 @@ function checkAuth(req) {
   return req.headers['x-admin-key'] === ADMIN_KEY
 }
 
-// Style references that users can select to influence video aesthetics
+// Core aesthetic DNA — applied to ALL generations as a baseline.
+// Inspired by: warm analog textures, restrained confidence, every frame a poster,
+// bold simplicity, emotional resonance, quiet craft, trusting the visual.
+const CORE_STYLE = 'Warm muted color palette with subtle film grain texture. Intentional composition with generous negative space. Slow deliberate camera movement. Soft natural lighting with gentle warmth. Understated and confident. Every frame feels carefully considered. Quiet elegance.'
+
+// Style references that users can select to layer on top of core aesthetic
 const STYLE_PRESETS = {
   none: { name: 'Default', suffix: '' },
-  cinematic: { name: 'Cinematic', suffix: 'Cinematic color grading, anamorphic lens flare, shallow depth of field, 35mm film grain, Hollywood commercial quality.' },
-  vintage: { name: 'Vintage / Retro', suffix: 'Vintage 70s film look, warm analog color palette, soft focus, Super 8 texture, nostalgic and warm.' },
-  wes_anderson: { name: 'Storybook Symmetry', suffix: 'Perfectly symmetrical composition, soft pastel color palette, centered framing, whimsical and meticulously composed, flat perspective, dollhouse aesthetic.' },
-  drone: { name: 'Aerial / Drone', suffix: 'Aerial drone shot, smooth overhead flyover, sweeping landscape view, golden hour from above, high altitude perspective.' },
-  minimal: { name: 'Clean / Minimal', suffix: 'Clean minimal aesthetic, lots of negative space, muted tones, modern Scandinavian design feel, quiet and elegant.' },
-  bold: { name: 'Bold / High Energy', suffix: 'Bold saturated colors, high contrast, dynamic camera movement, fast-paced energy, punchy commercial advertising style.' },
-  moody: { name: 'Moody / Dark', suffix: 'Moody dark tones, dramatic shadows, teal and orange color grade, cinematic noir feel, atmospheric and brooding.' },
-  iphone: { name: 'iPhone / Authentic', suffix: 'Shot on iPhone style, handheld casual feel, natural lighting, authentic and unpolished, real and relatable social media content.' },
-  timelapse: { name: 'Timelapse', suffix: 'Smooth timelapse footage, accelerated motion, clouds moving rapidly overhead, day passing quickly, hyperlapse movement.' },
+  cinematic: { name: 'Cinematic', suffix: 'Anamorphic lens quality, shallow depth of field, 35mm film texture, rich shadow detail.' },
+  vintage: { name: 'Vintage / Analog', suffix: 'Warm analog color shift, soft halation around highlights, Super 8 texture, nostalgic and tactile.' },
+  storybook: { name: 'Storybook Symmetry', suffix: 'Perfectly symmetrical centered framing, soft pastel tones, flat perspective, meticulously composed like a dollhouse.' },
+  drone: { name: 'Aerial / Drone', suffix: 'Aerial overhead perspective, smooth sweeping movement, landscape scale, golden hour from above.' },
+  minimal: { name: 'Clean / Minimal', suffix: 'Maximum negative space, muted earth tones, single subject focus, quiet and sparse, architectural simplicity.' },
+  bold: { name: 'Bold / Graphic', suffix: 'High contrast, bold saturated accent colors against muted backgrounds, graphic composition, confident and striking.' },
+  moody: { name: 'Moody / Atmospheric', suffix: 'Deep shadows, teal and amber tones, atmospheric haze, contemplative and brooding, dramatic light shafts.' },
+  handheld: { name: 'Handheld / Raw', suffix: 'Slight handheld movement, natural available light, candid documentary feel, authentic and unposed.' },
+  timelapse: { name: 'Timelapse', suffix: 'Smooth accelerated motion, clouds and light shifting rapidly, day passing in seconds, hyperlapse quality.' },
+  textile: { name: 'Tactile / Textured', suffix: 'Rich material textures, close-up surface detail, tangible and physical, you can almost feel the materials through the screen.' },
 }
 
 // Video templates with prompt engineering — NO dialogue or talking heads
 const VIDEO_TEMPLATES = {
   facility_showcase: {
     name: 'Facility Showcase',
-    description: 'Cinematic walkthrough of storage units with smooth camera motion',
+    description: 'Slow, deliberate walkthrough of storage units',
     mode: 'image_to_video',
     promptTemplate: () =>
-      `Smooth cinematic camera push forward through a clean well-lit storage facility hallway. Rows of storage unit doors on both sides. Professional commercial quality. Bright lighting. Clean floors. No people. Camera slowly glides forward.`,
+      `Slow deliberate camera glide through a storage facility hallway. Rows of unit doors recede into soft vanishing point. Clean geometry. Quiet. No people. Warm overhead lighting casting gentle shadows on concrete floor.`,
   },
   hero_shot: {
     name: 'Hero B-Roll',
-    description: 'Beautiful establishing shot of a storage facility exterior',
+    description: 'Contemplative exterior establishing shot',
     mode: 'text_to_video',
     promptTemplate: () =>
-      `Wide establishing shot of a modern storage facility exterior at golden hour. Clean building with rows of unit doors and landscaping. Camera slowly pushes in. No people. Warm sunset lighting. Commercial quality.`,
+      `Wide still establishing shot of a storage facility exterior. Late afternoon light raking across rows of unit doors. Long shadows. Quiet suburban landscape. No people. Camera holds steady then slowly pushes forward almost imperceptibly.`,
   },
   seasonal_promo: {
     name: 'Seasonal Promo',
-    description: 'Eye-catching space transformation for promotions',
+    description: 'Satisfying transformation from chaos to order',
     mode: 'text_to_video',
     promptTemplate: () =>
-      `A cluttered garage with boxes everywhere smoothly transforms into a clean organized space. No people. Storage unit doors roll up to reveal neatly organized belongings. Bright energetic colors. Modern commercial style.`,
+      `A cluttered garage slowly dissolves into a perfectly organized storage unit. Objects find their place. Boxes align. Labels appear. The mess becomes order. No people. Smooth contemplative pace. Satisfying visual resolution.`,
   },
   quick_cta: {
     name: 'Quick CTA',
-    description: '5-second punchy visual for ads',
+    description: '5-second visual punch',
     mode: 'image_to_video',
     promptTemplate: () =>
-      `Dramatic reveal of a storage facility gate opening smoothly. Camera pushes through revealing a row of clean storage units. Golden hour lighting. No people. Professional cinematic quality. Quick dynamic movement.`,
+      `A storage unit door rolls up in one smooth motion revealing a perfectly lit interior. Clean. Simple. Camera holds. The light inside is warm and inviting against the cooler exterior. No people.`,
   },
   packing_asmr: {
     name: 'Packing ASMR',
-    description: 'Satisfying overhead shot of boxes being packed',
+    description: 'Tactile close-up of careful packing',
     mode: 'text_to_video',
     promptTemplate: () =>
-      `Top-down overhead shot of hands neatly packing cardboard boxes with bubble wrap and tape. Only hands visible. Organized packing station with labels. Satisfying methodical movements. Clean workspace. Professional lighting.`,
+      `Close overhead shot of hands carefully wrapping an object in kraft paper and placing it into a cardboard box. Deliberate precise movements. Natural light from a window. Wooden table surface. Tape dispenser and marker nearby. Quiet focus.`,
   },
   before_after: {
     name: 'Before & After',
-    description: 'Cluttered space transforming into organized storage',
+    description: 'From disorder to calm',
     mode: 'text_to_video',
     promptTemplate: () =>
-      `Smooth transition from a messy overflowing garage with boxes stacked everywhere into the same items perfectly organized inside a clean well-lit storage unit with shelving and labeled boxes. No people. Satisfying transformation.`,
+      `A room full of stacked boxes and clutter. Camera slowly pans. The scene seamlessly transitions into the same view but everything is gone, replaced by clean empty space and warm light. Absence as relief. No people.`,
   },
   custom: {
     name: 'Custom Prompt',
     description: 'Write your own prompt — full creative control over the generated video',
     mode: 'text_to_video',
     promptTemplate: () =>
-      `A professional cinematic video related to self storage. High quality commercial grade.`,
+      `A beautifully composed scene. Warm muted tones. Deliberate camera movement. Quiet and confident.`,
   },
 }
 
@@ -108,20 +114,26 @@ async function generateVideoPrompt(template, facility, customNotes) {
     max_tokens: 300,
     messages: [{
       role: 'user',
-      content: `You are writing a prompt for an AI video generator (Runway ML). The video is b-roll footage for a storage facility's marketing.
+      content: `You are writing a prompt for an AI video generator (Runway ML). The video is b-roll for a storage facility's marketing.
 
-IMPORTANT RULES:
-- Do NOT include any business names, addresses, or location names in the prompt
-- Do NOT include any text that should appear on screen
-- Focus ONLY on visual scene descriptions: camera movement, lighting, objects, composition
-- No people talking or dialogue. Hands-only if people are needed.
-- Keep under 150 words
+AESTHETIC DIRECTION:
+- Warm, muted, slightly analog feel. Subtle film grain. Intentional negative space.
+- Slow, deliberate camera movement. Every frame should feel like a considered photograph.
+- Quiet confidence — no hard sell energy, no stock footage look.
+- Think premium brand campaign: restrained, tactile, beautiful.
 
-Template type: ${template.name}
+HARD RULES:
+- No business names, addresses, locations, or brand names
+- No text on screen
+- No people talking. Hands-only if people needed.
+- Under 120 words
+- Focus on: camera movement, lighting quality, composition, texture, color
+
+Template: ${template.name}
 Base prompt: ${basePrompt}
-${customNotes ? `Operator notes: ${customNotes}` : ''}
+${customNotes ? `Notes: ${customNotes}` : ''}
 
-Refine the base prompt to be more visually compelling. Return ONLY the prompt text, nothing else.`
+Refine into a visually compelling prompt. Return ONLY the prompt, nothing else.`
     }],
   })
 
@@ -271,11 +283,14 @@ export default async function handler(req, res) {
       // Use override prompt if provided, otherwise generate one
       let prompt = promptOverride?.trim() || await generateVideoPrompt(template, facility, customNotes)
 
-      // Append style preset if selected
+      // Layer core aesthetic + selected style preset
+      prompt = `${prompt} ${CORE_STYLE}`
       const style = STYLE_PRESETS[stylePreset]
       if (style?.suffix) {
         prompt = `${prompt} ${style.suffix}`
       }
+      // Ensure under 1000 char limit
+      prompt = prompt.slice(0, 1000)
 
       // For image_to_video mode, we need an image
       const sourceImage = imageUrl || null
