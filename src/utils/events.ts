@@ -7,6 +7,8 @@
  */
 
 import { getUtmParams, getVisitorId } from './utm';
+import { captureEvent } from '../plugins/posthog';
+import { trackUmamiEvent } from '../plugins/umami';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EVENT TYPES
@@ -553,6 +555,10 @@ export async function trackConversion(event: ConversionEvent): Promise<void> {
   // Fire to third-party integrations
   fireMetaPixelEvent(event);
   fireGoogleAnalyticsEvent(event);
+
+  // Fire to open source analytics (PostHog + Umami)
+  captureEvent(`stowstack_${event.type}`, { ...event, visitor_id: visitorId });
+  trackUmamiEvent(event.type, { ...event });
 
   // Fire to custom API with retry logic
   const apiSuccess = await fireAttributionApiEvent(attributedEvent);
