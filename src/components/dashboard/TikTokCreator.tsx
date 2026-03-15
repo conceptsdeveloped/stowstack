@@ -157,9 +157,10 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
 
       // Pick a random hook or use ad copy if available
       const approvedVariation = variations.find(v => v.status === 'approved' || v.status === 'published')
-      const hookText = approvedVariation?.content_json.primaryText || STORAGE_HOOKS[Math.floor(Math.random() * STORAGE_HOOKS.length)]
-      const headline = approvedVariation?.content_json.headline || facility.name
-      const cta = approvedVariation?.content_json.cta || 'Reserve Your Unit Today'
+      const contentJson = approvedVariation?.content_json as Record<string, unknown> | undefined
+      const hookText = (contentJson?.primaryText as string) || STORAGE_HOOKS[Math.floor(Math.random() * STORAGE_HOOKS.length)]
+      const headline = (contentJson?.headline as string) || facility.name
+      const cta = (contentJson?.cta as string) || 'Reserve Your Unit Today'
 
       const newSlides: Slide[] = [
         // Slide 1: Hook
