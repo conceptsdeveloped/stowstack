@@ -34,6 +34,16 @@ export const SEQUENCES = {
       { delayDays: 21, templateId: 'last_chance', label: 'Final touch' },
     ],
   },
+  recovery: {
+    id: 'recovery',
+    name: 'Abandoned Form Recovery',
+    description: 'Automated recovery sequence for partial/abandoned landing page leads',
+    steps: [
+      { delayHours: 1, templateId: 'recovery_1hr', label: 'Quick recovery (1hr)' },
+      { delayHours: 24, templateId: 'recovery_24hr', label: 'Urgency nudge (24hr)' },
+      { delayHours: 72, templateId: 'recovery_72hr', label: 'Discount offer (72hr)' },
+    ],
+  },
 }
 
 /**

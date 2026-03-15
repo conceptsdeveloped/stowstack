@@ -243,6 +243,72 @@ const TEMPLATES = {
         </div>`
     },
   },
+  // === RECOVERY DRIP TEMPLATES (for partial/abandoned leads) ===
+  recovery_1hr: {
+    id: 'recovery_1hr',
+    name: 'Recovery: 1 Hour',
+    description: 'First recovery email sent 1 hour after form abandonment',
+    subject: (lead) => `Still looking for storage${lead.facilityName ? ` near ${esc(lead.facilityName)}` : ''}?`,
+    body: (lead) => {
+      const firstName = lead.name ? esc(lead.name.trim().split(' ')[0]) : 'there'
+      const unitLine = lead.unitSize ? `<p>It looks like you were checking out <strong>${esc(lead.unitSize)}</strong> units. ` : '<p>'
+      return `
+        <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+          <p>Hey ${firstName},</p>
+          ${unitLine}Good news — units are still available and we are holding your spot.</p>
+          <div style="margin: 24px 0; padding: 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; text-align: center;">
+            <p style="margin: 0 0 4px; font-weight: 600; color: #166534; font-size: 18px;">Your unit is still available</p>
+            <p style="margin: 0 0 16px; font-size: 14px; color: #374151;">Pick up right where you left off — takes less than 60 seconds.</p>
+            <a href="${esc(lead.returnUrl || 'https://stowstack.co')}" style="display: inline-block; padding: 14px 32px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Reserve Your Unit</a>
+          </div>
+          <p style="font-size: 13px; color: #6b7280;">Questions? Just reply to this email or call us at <a href="tel:2699298541" style="color: #16a34a;">269-929-8541</a>.</p>
+        </div>`
+    },
+  },
+  recovery_24hr: {
+    id: 'recovery_24hr',
+    name: 'Recovery: 24 Hours',
+    description: 'Second recovery email with urgency, sent 24 hours after abandonment',
+    subject: (lead) => `Don't miss out — units are filling up${lead.facilityName ? ` at ${esc(lead.facilityName)}` : ''}`,
+    body: (lead) => {
+      const firstName = lead.name ? esc(lead.name.trim().split(' ')[0]) : 'there'
+      return `
+        <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+          <p>Hey ${firstName},</p>
+          <p>Just a heads up — we have seen a few units get reserved since yesterday, and availability is getting tighter.</p>
+          <div style="margin: 24px 0; padding: 16px 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0; font-weight: 600; color: #92400e;">Units are going fast</p>
+            <p style="margin: 4px 0 0; font-size: 14px; color: #78350f;">We can not guarantee pricing or availability beyond today. Lock in your rate now.</p>
+          </div>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${esc(lead.returnUrl || 'https://stowstack.co')}" style="display: inline-block; padding: 14px 32px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Reserve Now — Keep Your Rate</a>
+          </div>
+          <p style="font-size: 13px; color: #6b7280;">Need help deciding? Call us at <a href="tel:2699298541" style="color: #16a34a;">269-929-8541</a> — we will walk you through options.</p>
+        </div>`
+    },
+  },
+  recovery_72hr: {
+    id: 'recovery_72hr',
+    name: 'Recovery: 72 Hours',
+    description: 'Final recovery email with discount offer, sent 72 hours after abandonment',
+    subject: (lead) => `A little something to help you decide${lead.facilityName ? ` — ${esc(lead.facilityName)}` : ''}`,
+    body: (lead) => {
+      const firstName = lead.name ? esc(lead.name.trim().split(' ')[0]) : 'there'
+      return `
+        <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
+          <p>Hey ${firstName},</p>
+          <p>We know finding the right storage spot takes time. To make the decision a little easier, we have got something for you:</p>
+          <div style="margin: 24px 0; padding: 24px; background: linear-gradient(135deg, #022c22, #0f172a); border-radius: 16px; text-align: center;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #34d399; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Limited Time Offer</p>
+            <p style="margin: 0 0 8px; font-size: 32px; font-weight: 800; color: white;">$1 First Month</p>
+            <p style="margin: 0 0 20px; font-size: 14px; color: #94a3b8;">Reserve in the next 48 hours to lock this in.</p>
+            <a href="${esc(lead.returnUrl || 'https://stowstack.co')}?promo=COMEBACK1" style="display: inline-block; padding: 14px 32px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Claim Your $1 First Month</a>
+          </div>
+          <p style="font-size: 13px; color: #6b7280;">This offer expires in 48 hours and is limited to new reservations only. Questions? Reply to this email or call <a href="tel:2699298541" style="color: #16a34a;">269-929-8541</a>.</p>
+        </div>`
+    },
+  },
+
   last_chance: {
     id: 'last_chance',
     name: 'Last Chance',

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Phone, Mail, MapPin, Check, Star, ChevronDown, ChevronUp,
-  Shield, Clock, Truck, ArrowRight, Building2, ExternalLink
+  Shield, Clock, Truck, ArrowRight, Building2, ExternalLink, X
 } from 'lucide-react'
+import { usePartialCapture } from '../hooks/usePartialCapture'
 
 /* ═══════════════════════════════════════════════════════ */
 /*  TYPES                                                   */
@@ -486,6 +487,92 @@ function LandingPageFooter() {
 }
 
 /* ═══════════════════════════════════════════════════════ */
+/*  EXIT INTENT POPUP                                        */
+/* ═══════════════════════════════════════════════════════ */
+
+function ExitIntentPopup({
+  show,
+  onDismiss,
+  onSubmit,
+  theme,
+  facilityName,
+}: {
+  show: boolean
+  onDismiss: () => void
+  onSubmit: (email: string) => void
+  theme?: ThemeConfig
+  facilityName?: string
+}) {
+  const [email, setEmail] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+
+  if (!show) return null
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      onSubmit(email)
+      setSubmitted(true)
+    }
+  }
+
+  const pc = theme?.primaryColor || '#16a34a'
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-up">
+        <button
+          onClick={onDismiss}
+          className="absolute top-3 right-3 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="p-6 pt-8 text-center" style={{ background: `linear-gradient(135deg, ${pc}10, ${pc}05)` }}>
+          {submitted ? (
+            <>
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: `${pc}20` }}>
+                <Check size={24} style={{ color: pc }} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">You're all set!</h3>
+              <p className="text-sm text-slate-500">We'll send you availability updates{facilityName ? ` for ${facilityName}` : ''}. Check your inbox.</p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Wait — don't lose your spot!</h3>
+              <p className="text-sm text-slate-500 mb-5">
+                Enter your email and we'll save your progress. Plus, we'll let you know if availability changes{facilityName ? ` at ${facilityName}` : ''}.
+              </p>
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+                  autoFocus
+                  required
+                />
+                <button
+                  type="submit"
+                  className="px-5 py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  style={{ background: pc }}
+                >
+                  Save My Spot
+                </button>
+              </form>
+              <p className="text-xs text-slate-400 mt-3">No spam. Unsubscribe anytime.</p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
 /*  MAIN VIEW COMPONENT                                     */
 /* ═══════════════════════════════════════════════════════ */
 
@@ -493,6 +580,41 @@ export default function LandingPageView({ slug }: { slug: string }) {
   const [page, setPage] = useState<LandingPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showExitPopup, setShowExitPopup] = useState(false)
+
+  // Partial capture hook — tracks scroll, time, exit intent
+  const { onFieldBlur } = usePartialCapture({
+    landingPageId: page?.id,
+    facilityId: page?.facility_id,
+    enabled: !!page,
+  })
+
+  // Exit intent handler
+  useEffect(() => {
+    if (!page || sessionStorage.getItem('stowstack_exit_dismissed')) return
+
+    const handleMouseLeave = (e: MouseEvent) => {
+      if (e.clientY <= 0 && !showExitPopup) {
+        setShowExitPopup(true)
+      }
+    }
+    document.addEventListener('mouseleave', handleMouseLeave)
+    return () => document.removeEventListener('mouseleave', handleMouseLeave)
+  }, [page, showExitPopup])
+
+  const handleExitDismiss = useCallback(() => {
+    setShowExitPopup(false)
+    sessionStorage.setItem('stowstack_exit_dismissed', '1')
+  }, [])
+
+  const handleExitSubmit = useCallback((email: string) => {
+    onFieldBlur('email', email)
+    // Auto-dismiss after 2 seconds
+    setTimeout(() => {
+      setShowExitPopup(false)
+      sessionStorage.setItem('stowstack_exit_dismissed', '1')
+    }, 2000)
+  }, [onFieldBlur])
 
   useEffect(() => {
     async function fetchPage() {
@@ -562,6 +684,15 @@ export default function LandingPageView({ slug }: { slug: string }) {
         }
       </main>
       <LandingPageFooter />
+
+      {/* Exit Intent Popup — captures email before bounce */}
+      <ExitIntentPopup
+        show={showExitPopup}
+        onDismiss={handleExitDismiss}
+        onSubmit={handleExitSubmit}
+        theme={page.theme}
+        facilityName={facilityName}
+      />
     </div>
   )
 }

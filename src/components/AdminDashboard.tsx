@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
   Download, CalendarClock, CheckSquare,
   Settings, Columns3, CreditCard, Moon, Sun,
-  Bell, Sparkles, BookOpen, BarChart3, Share2
+  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame
 } from 'lucide-react'
 
 import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
@@ -23,6 +23,7 @@ import PortfolioView from './dashboard/PortfolioView'
 import InsightsView from './dashboard/InsightsView'
 import SequencesView from './dashboard/SequencesView'
 import SharedAuditsView from './dashboard/SharedAuditsView'
+import RecoveryView from './dashboard/RecoveryView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
 
@@ -361,6 +362,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             ['facilities', 'Facilities', Building2],
             ['sequences', 'Sequences', CalendarClock],
             ['shared-audits', 'Shared Audits', Share2],
+            ['recovery', 'Recovery', Flame],
             ['whats-new', "What's New", Sparkles],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -396,6 +398,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             if (action === 'billing') setActiveTab('billing')
             if (action === 'settings') setActiveTab('settings')
             if (action === 'sequences') setActiveTab('sequences')
+            if (action === 'recovery') setActiveTab('recovery')
             if (action === 'dark') setDarkMode(!darkMode)
             if (action === 'guide') setShowGuide(true)
             if (action === 'csv') downloadCsv()
@@ -460,6 +463,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'shared-audits' && (
           <SharedAuditsView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'recovery' && (
+          <RecoveryView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'whats-new' && (

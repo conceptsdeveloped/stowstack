@@ -411,6 +411,44 @@ CREATE TABLE IF NOT EXISTS drip_sequence_templates (
   UNIQUE(facility_id, variation_id)
 );
 CREATE INDEX IF NOT EXISTS idx_drip_templates_facility ON drip_sequence_templates(facility_id);
+
+-- Partial leads: captures abandoned form data field-by-field
+CREATE TABLE IF NOT EXISTS partial_leads (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  landing_page_id UUID REFERENCES landing_pages(id) ON DELETE SET NULL,
+  facility_id     UUID REFERENCES facilities(id) ON DELETE SET NULL,
+  session_id      TEXT NOT NULL,
+  email           TEXT,
+  phone           TEXT,
+  name            TEXT,
+  unit_size       TEXT,
+  fields_completed INTEGER DEFAULT 0,
+  total_fields    INTEGER DEFAULT 0,
+  scroll_depth    INTEGER DEFAULT 0,
+  time_on_page    INTEGER DEFAULT 0,
+  exit_intent     BOOLEAN DEFAULT FALSE,
+  utm_source      TEXT,
+  utm_medium      TEXT,
+  utm_campaign    TEXT,
+  utm_content     TEXT,
+  referrer        TEXT,
+  user_agent      TEXT,
+  ip_hash         TEXT,
+  recovery_status TEXT DEFAULT 'pending',
+  recovery_sent_count INTEGER DEFAULT 0,
+  next_recovery_at TIMESTAMPTZ,
+  converted       BOOLEAN DEFAULT FALSE,
+  converted_at    TIMESTAMPTZ,
+  lead_score      INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(session_id)
+);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_email ON partial_leads(email);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_recovery ON partial_leads(recovery_status, next_recovery_at);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_session ON partial_leads(session_id);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_landing_page ON partial_leads(landing_page_id);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_created ON partial_leads(created_at DESC);
 `
 
 async function migrate() {
