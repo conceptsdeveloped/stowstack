@@ -58,6 +58,7 @@ export interface PixelConfig {
  * Pixel manager class for unified tracking.
  */
 class PixelManager {
+  // @ts-ignore stored for potential future use
   private _config: PixelConfig
   private metaPixelId: string | null = null
   private googleConversionId: string | null = null
