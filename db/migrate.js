@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 );
 CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
 CREATE INDEX IF NOT EXISTS idx_organizations_custom_domain ON organizations(custom_domain);
-CREATE INDEX IF NOT EXISTS idx_organizations_stripe_customer ON organizations(stripe_customer_id);
+-- idx_organizations_stripe_customer created after ALTER ADD COLUMN below
 
 -- Org users: role-based access within an organization
 CREATE TABLE IF NOT EXISTS org_users (
