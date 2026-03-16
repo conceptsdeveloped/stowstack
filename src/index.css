@@ -171,6 +171,15 @@ html {
   background: rgba(16, 185, 129, 0.2);
 }
 
+/* Hidden scrollbar for ticker infinite scroll */
+.admin-scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.admin-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 /* Nav item hover micro-interaction */
 .admin-nav-item {
   position: relative;

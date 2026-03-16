@@ -810,32 +810,98 @@ export default function SidebarTicker({
   const [isHovered, setIsHovered] = useState(false)
   const [autoScrollPaused, setAutoScrollPaused] = useState(false)
 
-  // Auto-scroll the ticker tape
+  // Infinite scroll: duplicate cards so we can loop seamlessly
+  // When scroll passes the halfway mark (end of first set), snap back to top
+  const halfHeight = useRef(0)
+
+  // Measure the height of one full set of cards
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || cards.length === 0) return
+    // The inner container has two copies; half is one copy
+    const inner = el.firstElementChild as HTMLElement | null
+    if (inner) halfHeight.current = inner.scrollHeight / 2
+  }, [cards])
+
+  // Auto-scroll the ticker tape with infinite loop
   useEffect(() => {
     if (cards.length === 0 || isHovered || autoScrollPaused) return
     const el = scrollRef.current
     if (!el) return
     const interval = setInterval(() => {
       if (!el) return
-      const maxScroll = el.scrollHeight - el.clientHeight
-      if (el.scrollTop >= maxScroll - 2) {
-        // Reset to top with a smooth feel
-        el.scrollTo({ top: 0, behavior: 'smooth' })
-      } else {
-        el.scrollBy({ top: 1, behavior: 'auto' })
+      // Seamless reset: when we pass the first copy, jump back
+      if (halfHeight.current > 0 && el.scrollTop >= halfHeight.current) {
+        el.scrollTop = el.scrollTop - halfHeight.current
       }
+      el.scrollBy({ top: 1, behavior: 'auto' })
     }, 40)
     return () => clearInterval(interval)
   }, [cards.length, isHovered, autoScrollPaused])
 
   // Pause auto-scroll briefly after manual scroll
+  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
   const handleWheel = useCallback(() => {
     setAutoScrollPaused(true)
-    const timeout = setTimeout(() => setAutoScrollPaused(false), 8000)
-    return () => clearTimeout(timeout)
+    clearTimeout(wheelTimeoutRef.current)
+    wheelTimeoutRef.current = setTimeout(() => setAutoScrollPaused(false), 6000)
   }, [])
 
   if (cards.length === 0) return null
+
+  /** Render a single ticker card */
+  const renderCard = (card: TickerCard, keyPrefix: string) => (
+    <div
+      key={`${keyPrefix}-${card.id}`}
+      className="relative pl-3.5 pr-2.5 py-2.5 hover:bg-white/[0.02] transition-colors duration-200"
+    >
+      {/* Left accent */}
+      <div className={`absolute left-0 top-2 bottom-2 w-[2px] rounded-r ${card.accent.replace('border-', 'bg-')}`} />
+
+      <div className="space-y-1">
+        {card.rows.map((row, i) => {
+          // First row with an icon+label = card title — render bigger
+          const isTitle = i === 0 && row.icon && row.label
+          return (
+            <div key={i}>
+              <div className={`flex items-center gap-1.5 ${isTitle ? 'mb-0.5' : ''}`}>
+                {row.icon && <span className={`${isTitle ? 'text-[11px]' : 'text-[9px]'} leading-none shrink-0`}>{row.icon}</span>}
+                {row.label && (
+                  <span className={`font-mono tracking-[0.12em] uppercase shrink-0 ${
+                    isTitle
+                      ? 'text-[9px] text-slate-400 font-semibold'
+                      : 'text-[8px] text-slate-600'
+                  }`}>
+                    {row.label}
+                  </span>
+                )}
+                {row.value && !row.spark && (
+                  <span className={`font-mono ml-auto text-right leading-tight ${
+                    isTitle
+                      ? `text-[11px] font-semibold ${row.color}`
+                      : !row.label
+                        ? `text-[9px] ${row.color} italic opacity-70`
+                        : `text-[10px] ${row.color}`
+                  }`} style={!row.label ? { marginLeft: '14px' } : undefined}>
+                    {row.value}
+                  </span>
+                )}
+              </div>
+              {row.spark && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <MiniSpark data={row.spark} color={row.color} />
+                  {row.value && (
+                    <span className={`text-[10px] font-mono ${row.color} ml-auto`}>{row.value}</span>
+                  )}
+                </div>
+              )}
+              {row.bar !== undefined && <MiniBar value={row.bar} color={row.color.replace('text-', 'bg-')} />}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   return (
     <div
@@ -845,64 +911,30 @@ export default function SidebarTicker({
     >
       {/* Header bar */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.04]">
-        <span className="text-[8px] font-mono text-slate-600 tracking-[0.2em] uppercase">DEV TICKER</span>
+        <span className="text-[9px] font-mono text-slate-500 tracking-[0.18em] uppercase font-semibold">DEV TICKER</span>
         <span className="flex-1" />
-        <span className="text-[8px] font-mono text-slate-700">{cards.length} stats</span>
+        <span className="text-[8px] font-mono text-slate-700">{cards.length}</span>
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 admin-dot-pulse" />
       </div>
 
-      {/* Scrollable ticker tape */}
+      {/* Scrollable ticker tape — two copies for infinite loop */}
       <div
         ref={scrollRef}
         onWheel={handleWheel}
-        className="overflow-y-auto admin-scrollbar"
+        className="overflow-y-auto admin-scrollbar-hidden"
         style={{ maxHeight: 'calc(50vh - 120px)', minHeight: '180px' }}
       >
-        <div className="divide-y divide-white/[0.03]">
-          {cards.map((card) => (
-            <div
-              key={card.id}
-              className="relative px-2.5 py-2 hover:bg-white/[0.02] transition-colors duration-200"
-            >
-              {/* Left accent */}
-              <div className={`absolute left-0 top-2 bottom-2 w-[2px] rounded-r ${card.accent.replace('border-', 'bg-')}`} />
-
-              <div className="space-y-[2px]">
-                {card.rows.map((row, i) => (
-                  <div key={i}>
-                    <div className="flex items-center gap-1">
-                      {row.icon && <span className="text-[9px] leading-none">{row.icon}</span>}
-                      {row.label && (
-                        <span className="text-[8px] font-mono text-slate-600 tracking-[0.15em] uppercase shrink-0">
-                          {row.label}
-                        </span>
-                      )}
-                      {row.value && !row.spark && (
-                        <span className={`text-[10px] font-mono ${row.color} ml-auto text-right truncate leading-tight`}>
-                          {row.value}
-                        </span>
-                      )}
-                    </div>
-                    {row.spark && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <MiniSpark data={row.spark} color={row.color} />
-                        {row.value && (
-                          <span className={`text-[10px] font-mono ${row.color} ml-auto`}>{row.value}</span>
-                        )}
-                      </div>
-                    )}
-                    {row.bar !== undefined && <MiniBar value={row.bar} color={row.color.replace('text-', 'bg-')} />}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="divide-y divide-white/[0.04]">
+          {/* First copy */}
+          {cards.map(card => renderCard(card, 'a'))}
+          {/* Second copy for seamless loop */}
+          {cards.map(card => renderCard(card, 'b'))}
         </div>
       </div>
 
       {/* Fade overlays top/bottom */}
-      <div className="pointer-events-none absolute top-[26px] left-0 right-0 h-4 bg-gradient-to-b from-[#0a0d12] to-transparent z-10" />
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[#0a0d12] to-transparent z-10" />
+      <div className="pointer-events-none absolute top-[28px] left-0 right-0 h-5 bg-gradient-to-b from-[#0a0d12] to-transparent z-10" />
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0a0d12] to-transparent z-10" />
     </div>
   )
 }
