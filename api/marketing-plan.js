@@ -189,19 +189,38 @@ export default async function handler(req, res) {
       const client = new Anthropic({ apiKey })
       const message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: PLAN_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `Generate a detailed, actionable marketing plan for this self-storage facility. Use all the data provided to make it specific and credible — not generic.\n\n${lines.join('\n')}` }],
       })
 
-      const raw = message.content[0].text.trim()
+      let raw = message.content[0].text.trim()
       let planJson
       try {
         planJson = JSON.parse(raw)
       } catch {
+        // Try extracting JSON block
         const match = raw.match(/\{[\s\S]*\}/)
-        if (!match) throw new Error('Could not parse marketing plan response')
-        planJson = JSON.parse(match[0])
+        if (match) {
+          try {
+            planJson = JSON.parse(match[0])
+          } catch {
+            // Attempt to repair truncated JSON by closing open brackets
+            let repaired = match[0]
+            const openBraces = (repaired.match(/\{/g) || []).length
+            const closeBraces = (repaired.match(/\}/g) || []).length
+            const openBrackets = (repaired.match(/\[/g) || []).length
+            const closeBrackets = (repaired.match(/\]/g) || []).length
+            // Trim trailing incomplete values
+            repaired = repaired.replace(/,\s*$/, '')
+            repaired = repaired.replace(/,\s*"[^"]*$/, '')
+            for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']'
+            for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}'
+            planJson = JSON.parse(repaired)
+          }
+        } else {
+          throw new Error('Could not parse marketing plan response')
+        }
       }
 
       // Get version number
