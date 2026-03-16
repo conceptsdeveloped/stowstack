@@ -1,19 +1,32 @@
 import { Keyboard, X as XIcon } from 'lucide-react'
 
 export default function ShortcutsModal({ darkMode, onClose }: { darkMode: boolean; onClose: () => void }) {
-  const shortcuts = [
-    { key: '⌘K', desc: 'Open command palette' },
-    { key: '1', desc: 'Pipeline view' },
-    { key: '2', desc: 'Kanban view' },
-    { key: '3', desc: 'Portfolio view' },
-    { key: '4', desc: 'Insights view' },
-    { key: '5', desc: 'Billing view' },
-    { key: '6', desc: 'Settings view' },
-    { key: 'R', desc: 'Refresh data' },
-    { key: 'N', desc: 'Toggle notifications' },
-    { key: 'H', desc: 'Open admin guide' },
-    { key: '?', desc: 'Show shortcuts' },
-    { key: 'ESC', desc: 'Close panel/modal' },
+  const groups = [
+    {
+      label: 'Navigation',
+      items: [
+        { key: '⌘K', desc: 'Command palette' },
+        { key: '1', desc: 'Pipeline' },
+        { key: '2', desc: 'Kanban' },
+        { key: '3', desc: 'Portfolio' },
+        { key: '4', desc: 'Insights' },
+        { key: '5', desc: 'Billing' },
+        { key: '6', desc: 'Settings' },
+        { key: '7', desc: 'Facilities' },
+        { key: '8', desc: 'Sequences' },
+        { key: '9', desc: "What's New" },
+      ],
+    },
+    {
+      label: 'Actions',
+      items: [
+        { key: 'R', desc: 'Refresh data' },
+        { key: 'N', desc: 'Toggle notifications' },
+        { key: 'H', desc: 'Open admin guide' },
+        { key: '?', desc: 'Show shortcuts' },
+        { key: 'ESC', desc: 'Close panel/modal' },
+      ],
+    },
   ]
 
   return (
@@ -34,11 +47,18 @@ export default function ShortcutsModal({ darkMode, onClose }: { darkMode: boolea
             <XIcon size={14} />
           </button>
         </div>
-        <div className="space-y-2">
-          {shortcuts.map(s => (
-            <div key={s.key} className="flex items-center justify-between">
-              <span className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{s.desc}</span>
-              <kbd className={`text-xs font-mono px-2 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{s.key}</kbd>
+        <div className="space-y-4">
+          {groups.map(g => (
+            <div key={g.label}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{g.label}</p>
+              <div className="space-y-1.5">
+                {g.items.map(s => (
+                  <div key={s.key} className="flex items-center justify-between">
+                    <span className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{s.desc}</span>
+                    <kbd className={`text-xs font-mono px-2 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{s.key}</kbd>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>

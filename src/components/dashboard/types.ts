@@ -270,7 +270,7 @@ export interface Invoice {
   pdfUrl?: string
 }
 
-export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'optimizer' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'attribution' | 'whats-new' | 'partners' | 'playbooks' | 'referrals' | 'tenants' | 'churn' | 'upsell' | 'remarketing'
+export type AdminTab = 'pipeline' | 'kanban' | 'portfolio' | 'optimizer' | 'insights' | 'billing' | 'settings' | 'facilities' | 'sequences' | 'shared-audits' | 'recovery' | 'attribution' | 'whats-new' | 'partners' | 'playbooks' | 'referrals' | 'tenants' | 'churn' | 'upsell' | 'remarketing' | 'activity-log' | 'call-logs' | 'alerts' | 'consumer-leads'
 
 export type ConsumerLeadStatus = 'new' | 'contacted' | 'toured' | 'reserved' | 'moved_in' | 'lost'
 

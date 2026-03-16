@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, MapPin, Clock, ChevronUp, ChevronDown, Mail, Phone, Calendar, CalendarClock, StickyNote, KeyRound, Copy, Loader2, Plus, BarChart3, Trash2, Target, MessageSquare, FileText, Sparkles, Send, CheckCircle2, ClipboardList, Share2, ExternalLink } from 'lucide-react'
+import { Building2, MapPin, Clock, ChevronUp, ChevronDown, ChevronRight, Mail, Phone, Calendar, CalendarClock, StickyNote, KeyRound, Copy, Loader2, Plus, BarChart3, Trash2, Target, MessageSquare, FileText, Sparkles, Send, CheckCircle2, ClipboardList, Share2, ExternalLink } from 'lucide-react'
 import { Lead, STATUSES, STATUS_MAP, OCCUPANCY_LABELS, UNITS_LABELS, ISSUE_LABELS } from './types'
 import { timeAgo, formatDate } from './utils'
 import OnboardingWizard from '../OnboardingWizard'
@@ -23,6 +23,17 @@ export default function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onA
   isOverdue?: boolean
 }) {
   const statusInfo = STATUS_MAP[lead.status] || { label: lead.status, color: 'bg-slate-100 text-slate-600' }
+
+  // Lead freshness — how recently was this lead updated?
+  const hoursSinceUpdate = (Date.now() - new Date(lead.updatedAt).getTime()) / 3600000
+  const freshness = hoursSinceUpdate < 24
+    ? { label: 'Fresh', color: 'bg-emerald-100 text-emerald-700' }
+    : hoursSinceUpdate < 72
+    ? { label: '1-3d', color: 'bg-yellow-100 text-yellow-700' }
+    : hoursSinceUpdate < 168
+    ? { label: '3-7d', color: 'bg-orange-100 text-orange-700' }
+    : { label: `${Math.floor(hoursSinceUpdate / 24)}d`, color: 'bg-red-100 text-red-700' }
+  const showFreshness = !['client_signed', 'lost'].includes(lead.status)
 
   const gradeColors: Record<string, string> = {
     A: 'bg-emerald-100 text-emerald-700',
@@ -59,6 +70,11 @@ export default function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onA
                 {score.grade} · {score.score}
               </span>
             )}
+            {showFreshness && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${freshness.color}`} title={`Last updated ${Math.floor(hoursSinceUpdate)}h ago`}>
+                {freshness.label}
+              </span>
+            )}
             {isOverdue && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 flex items-center gap-0.5">
                 <CalendarClock size={9} /> Overdue
@@ -86,6 +102,24 @@ export default function LeadCard({ lead, expanded, onToggle, onUpdateStatus, onA
           {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </div>
       </button>
+        {/* Quick advance — move to next stage without expanding */}
+        {(() => {
+          const statusValues = STATUSES.map(s => s.value)
+          const currentIdx = statusValues.indexOf(lead.status)
+          const nextStatus = currentIdx >= 0 && currentIdx < statusValues.length - 1 ? STATUSES[currentIdx + 1] : null
+          if (!nextStatus || lead.status === 'client_signed' || lead.status === 'lost') return null
+          return (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdateStatus(nextStatus.value) }}
+              disabled={updating}
+              className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${nextStatus.color} hover:opacity-80 disabled:opacity-40`}
+              title={`Advance to ${nextStatus.label}`}
+            >
+              <ChevronRight size={10} />
+              {nextStatus.label}
+            </button>
+          )
+        })()}
       </div>
 
       {/* Expanded Detail */}

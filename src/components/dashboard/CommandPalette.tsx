@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import {
   Search, Users, Columns3, BarChart3, TrendingUp, CreditCard, Settings, Sun, Moon,
   BookOpen, Download, RefreshCw, ChevronRight, Building2, Target, CalendarClock,
-  Share2, Flame, Gift, CalendarRange, Wallet, ShieldAlert, TrendingDown, RotateCcw, Sparkles
+  Share2, Flame, Gift, CalendarRange, Wallet, ShieldAlert, TrendingDown, RotateCcw, Sparkles,
+  Activity, Phone, Bell, UserCheck
 } from 'lucide-react'
 import { Lead } from './types'
 
@@ -52,6 +53,11 @@ export default function CommandPalette({ query, onQueryChange, leads, darkMode, 
     { id: 'shared-audits', label: 'Go to Audits', icon: Share2, group: 'Ops' },
     { id: 'partners', label: 'Go to Partners', icon: Building2, group: 'Ops' },
     { id: 'referrals', label: 'Go to Referrals', icon: Gift, group: 'Ops' },
+    { id: 'activity-log', label: 'Go to Activity Log', icon: Activity, group: 'Ops' },
+    { id: 'call-logs', label: 'Go to Call Logs', icon: Phone, group: 'Ops' },
+    // Leads (extended)
+    { id: 'consumer-leads', label: 'Go to Consumer Leads', icon: UserCheck, group: 'Leads' },
+    { id: 'alerts', label: 'Go to Campaign Alerts', icon: Bell, group: 'Leads' },
     // System
     { id: 'settings', label: 'Go to Settings', icon: Settings, group: 'System' },
     { id: 'whats-new', label: "Go to What's New", icon: Sparkles, group: 'System' },

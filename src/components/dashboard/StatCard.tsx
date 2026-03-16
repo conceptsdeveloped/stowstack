@@ -1,13 +1,14 @@
-export function StatCard({ icon: Icon, label, value, accent }: {
-  icon: any; label: string; value: number; accent?: boolean
+export function StatCard({ icon: Icon, label, value, accent, darkMode, subtitle }: {
+  icon: React.ComponentType<{ size?: number | string; className?: string }>; label: string; value: number | string; accent?: boolean; darkMode?: boolean; subtitle?: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
+    <div className={`rounded-xl border p-4 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
       <div className="flex items-center gap-2 mb-2">
-        <Icon size={16} className={accent ? 'text-emerald-600' : 'text-slate-400'} />
-        <span className="text-xs text-slate-500 uppercase tracking-wide">{label}</span>
+        <Icon size={16} className={accent ? 'text-emerald-600' : darkMode ? 'text-slate-500' : 'text-slate-400'} />
+        <span className={`text-xs uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</span>
       </div>
       <p className={`text-2xl font-bold ${accent ? 'text-emerald-600' : ''}`}>{value}</p>
+      {subtitle && <p className={`text-[10px] mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{subtitle}</p>}
     </div>
   )
 }

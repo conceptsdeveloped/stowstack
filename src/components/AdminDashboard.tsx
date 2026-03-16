@@ -35,6 +35,10 @@ import UpsellEngineView from './dashboard/UpsellEngineView'
 import MoveOutRemarketingView from './dashboard/MoveOutRemarketingView'
 import AttributionView from './dashboard/AttributionView'
 import AdminSidebar from './dashboard/AdminSidebar'
+import ActivityLogView from './dashboard/ActivityLogView'
+import CallLogsView from './dashboard/CallLogsView'
+import CampaignAlertsView from './dashboard/CampaignAlertsView'
+import ConsumerLeadsView from './dashboard/ConsumerLeadsView'
 
 /* ── Admin Auth Gate ── */
 
@@ -65,6 +69,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
   const [bulkStatus, setBulkStatus] = useState('')
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name' | 'score' | 'status'>('newest')
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('stowstack_theme') === 'dark')
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; type: string; title: string; detail: string; timestamp: string }[]>([])
@@ -101,8 +106,8 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
         setTotalPages(data.pagination.totalPages)
         setTotalLeads(data.pagination.total)
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -216,8 +221,8 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
       if (!res.ok) throw new Error('Update failed')
       await fetchLeads()
       if (updates.note) setNewNote('')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setUpdating(null)
     }
@@ -259,6 +264,27 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     }
   }
 
+  const exportFilteredCsv = () => {
+    if (filtered.length === 0) return
+    const headers = ['Name', 'Email', 'Phone', 'Facility', 'Location', 'Status', 'Score', 'Created', 'Updated', 'Follow-Up']
+    const rows = filtered.map(l => [
+      l.name, l.email, l.phone, l.facilityName, l.location,
+      STATUS_MAP[l.status]?.label || l.status,
+      leadScores[l.id]?.score?.toString() || '',
+      new Date(l.createdAt).toLocaleDateString(),
+      new Date(l.updatedAt).toLocaleDateString(),
+      l.followUpDate ? new Date(l.followUpDate).toLocaleDateString() : '',
+    ])
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `stowstack-leads-filtered-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -288,9 +314,18 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
       return true
     })
     .sort((a, b) => {
+      // Overdue always floats to top
       const aOverdue = isOverdue(a) ? 0 : 1
       const bOverdue = isOverdue(b) ? 0 : 1
       if (aOverdue !== bOverdue) return aOverdue - bOverdue
+      // Then apply selected sort
+      if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      if (sortBy === 'score') return (leadScores[b.id]?.score || 0) - (leadScores[a.id]?.score || 0)
+      if (sortBy === 'status') {
+        const statusOrder = STATUSES.map(s => s.value)
+        return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+      }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 
@@ -301,6 +336,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   }, {})
 
   const activeLeads = leads.filter(l => !['lost', 'client_signed'].includes(l.status)).length
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+  const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7)
+  const newToday = leads.filter(l => new Date(l.createdAt) >= todayStart).length
+  const newThisWeek = leads.filter(l => new Date(l.createdAt) >= weekStart).length
 
   if (showGuide) {
     return <AdminGuide onBack={(targetTab?: string) => {
@@ -467,6 +506,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
               if (action === 'upsell') setActiveTab('upsell')
               if (action === 'remarketing') setActiveTab('remarketing')
               if (action === 'whats-new') setActiveTab('whats-new')
+              if (action === 'activity-log') setActiveTab('activity-log')
+              if (action === 'call-logs') setActiveTab('call-logs')
+              if (action === 'alerts') setActiveTab('alerts')
+              if (action === 'consumer-leads') setActiveTab('consumer-leads')
               if (action === 'dark') setDarkMode(!darkMode)
               if (action === 'guide') setShowGuide(true)
               if (action === 'csv') downloadCsv()
@@ -580,21 +623,72 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           <WhatsNew darkMode={darkMode} adminKey={adminKey} />
         )}
 
+        {activeTab === 'activity-log' && (
+          <ActivityLogView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'call-logs' && (
+          <CallLogsView adminKey={adminKey} darkMode={darkMode} leads={leads} />
+        )}
+
+        {activeTab === 'alerts' && (
+          <CampaignAlertsView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'consumer-leads' && (
+          <ConsumerLeadsView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
         {activeTab === 'pipeline' && (<>
         {/* Stats Cards */}
         <div className="flex items-center gap-2 mb-3">
           <h2 className={`text-sm font-semibold ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>Pipeline Overview</h2>
           <HelpTooltip text="Track total leads, active pipeline, signed clients, and audit counts. Learn about each metric in the admin guide." guideSection="pipeline" onOpenGuide={openGuideToSection} darkMode={darkMode} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={Users} label="Total Leads" value={leads.length} />
-          <StatCard icon={TrendingUp} label="Active Pipeline" value={activeLeads} />
-          <StatCard icon={CheckCircle2} label="Signed Clients" value={statusCounts['client_signed'] || 0} accent />
-          <StatCard icon={Clock} label="Audits Generated" value={auditCount} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <StatCard icon={Users} label="Total Leads" value={leads.length} darkMode={darkMode} subtitle={`${newToday} today`} />
+          <StatCard icon={TrendingUp} label="Active Pipeline" value={activeLeads} darkMode={darkMode} subtitle={`${newThisWeek} this week`} />
+          <StatCard icon={CheckCircle2} label="Signed" value={statusCounts['client_signed'] || 0} accent darkMode={darkMode} />
+          <StatCard icon={Clock} label="Audits" value={auditCount} darkMode={darkMode} />
+          <StatCard icon={Users} label="Conversion" value={leads.length > 0 ? `${Math.round(((statusCounts['client_signed'] || 0) / leads.length) * 100)}%` : '0%'} darkMode={darkMode} subtitle="signed / total" />
+          <StatCard icon={Clock} label="Overdue" value={overdueCount} darkMode={darkMode} subtitle={overdueCount > 0 ? 'needs attention' : 'all clear'} />
         </div>
 
+        {/* Conversion Funnel */}
+        {leads.length > 0 && (
+          <div className={`rounded-xl border p-4 mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <h3 className={`text-xs font-semibold uppercase tracking-wide mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Conversion Funnel</h3>
+            <div className="space-y-1.5">
+              {STATUSES.filter(s => s.value !== 'lost').map((s, i, arr) => {
+                const count = statusCounts[s.value] || 0
+                const maxCount = Math.max(leads.length, 1)
+                const widthPct = Math.max((count / maxCount) * 100, 4)
+                const prevCount = i === 0 ? leads.length : (statusCounts[arr[i - 1].value] || 0)
+                const convRate = prevCount > 0 && i > 0 ? Math.round((count / prevCount) * 100) : null
+                return (
+                  <div key={s.value} className="flex items-center gap-3">
+                    <span className={`text-[10px] font-medium w-16 text-right shrink-0 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</span>
+                    <div className="flex-1 h-6 relative">
+                      <div
+                        className={`h-full rounded-md transition-all ${s.color.replace('text-', 'bg-').replace(/text-\w+-\d+/, '')} ${s.color.split(' ')[0].replace('bg-', 'bg-')}`}
+                        style={{ width: `${widthPct}%` }}
+                      />
+                      <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold ${count > 0 ? s.color.split(' ')[1] : darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {count}
+                      </span>
+                    </div>
+                    {convRate !== null && (
+                      <span className={`text-[10px] w-10 shrink-0 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{convRate}%</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Pipeline Stages */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 overflow-x-auto">
+        <div className={`rounded-xl border p-4 mb-6 overflow-x-auto ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
           <div className="flex gap-2 min-w-max">
             <PipelineChip
               label="All"
@@ -624,16 +718,33 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name, facility, location, or email..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-          />
+        {/* Search + Sort */}
+        <div className="flex gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+            <input
+              type="text"
+              placeholder="Search by name, facility, location, or email..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 ${
+                darkMode ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900'
+              }`}
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as typeof sortBy)}
+            className={`px-3 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shrink-0 ${
+              darkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="name">Name A-Z</option>
+            <option value="score">Score (high-low)</option>
+            <option value="status">Pipeline stage</option>
+          </select>
         </div>
 
         {/* Error */}
@@ -691,6 +802,36 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
               className="text-xs text-slate-400 hover:text-white ml-auto"
             >
               Clear
+            </button>
+          </div>
+        )}
+
+        {/* Lead list header with select all */}
+        {!loading && filtered.length > 0 && (
+          <div className={`flex items-center gap-3 px-4 py-2 mb-2 rounded-lg ${darkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && filtered.every(l => selectedIds.has(l.id))}
+              onChange={() => {
+                if (filtered.every(l => selectedIds.has(l.id))) {
+                  setSelectedIds(new Set())
+                } else {
+                  setSelectedIds(new Set(filtered.map(l => l.id)))
+                }
+              }}
+              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+            />
+            <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {selectedIds.size > 0 ? `${selectedIds.size} of ${filtered.length} selected` : `${filtered.length} leads`}
+            </span>
+            <button
+              onClick={exportFilteredCsv}
+              className={`ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded transition-colors ${
+                darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+              }`}
+              title="Export current view as CSV"
+            >
+              <Download size={10} /> Export view
             </button>
           </div>
         )}
