@@ -7,13 +7,13 @@ export function parseLocalDate(dateStr: string): Date {
 }
 
 /** Browser-compatible frontmatter parser (no Buffer dependency) */
-function parseFrontmatter(raw: string): { data: Record<string, any>; content: string } {
+function parseFrontmatter(raw: string): { data: Record<string, unknown>; content: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { data: {}, content: raw };
 
   const yamlStr = match[1];
   const content = match[2];
-  const data: Record<string, any> = {};
+  const data: Record<string, unknown> = {};
 
   for (const line of yamlStr.split('\n')) {
     const trimmed = line.trim();
@@ -23,7 +23,7 @@ function parseFrontmatter(raw: string): { data: Record<string, any>; content: st
     if (colonIdx === -1) continue;
 
     const key = trimmed.slice(0, colonIdx).trim();
-    let val: any = trimmed.slice(colonIdx + 1).trim();
+    let val: string | boolean | string[] = trimmed.slice(colonIdx + 1).trim();
 
     // Remove surrounding quotes
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
@@ -103,18 +103,18 @@ function parsePost(raw: string): BlogPost | null {
   if (data.draft) return null;
 
   return {
-    slug: data.slug,
-    title: data.title,
+    slug: data.slug as string,
+    title: data.title as string,
     date: String(data.date),
     updated: data.updated ? String(data.updated) : undefined,
-    pillar: data.pillar,
-    description: data.description,
-    author: data.author,
-    tags: data.tags || [],
-    featured: data.featured || false,
-    draft: data.draft || false,
-    heroImage: data.heroImage,
-    heroAlt: data.heroAlt,
+    pillar: data.pillar as string,
+    description: data.description as string,
+    author: data.author as string,
+    tags: (data.tags as string[]) || [],
+    featured: (data.featured as boolean) || false,
+    draft: (data.draft as boolean) || false,
+    heroImage: data.heroImage as string | undefined,
+    heroAlt: data.heroAlt as string | undefined,
     readingTime: getReadingTime(content),
     content,
   };

@@ -19,7 +19,7 @@ export type StorEdgeReportType =
 export interface ParsedReport {
   type: StorEdgeReportType
   label: string
-  data: any
+  data: Record<string, unknown> | unknown[] | null
   summary: string
 }
 
@@ -48,6 +48,7 @@ export interface ConsolidatedOccupancyRow {
 }
 
 export interface ConsolidatedOccupancyData {
+  [key: string]: unknown
   units: ConsolidatedOccupancyRow[]
   totals: {
     total_units: number

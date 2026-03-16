@@ -2,6 +2,7 @@
 import path from "path";
 import { createRequire } from "module";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig, type Plugin, loadEnv } from "vite";
 import { ServerResponse } from "http";
 
@@ -122,7 +123,69 @@ function createFakeRes(res: ServerResponse) {
 }
 
 export default defineConfig({
-  plugins: [vercelApiPlugin(), react()],
+  plugins: [
+    vercelApiPlugin(),
+    react(),
+    VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      registerType: "prompt",
+      includeAssets: ["favicon.svg", "og-image.png", "robots.txt"],
+      manifest: {
+        name: "StowStack — Demand Engine for Self-Storage",
+        short_name: "StowStack",
+        description:
+          "Full-funnel acquisition system for self-storage operators",
+        theme_color: "#16a34a",
+        background_color: "#0f172a",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
+        icons: [
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+        shortcuts: [
+          {
+            name: "Lead Pipeline",
+            short_name: "Leads",
+            url: "/admin?tab=pipeline",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }],
+          },
+          {
+            name: "New Audit",
+            short_name: "Audit",
+            url: "/#audit",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }],
+          },
+        ],
+        categories: ["business", "productivity"],
+      },
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
+    }),
+  ],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   test: {
     globals: true,

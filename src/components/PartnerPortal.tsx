@@ -1,604 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Building2, DollarSign, Users, BarChart3,
-  ArrowLeft, Loader2, LogOut, MapPin, Settings,
-  UserPlus, Trash2, ChevronRight, Mail,
-  Target, CheckCircle2, Palette, TrendingUp,
-  ArrowUpRight, ArrowDownRight, Minus,
-  Crown, Star, Rocket, Award, Sparkles, BadgeDollarSign
+  Building2, DollarSign, Users, BarChart3, ArrowLeft, Loader2, LogOut, Settings,
+  CheckCircle2, Palette, Target, ArrowUpRight, ArrowDownRight, Minus,
+  BadgeDollarSign, AlertTriangle, Gauge, Lock, Eye, EyeOff, Shield
 } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import PartnerLoginComponent from './partner/PartnerLogin'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell
-} from 'recharts'
+  type OrgFacility, type Organization, type AuthState,
+  STORAGE_KEY, STATUS_COLORS, PER_FACILITY_MRR, getRevShareTier,
+} from './partner/PartnerTypes'
+import { StatCard, FacilityRow, FacilityDetail } from './partner/FacilityCard'
+import TeamTab from './partner/TeamTab'
+import RevenueShareTab from './partner/RevenueShareTab'
 
-/* ── Types ── */
-
-interface OrgUser {
-  id: string
-  email: string
-  name: string
-  role: string
-  status: string
-  last_login_at: string | null
-  created_at: string
-}
-
-interface OrgFacility {
-  id: string
-  name: string
-  location: string
-  status: string
-  occupancy_range: string
-  total_units: string
-  google_rating: number | null
-  review_count: number | null
-  created_at: string
-  campaigns: CampaignEntry[] | null
-  live_pages: number
-  live_ads: number
-}
-
-interface CampaignEntry {
-  month: string
-  spend: number
-  leads: number
-  cpl: number
-  moveIns: number
-  roas: number
-  occupancyDelta: number
-}
-
-interface Organization {
-  id: string
-  name: string
-  slug: string
-  logoUrl: string | null
-  primaryColor: string
-  accentColor: string
-  whiteLabel: boolean
-  plan: string
-  settings: Record<string, unknown>
-}
-
-interface AuthState {
-  token: string
-  user: { id: string; email: string; name: string; role: string }
-  organization: Organization
-}
-
-/* ── Constants ── */
-
-const STORAGE_KEY = 'stowstack_partner'
-
-const OCCUPANCY_LABELS: Record<string, string> = {
-  'below-60': 'Below 60%',
-  '60-75': '60–75%',
-  '75-85': '75–85%',
-  '85-95': '85–95%',
-  'above-95': 'Above 95%',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  intake: 'bg-slate-100 text-slate-600',
-  scraped: 'bg-blue-100 text-blue-700',
-  briefed: 'bg-indigo-100 text-indigo-700',
-  generating: 'bg-purple-100 text-purple-700',
-  review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-emerald-100 text-emerald-700',
-  live: 'bg-green-100 text-green-700',
-  reporting: 'bg-teal-100 text-teal-700',
-}
-
-/* ── Login ── */
-
-function PartnerLogin({ onAuth }: { onAuth: (auth: AuthState) => void }) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [orgSlug, setOrgSlug] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  // Signup fields
-  const [companyName, setCompanyName] = useState('')
-  const [contactName, setContactName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [facilityCount, setFacilityCount] = useState('')
-  const [plan, setPlan] = useState('starter')
-  const [signupSuccess, setSignupSuccess] = useState<{ slug: string; tempPassword: string } | null>(null)
-
-  const submitLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim() || !orgSlug.trim()) return
-    setLoading(true)
-    setError('')
-
-    try {
-      const res = await fetch('/api/organizations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email: email.trim(), password: password.trim(), orgSlug: orgSlug.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        setError(data.error || 'Invalid credentials')
-        setLoading(false)
-        return
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      onAuth(data)
-    } catch {
-      setError('Connection error. Please try again.')
-      setLoading(false)
-    }
-  }
-
-  const submitSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!companyName.trim() || !contactName.trim() || !email.trim()) return
-    setLoading(true)
-    setError('')
-
-    try {
-      const res = await fetch('/api/partner-signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: companyName.trim(),
-          contactName: contactName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          facilityCount: facilityCount.trim(),
-          plan,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        setError(data.error || 'Signup failed')
-        setLoading(false)
-        return
-      }
-      setSignupSuccess({ slug: data.organization.slug, tempPassword: data.tempPassword })
-      setLoading(false)
-    } catch {
-      setError('Connection error. Please try again.')
-      setLoading(false)
-    }
-  }
-
-  if (signupSuccess) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-600/20">
-            <CheckCircle2 size={24} className="text-white" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight mb-2">Account Created!</h1>
-          <p className="text-sm text-slate-500 mb-6">Your partner account is ready. Save your credentials below.</p>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 text-left mb-4 space-y-2">
-            <div className="flex justify-between text-sm"><span className="text-slate-500">Organization:</span><code className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{signupSuccess.slug}</code></div>
-            <div className="flex justify-between text-sm"><span className="text-slate-500">Email:</span><span className="font-medium">{email}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-slate-500">Temp Password:</span><code className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-xs font-mono">{signupSuccess.tempPassword}</code></div>
-          </div>
-          <button
-            onClick={() => { setMode('login'); setOrgSlug(signupSuccess.slug); setSignupSuccess(null) }}
-            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 transition-all"
-          >
-            Sign In Now
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-600/20">
-            <Building2 size={24} className="text-white" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight">Partner Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {mode === 'login' ? 'Sign in to your management dashboard' : 'Create your partner account'}
-          </p>
-        </div>
-
-        {/* Tab toggle */}
-        <div className="flex bg-slate-100 rounded-lg p-1 mb-4">
-          <button
-            onClick={() => { setMode('login'); setError('') }}
-            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-          >Sign In</button>
-          <button
-            onClick={() => { setMode('signup'); setError('') }}
-            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-          >Get Started</button>
-        </div>
-
-        {mode === 'login' ? (
-          <form onSubmit={submitLogin} className="space-y-3">
-            <input type="text" placeholder="Organization slug" value={orgSlug} onChange={e => setOrgSlug(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all">
-              {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Sign In'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={submitSignup} className="space-y-3">
-            <input type="text" placeholder="Company name" value={companyName} onChange={e => setCompanyName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="text" placeholder="Your name" value={contactName} onChange={e => setContactName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="tel" placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <input type="text" placeholder="How many facilities do you manage?" value={facilityCount} onChange={e => setFacilityCount(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
-            <select value={plan} onChange={e => setPlan(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 bg-white">
-              <option value="starter">Starter — up to 10 facilities</option>
-              <option value="growth">Growth — up to 50 facilities</option>
-              <option value="enterprise">Enterprise — unlimited</option>
-            </select>
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition-all">
-              {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Create Partner Account'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ── Stat Card ── */
-
-function StatCard({ label, value, icon: Icon, trend, color }: { label: string; value: string; icon: typeof DollarSign; trend?: number; color: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
-        {trend !== undefined && (
-          <div className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-slate-400'}`}>
-            {trend > 0 ? <ArrowUpRight size={12} /> : trend < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
-            {Math.abs(trend)}%
-          </div>
-        )}
-      </div>
-      <div className="text-2xl font-bold tracking-tight">{value}</div>
-      <div className="text-xs text-slate-500 mt-0.5">{label}</div>
-    </div>
-  )
-}
-
-/* ── Facility Row ── */
-
-function FacilityRow({ facility, primaryColor, onSelect }: { facility: OrgFacility; primaryColor: string; onSelect: () => void }) {
-  const campaigns = facility.campaigns || []
-  const totals = campaigns.reduce((acc, c) => ({
-    spend: acc.spend + (Number(c.spend) || 0),
-    leads: acc.leads + (Number(c.leads) || 0),
-    moveIns: acc.moveIns + (Number(c.moveIns) || 0),
-  }), { spend: 0, leads: 0, moveIns: 0 })
-  const latestRoas = campaigns.length > 0 ? campaigns[campaigns.length - 1].roas : 0
-
-  return (
-    <button onClick={onSelect} className="w-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all text-left">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-sm truncate">{facility.name}</h3>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[facility.status] || 'bg-slate-100 text-slate-600'}`}>
-              {facility.status}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
-            <MapPin size={11} />
-            {facility.location}
-            {facility.total_units && <span className="text-slate-300">|</span>}
-            {facility.total_units && <span>{facility.total_units} units</span>}
-            {facility.google_rating && (
-              <>
-                <span className="text-slate-300">|</span>
-                <span className="text-amber-600">{facility.google_rating} ({facility.review_count})</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-slate-600"><span className="font-medium text-slate-900">${totals.spend.toLocaleString()}</span> spend</span>
-            <span className="text-slate-600"><span className="font-medium text-slate-900">{totals.leads}</span> leads</span>
-            <span className="text-slate-600"><span className="font-medium text-slate-900">{totals.moveIns}</span> move-ins</span>
-            {latestRoas > 0 && <span className="text-slate-600"><span className="font-medium" style={{ color: primaryColor }}>{latestRoas}x</span> ROAS</span>}
-            {facility.live_pages > 0 && <span className="text-slate-400">{facility.live_pages} pages</span>}
-          </div>
-        </div>
-        <ChevronRight size={16} className="text-slate-300 mt-1 shrink-0" />
-      </div>
-    </button>
-  )
-}
-
-/* ── Facility Detail ── */
-
-function FacilityDetail({ facility, primaryColor, onBack }: { facility: OrgFacility; primaryColor: string; onBack: () => void }) {
-  const campaigns = facility.campaigns || []
-  const totals = campaigns.reduce((acc, c) => ({
-    spend: acc.spend + (Number(c.spend) || 0),
-    leads: acc.leads + (Number(c.leads) || 0),
-    moveIns: acc.moveIns + (Number(c.moveIns) || 0),
-  }), { spend: 0, leads: 0, moveIns: 0 })
-  const avgCpl = totals.leads > 0 ? totals.spend / totals.leads : 0
-  const avgCpmi = totals.moveIns > 0 ? totals.spend / totals.moveIns : 0
-
-  return (
-    <div>
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors">
-        <ArrowLeft size={14} /> Back to portfolio
-      </button>
-
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: primaryColor }}>
-          <Building2 size={18} className="text-white" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold">{facility.name}</h2>
-          <p className="text-xs text-slate-500">{facility.location} {facility.occupancy_range && `| ${OCCUPANCY_LABELS[facility.occupancy_range] || facility.occupancy_range} occupancy`}</p>
-        </div>
-        <span className={`ml-auto px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[facility.status] || 'bg-slate-100 text-slate-600'}`}>
-          {facility.status}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total Spend" value={`$${totals.spend.toLocaleString()}`} icon={DollarSign} color="bg-blue-500" />
-        <StatCard label="Total Leads" value={totals.leads.toString()} icon={Users} color="bg-indigo-500" />
-        <StatCard label="Move-Ins" value={totals.moveIns.toString()} icon={CheckCircle2} color="bg-green-500" />
-        <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(0)}`} icon={Target} color="bg-purple-500" />
-      </div>
-
-      {campaigns.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-6">
-          <h3 className="text-sm font-semibold mb-4">Monthly Performance</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={campaigns}>
-              <defs>
-                <linearGradient id="facilitySpend" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={primaryColor} stopOpacity={0.15} />
-                  <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Area type="monotone" dataKey="leads" stroke={primaryColor} fill="url(#facilitySpend)" strokeWidth={2} />
-              <Area type="monotone" dataKey="moveIns" stroke="#10b981" fill="none" strokeWidth={2} strokeDasharray="4 4" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {campaigns.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-4 py-2.5 font-medium text-slate-600">Month</th>
-                <th className="text-right px-4 py-2.5 font-medium text-slate-600">Spend</th>
-                <th className="text-right px-4 py-2.5 font-medium text-slate-600">Leads</th>
-                <th className="text-right px-4 py-2.5 font-medium text-slate-600">CPL</th>
-                <th className="text-right px-4 py-2.5 font-medium text-slate-600">Move-Ins</th>
-                <th className="text-right px-4 py-2.5 font-medium text-slate-600">ROAS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map(c => (
-                <tr key={c.month} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="px-4 py-2.5 font-medium">{c.month}</td>
-                  <td className="px-4 py-2.5 text-right">${Number(c.spend).toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-right">{c.leads}</td>
-                  <td className="px-4 py-2.5 text-right">${Number(c.cpl).toFixed(0)}</td>
-                  <td className="px-4 py-2.5 text-right">{c.moveIns}</td>
-                  <td className="px-4 py-2.5 text-right font-medium" style={{ color: Number(c.roas) >= 3 ? '#16a34a' : undefined }}>
-                    {Number(c.roas).toFixed(1)}x
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 font-semibold">
-                <td className="px-4 py-2.5">Total</td>
-                <td className="px-4 py-2.5 text-right">${totals.spend.toLocaleString()}</td>
-                <td className="px-4 py-2.5 text-right">{totals.leads}</td>
-                <td className="px-4 py-2.5 text-right">${avgCpl.toFixed(0)}</td>
-                <td className="px-4 py-2.5 text-right">{totals.moveIns}</td>
-                <td className="px-4 py-2.5 text-right">${avgCpmi.toFixed(0)}/MI</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-
-      {campaigns.length === 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-          <BarChart3 size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">No campaign data yet for this facility</p>
-          <p className="text-xs text-slate-400 mt-1">Campaign metrics will appear once campaigns are live</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── Team Tab ── */
-
-function TeamTab({ orgToken, orgUser, primaryColor }: { orgToken: string; orgUser: AuthState['user']; primaryColor: string }) {
-  const [users, setUsers] = useState<OrgUser[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteName, setInviteName] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState('viewer')
-  const [inviting, setInviting] = useState(false)
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      const res = await fetch('/api/org-users', { headers: { 'X-Org-Token': orgToken } })
-      if (res.ok) {
-        const data = await res.json()
-        setUsers(data.users || [])
-      }
-    } catch { /* silent */ }
-    setLoading(false)
-  }, [orgToken])
-
-  useEffect(() => { fetchUsers() }, [fetchUsers])
-
-  const invite = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inviteName.trim() || !inviteEmail.trim()) return
-    setInviting(true)
-    try {
-      await fetch('/api/org-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
-        body: JSON.stringify({ email: inviteEmail.trim(), name: inviteName.trim(), role: inviteRole }),
-      })
-      setInviteName('')
-      setInviteEmail('')
-      setShowInvite(false)
-      fetchUsers()
-    } catch { /* silent */ }
-    setInviting(false)
-  }
-
-  const removeUser = async (userId: string) => {
-    if (userId === orgUser.id) return
-    await fetch('/api/org-users', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
-      body: JSON.stringify({ userId }),
-    })
-    fetchUsers()
-  }
-
-  const isAdmin = orgUser.role === 'org_admin'
-
-  const ROLE_LABELS: Record<string, string> = {
-    org_admin: 'Admin',
-    facility_manager: 'Manager',
-    viewer: 'Viewer',
-  }
-
-  const ROLE_COLORS: Record<string, string> = {
-    org_admin: 'bg-purple-100 text-purple-700',
-    facility_manager: 'bg-blue-100 text-blue-700',
-    viewer: 'bg-slate-100 text-slate-600',
-  }
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">Team Members</h2>
-        {isAdmin && (
-          <button
-            onClick={() => setShowInvite(!showInvite)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ background: primaryColor }}
-          >
-            <UserPlus size={14} /> Invite
-          </button>
-        )}
-      </div>
-
-      {showInvite && (
-        <form onSubmit={invite} className="bg-white rounded-xl border border-slate-200 p-4 mb-4 shadow-sm">
-          <div className="grid sm:grid-cols-3 gap-3 mb-3">
-            <input
-              type="text"
-              placeholder="Name"
-              value={inviteName}
-              onChange={e => setInviteName(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <select
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            >
-              <option value="viewer">Viewer</option>
-              <option value="facility_manager">Facility Manager</option>
-              <option value="org_admin">Admin</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={inviting}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {inviting ? 'Sending...' : 'Send Invite'}
-          </button>
-        </form>
-      )}
-
-      <div className="space-y-2">
-        {users.map(u => (
-          <div key={u.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
-                {u.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{u.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ROLE_COLORS[u.role] || 'bg-slate-100 text-slate-600'}`}>
-                    {ROLE_LABELS[u.role] || u.role}
-                  </span>
-                  {u.status === 'invited' && <span className="text-[10px] text-amber-600 font-medium">Pending</span>}
-                </div>
-                <div className="text-xs text-slate-500 flex items-center gap-1">
-                  <Mail size={10} /> {u.email}
-                  {u.last_login_at && <span className="text-slate-300 ml-2">Last login: {new Date(u.last_login_at).toLocaleDateString()}</span>}
-                </div>
-              </div>
-            </div>
-            {isAdmin && u.id !== orgUser.id && (
-              <button onClick={() => removeUser(u.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Remove user">
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
-        ))}
-        {users.length === 0 && (
-          <div className="text-center py-8 text-sm text-slate-500">No team members yet. Invite your first team member above.</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ── Branding Tab ── */
+/* ── Branding Tab (kept inline) ── */
 
 function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken: string; onUpdate: (org: Organization) => void }) {
   const [name, setName] = useState(org.name)
@@ -619,35 +35,25 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
       if (res.ok) {
         await res.json()
         onUpdate({ ...org, name, primaryColor, accentColor, logoUrl: logoUrl || null })
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        setSaved(true); setTimeout(() => setSaved(false), 2000)
       }
     } catch { /* silent */ }
     setSaving(false)
   }
 
+  const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20'
+
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">Branding & White-Label</h2>
+      <h2 className="text-lg font-bold mb-4">Branding &amp; White-Label</h2>
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Organization Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
+          <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputCls} />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Logo URL</label>
-          <input
-            type="url"
-            value={logoUrl}
-            onChange={e => setLogoUrl(e.target.value)}
-            placeholder="https://example.com/logo.png"
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
+          <input type="url" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className={inputCls} />
           {logoUrl && (
             <div className="mt-2 p-3 bg-slate-50 rounded-lg">
               <img src={logoUrl} alt="Logo preview" className="h-10 object-contain" onError={e => (e.currentTarget.style.display = 'none')} />
@@ -655,52 +61,21 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
           )}
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Primary Color</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={e => setPrimaryColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer"
-              />
-              <input
-                type="text"
-                value={primaryColor}
-                onChange={e => setPrimaryColor(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
+          {([['Primary Color', primaryColor, setPrimaryColor], ['Accent Color', accentColor, setAccentColor]] as const).map(([label, val, setter]) => (
+            <div key={label}>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={val} onChange={e => setter(e.target.value)} className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer" />
+                <input type="text" value={val} onChange={e => setter(e.target.value)} className={`flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20`} />
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Accent Color</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={accentColor}
-                onChange={e => setAccentColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer"
-              />
-              <input
-                type="text"
-                value={accentColor}
-                onChange={e => setAccentColor(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-          </div>
+          ))}
         </div>
-
-        {/* Preview */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">Preview</label>
           <div className="rounded-lg border border-slate-200 overflow-hidden">
             <div className="h-12 flex items-center px-4 gap-3" style={{ background: primaryColor }}>
-              {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-7 object-contain" onError={e => (e.currentTarget.style.display = 'none')} />
-              ) : (
-                <Building2 size={18} className="text-white" />
-              )}
+              {logoUrl ? <img src={logoUrl} alt="" className="h-7 object-contain" onError={e => (e.currentTarget.style.display = 'none')} /> : <Building2 size={18} className="text-white" />}
               <span className="text-white font-semibold text-sm">{name}</span>
             </div>
             <div className="p-4 bg-slate-50">
@@ -712,13 +87,8 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
-          <button
-            onClick={save}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-          >
+          <button onClick={save} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
           {saved && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle2 size={14} /> Saved</span>}
@@ -728,340 +98,147 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
   )
 }
 
-/* ── Revenue Share Constants ── */
+/* ── Settings Tab ── */
 
-const REV_SHARE_TIERS = [
-  { name: 'Bronze', min: 1, max: 10, pct: 20, icon: Star, color: '#cd7f32', bgGradient: 'from-amber-600 to-yellow-700' },
-  { name: 'Silver', min: 11, max: 25, pct: 25, icon: Award, color: '#94a3b8', bgGradient: 'from-slate-400 to-slate-500' },
-  { name: 'Gold', min: 26, max: 50, pct: 30, icon: Crown, color: '#eab308', bgGradient: 'from-yellow-500 to-amber-500' },
-  { name: 'Platinum', min: 51, max: Infinity, pct: 35, icon: Sparkles, color: '#8b5cf6', bgGradient: 'from-violet-500 to-purple-600' },
-]
+function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToken: string; facilities: OrgFacility[] }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPasswords, setShowPasswords] = useState(false)
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-const PER_FACILITY_MRR = 99
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword.length < 8) { setPwMessage({ type: 'error', text: 'Password must be at least 8 characters' }); return }
+    if (newPassword !== confirmPassword) { setPwMessage({ type: 'error', text: 'Passwords do not match' }); return }
+    setPwLoading(true); setPwMessage(null)
+    try {
+      const res = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
+        body: JSON.stringify({ action: 'change_password', currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) { setPwMessage({ type: 'error', text: data.error || 'Failed to change password' }) }
+      else { setPwMessage({ type: 'success', text: 'Password updated successfully' }); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('') }
+    } catch { setPwMessage({ type: 'error', text: 'Connection error' }) }
+    setPwLoading(false)
+  }
 
-function getRevShareTier(facilityCount: number) {
-  return REV_SHARE_TIERS.find(t => facilityCount >= t.min && facilityCount <= t.max) || REV_SHARE_TIERS[0]
-}
-
-function getNextTier(facilityCount: number) {
-  const currentIdx = REV_SHARE_TIERS.findIndex(t => facilityCount >= t.min && facilityCount <= t.max)
-  return currentIdx < REV_SHARE_TIERS.length - 1 ? REV_SHARE_TIERS[currentIdx + 1] : null
-}
-
-/* ── Revenue Share Tab ── */
-
-function RevenueShareTab({ facilities }: { facilities: OrgFacility[] }) {
-  const facilityCount = facilities.length
-  const currentTier = getRevShareTier(facilityCount)
-  const nextTier = getNextTier(facilityCount)
-  const TierIcon = currentTier.icon
-
-  const grossMrr = facilityCount * PER_FACILITY_MRR
-  const monthlyEarnings = grossMrr * (currentTier.pct / 100)
-  const annualEarnings = monthlyEarnings * 12
-
-  // What they'd earn at next tier
-  const nextTierFacilities = nextTier ? nextTier.min : facilityCount
-  const nextTierMrr = nextTierFacilities * PER_FACILITY_MRR
-  const nextTierMonthly = nextTier ? nextTierMrr * (nextTier.pct / 100) : monthlyEarnings
-  const facilitiesToNext = nextTier ? nextTier.min - facilityCount : 0
-
-  // Simulated monthly earnings history (based on current facilities)
-  const earningsHistory = (() => {
-    const months: { month: string; earned: number; facilities: number; grossMrr: number }[] = []
-    const now = new Date()
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthStr = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      // Simulate gradual facility growth
-      const facCount = Math.max(1, Math.round(facilityCount * (1 - i * 0.12)))
-      const tier = getRevShareTier(facCount)
-      const mrr = facCount * PER_FACILITY_MRR
-      const earned = mrr * (tier.pct / 100)
-      months.push({ month: monthStr, earned: Math.round(earned), facilities: facCount, grossMrr: mrr })
-    }
-    return months
-  })()
-
-  const totalLifetimeEarnings = earningsHistory.reduce((s, m) => s + m.earned, 0)
-
-  // Projection data for 12 months
-  const projections = (() => {
-    const rows: { month: string; facilities: number; pct: number; earned: number }[] = []
-    const now = new Date()
-    for (let i = 1; i <= 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-      const monthStr = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      // Conservative estimate: 1-2 new facilities per quarter
-      const projected = facilityCount + Math.floor(i / 3)
-      const tier = getRevShareTier(projected)
-      const mrr = projected * PER_FACILITY_MRR
-      rows.push({ month: monthStr, facilities: projected, pct: tier.pct, earned: Math.round(mrr * (tier.pct / 100)) })
-    }
-    return rows
-  })()
-
-  // Pie chart data for earnings breakdown
-  const pieData = [
-    { name: 'Your Earnings', value: monthlyEarnings, color: '#10b981' },
-    { name: 'StowStack Share', value: grossMrr - monthlyEarnings, color: '#e2e8f0' },
-  ]
+  const PLAN_FEATURES: Record<string, { label: string; features: string[] }> = {
+    starter: { label: 'Starter', features: ['Up to 10 facilities', '2 landing pages each', 'Meta ads', 'Monthly reporting', 'Email support'] },
+    growth: { label: 'Growth', features: ['Up to 50 facilities', '5 landing pages each', 'Meta + Google ads', 'Weekly reporting', 'Slack channel', 'Call tracking'] },
+    enterprise: { label: 'Enterprise', features: ['Unlimited facilities', 'White-label option', 'Custom integrations', 'Dedicated account manager', 'SLA guarantee'] },
+  }
+  const currentPlan = PLAN_FEATURES[org.plan] || PLAN_FEATURES.starter
+  const pwInputCls = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400'
+  const openBilling = async () => {
+    try {
+      const res = await fetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken } })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { /* silent */ }
+  }
 
   return (
-    <div>
-      {/* Hero earnings banner */}
-      <div className={`bg-gradient-to-br ${currentTier.bgGradient} rounded-2xl p-6 sm:p-8 text-white mb-6 relative overflow-hidden`}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.15),transparent_50%)]" />
-        <div className="relative">
-          <div className="flex items-start justify-between mb-6">
+    <div className="space-y-6">
+      <h2 className="text-lg font-bold">Organization Settings</h2>
+
+      {/* Subscription & Plan */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Shield size={16} className="text-indigo-500" />
+          <h3 className="text-sm font-semibold">Subscription & Plan</h3>
+        </div>
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <TierIcon size={20} />
-                <span className="text-sm font-semibold opacity-90">{currentTier.name} Partner</span>
+                <span className="text-lg font-bold capitalize">{currentPlan.label}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                  org.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700'
+                  : org.subscriptionStatus === 'past_due' ? 'bg-amber-100 text-amber-700'
+                  : org.subscriptionStatus === 'canceled' ? 'bg-red-100 text-red-700'
+                  : org.subscriptionStatus === 'trialing' ? 'bg-blue-100 text-blue-700'
+                  : 'bg-slate-100 text-slate-600'
+                }`}>{org.subscriptionStatus || 'active'}</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight">${monthlyEarnings.toLocaleString()}<span className="text-lg font-medium opacity-75">/mo</span></h2>
-              <p className="text-sm opacity-80 mt-1">Your current monthly revenue share earnings</p>
-            </div>
-            <div className="text-right hidden sm:block">
-              <div className="text-3xl font-black">{currentTier.pct}%</div>
-              <div className="text-xs opacity-75">rev share rate</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3">
-              <div className="text-xl font-bold">{facilityCount}</div>
-              <div className="text-[11px] opacity-75">Active Facilities</div>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3">
-              <div className="text-xl font-bold">${grossMrr.toLocaleString()}</div>
-              <div className="text-[11px] opacity-75">Gross MRR</div>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3">
-              <div className="text-xl font-bold">${annualEarnings.toLocaleString()}</div>
-              <div className="text-[11px] opacity-75">Annual Earnings</div>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-3">
-              <div className="text-xl font-bold">${totalLifetimeEarnings.toLocaleString()}</div>
-              <div className="text-[11px] opacity-75">Lifetime Earned</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Next tier CTA */}
-      {nextTier && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20">
-              <Rocket size={22} className="text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-emerald-900">Unlock {nextTier.name} — {nextTier.pct}% Revenue Share</h3>
-              <p className="text-sm text-emerald-700 mt-1">
-                Add <span className="font-bold">{facilitiesToNext} more {facilitiesToNext === 1 ? 'facility' : 'facilities'}</span> to reach {nextTier.name} tier and earn <span className="font-bold">${nextTierMonthly.toLocaleString()}/mo</span> — that's <span className="font-bold text-emerald-800">${(nextTierMonthly - monthlyEarnings).toLocaleString()}/mo more</span>.
-              </p>
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-emerald-600 mb-1.5">
-                  <span>{facilityCount} / {nextTier.min} facilities</span>
-                  <span>{Math.round((facilityCount / nextTier.min) * 100)}%</span>
-                </div>
-                <div className="h-2 bg-emerald-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all" style={{ width: `${Math.min(100, (facilityCount / nextTier.min) * 100)}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Deal terms */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-          <BadgeDollarSign size={18} className="text-emerald-600" />
-          <h3 className="font-bold text-sm">Revenue Share Program</h3>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">LIFETIME RECURRING</span>
-        </div>
-        <div className="p-5">
-          <p className="text-sm text-slate-600 mb-5">
-            For every facility you bring to StowStack, you earn a percentage of the monthly platform revenue — <strong>forever</strong>. No caps, no clawbacks, no sunset. As long as the facility stays on StowStack, you get paid.
-          </p>
-          <div className="grid sm:grid-cols-4 gap-3">
-            {REV_SHARE_TIERS.map(tier => {
-              const isActive = currentTier.name === tier.name
-              const TIcon = tier.icon
-              return (
-                <div key={tier.name} className={`rounded-xl border-2 p-4 text-center transition-all ${isActive ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/10 scale-105' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <TIcon size={24} className="mx-auto mb-2" style={{ color: tier.color }} />
-                  <div className="font-bold text-sm" style={{ color: tier.color }}>{tier.name}</div>
-                  <div className="text-3xl font-black mt-1" style={{ color: isActive ? '#059669' : undefined }}>{tier.pct}%</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {tier.max === Infinity ? `${tier.min}+ facilities` : `${tier.min}–${tier.max} facilities`}
-                  </div>
-                  <div className="text-xs font-medium mt-2" style={{ color: isActive ? '#059669' : '#94a3b8' }}>
-                    ${(tier.min * PER_FACILITY_MRR * tier.pct / 100).toLocaleString()}–{tier.max === Infinity ? '$$$$' : `$${(tier.max * PER_FACILITY_MRR * tier.pct / 100).toLocaleString()}`}/mo
-                  </div>
-                  {isActive && <div className="mt-2 text-[10px] font-bold text-emerald-700 bg-emerald-200 rounded-full px-2 py-0.5 inline-block">YOUR TIER</div>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6 mb-6">
-        {/* Earnings chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp size={15} className="text-emerald-600" /> Monthly Earnings
-          </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={earningsHistory}>
-              <defs>
-                <linearGradient id="earnGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Earned']} />
-              <Area type="monotone" dataKey="earned" stroke="#10b981" strokeWidth={2.5} fill="url(#earnGreen)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Earnings split pie */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h3 className="text-sm font-semibold mb-4">Your Split This Month</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                {pieData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
+              <ul className="space-y-1 mt-2">
+                {currentPlan.features.map(f => (
+                  <li key={f} className="flex items-center gap-1.5 text-xs text-slate-500"><CheckCircle2 size={12} className="text-green-500" />{f}</li>
                 ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, '']} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-slate-600">Your Earnings</span>
-              </div>
-              <span className="font-bold text-emerald-600">${monthlyEarnings.toLocaleString()}</span>
+              </ul>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-slate-200" />
-                <span className="text-slate-600">Platform Revenue</span>
-              </div>
-              <span className="font-medium text-slate-500">${(grossMrr - monthlyEarnings).toLocaleString()}</span>
-            </div>
+            {org.hasStripe && (
+              <button onClick={openBilling} className="px-4 py-2 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors whitespace-nowrap">Manage Billing</button>
+            )}
           </div>
+          {org.facilityLimit && org.facilityLimit < 999 && (
+            <div className="bg-slate-50 rounded-lg p-3">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                <span>Facility usage</span>
+                <span className="font-medium">{facilities.length} / {org.facilityLimit}</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${facilities.length >= org.facilityLimit ? 'bg-amber-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${Math.min(100, (facilities.length / org.facilityLimit) * 100)}%` }} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Per-facility earnings breakdown */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Building2 size={15} className="text-slate-500" /> Per-Facility Earnings
-          </h3>
-          <span className="text-xs text-slate-400">${PER_FACILITY_MRR}/facility x {currentTier.pct}% = ${(PER_FACILITY_MRR * currentTier.pct / 100).toFixed(2)}/facility/mo</span>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-5 py-2.5 font-medium text-slate-600">Facility</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-600">Platform Fee</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-600">Your {currentTier.pct}%</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-600">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {facilities.map(f => (
-              <tr key={f.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                <td className="px-5 py-2.5">
-                  <span className="font-medium">{f.name}</span>
-                  <span className="block text-[10px] text-slate-400">{f.location}</span>
-                </td>
-                <td className="px-5 py-2.5 text-right text-slate-600">${PER_FACILITY_MRR}/mo</td>
-                <td className="px-5 py-2.5 text-right font-semibold text-emerald-600">${(PER_FACILITY_MRR * currentTier.pct / 100).toFixed(2)}/mo</td>
-                <td className="px-5 py-2.5 text-right">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600'}`}>{f.status}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-emerald-50 font-semibold">
-              <td className="px-5 py-3 text-emerald-800">{facilities.length} Facilities Total</td>
-              <td className="px-5 py-3 text-right text-slate-700">${grossMrr.toLocaleString()}/mo</td>
-              <td className="px-5 py-3 text-right text-emerald-700">${monthlyEarnings.toLocaleString()}/mo</td>
-              <td className="px-5 py-3 text-right"><span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-200 text-emerald-800">{currentTier.name}</span></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* 12-month projection */}
+      {/* Security */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Rocket size={15} className="text-purple-500" /> 12-Month Earnings Projection
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">Conservative estimate assuming ~1 new facility per quarter</p>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Lock size={16} className="text-indigo-500" />
+          <h3 className="text-sm font-semibold">Security</h3>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-5 py-2 font-medium text-slate-600">Month</th>
-              <th className="text-right px-5 py-2 font-medium text-slate-600">Facilities</th>
-              <th className="text-right px-5 py-2 font-medium text-slate-600">Tier %</th>
-              <th className="text-right px-5 py-2 font-medium text-slate-600">Monthly Earnings</th>
-              <th className="text-right px-5 py-2 font-medium text-slate-600">Cumulative</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projections.map((p, i) => {
-              const cumulative = projections.slice(0, i + 1).reduce((s, x) => s + x.earned, 0) + totalLifetimeEarnings
-              const tierChanged = i > 0 && p.pct !== projections[i - 1].pct
-              return (
-                <tr key={p.month} className={`border-b border-slate-50 ${tierChanged ? 'bg-emerald-50' : 'hover:bg-slate-50/50'}`}>
-                  <td className="px-5 py-2.5 font-medium">{p.month} {tierChanged && <span className="text-[10px] text-emerald-600 font-bold ml-1">TIER UP!</span>}</td>
-                  <td className="px-5 py-2.5 text-right">{p.facilities}</td>
-                  <td className="px-5 py-2.5 text-right">{p.pct}%</td>
-                  <td className="px-5 py-2.5 text-right font-medium text-emerald-600">${p.earned.toLocaleString()}</td>
-                  <td className="px-5 py-2.5 text-right text-slate-500">${cumulative.toLocaleString()}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <form onSubmit={handlePasswordChange} className="p-6 space-y-3">
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Current Password</label>
+            <input type={showPasswords ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className={pwInputCls} placeholder="Enter current password" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">New Password</label>
+            <input type={showPasswords ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} className={pwInputCls} placeholder="At least 8 characters" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Confirm New Password</label>
+            <input type={showPasswords ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={pwInputCls} placeholder="Confirm new password" />
+          </div>
+          <button type="button" onClick={() => setShowPasswords(!showPasswords)} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+            {showPasswords ? <EyeOff size={12} /> : <Eye size={12} />} {showPasswords ? 'Hide' : 'Show'} passwords
+          </button>
+          {pwMessage && <p className={`text-xs ${pwMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{pwMessage.text}</p>}
+          <button type="submit" disabled={pwLoading || !newPassword || !confirmPassword}
+            className="px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors">
+            {pwLoading ? <Loader2 size={14} className="animate-spin" /> : 'Update Password'}
+          </button>
+        </form>
       </div>
 
-      {/* Fine print */}
-      <div className="mt-6 bg-slate-50 rounded-xl p-5 border border-slate-200">
-        <h4 className="text-sm font-semibold text-slate-700 mb-2">How It Works</h4>
-        <div className="grid sm:grid-cols-2 gap-3 text-xs text-slate-600">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-            <span><strong>Recurring forever.</strong> Your revenue share continues as long as each facility remains on StowStack. No sunset clause, no cap.</span>
+      {/* Organization Details */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Building2 size={16} className="text-indigo-500" />
+          <h3 className="text-sm font-semibold">Organization Details</h3>
+        </div>
+        <div className="p-6 space-y-3">
+          <div className="flex items-center justify-between py-2 border-b border-slate-50">
+            <span className="text-sm text-slate-500">Organization Slug</span>
+            <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono">{org.slug}</code>
           </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-            <span><strong>Tier upgrades are instant.</strong> The moment you add your {nextTier ? `${nextTier.min}th` : 'next'} facility, your rate increases across all facilities.</span>
+          <div className="flex items-center justify-between py-2 border-b border-slate-50">
+            <span className="text-sm text-slate-500">White-Label</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${org.whiteLabel ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+              {org.whiteLabel ? 'Enabled' : 'Disabled'}
+            </span>
           </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-            <span><strong>Paid monthly.</strong> Earnings are calculated at the end of each billing cycle and paid out within 15 days.</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-            <span><strong>No clawbacks.</strong> If a facility churns, you simply stop earning on that facility. No repayment of prior earnings, ever.</span>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-sm text-slate-500">Active Facilities</span>
+            <span className="text-sm font-medium">{facilities.length}</span>
           </div>
         </div>
       </div>
@@ -1069,7 +246,7 @@ function RevenueShareTab({ facilities }: { facilities: OrgFacility[] }) {
   )
 }
 
-/* ── Main Partner Portal ── */
+/* ── Main Partner Dashboard ── */
 
 type PartnerTab = 'portfolio' | 'earnings' | 'benchmarks' | 'billing' | 'team' | 'branding' | 'settings'
 
@@ -1086,58 +263,58 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
   const fetchFacilities = useCallback(async () => {
     try {
       const res = await fetch('/api/org-facilities', { headers: { 'X-Org-Token': orgToken } })
-      if (res.ok) {
-        const data = await res.json()
-        setFacilities(data.facilities || [])
-      }
+      if (res.ok) { const data = await res.json(); setFacilities(data.facilities || []) }
     } catch { /* silent */ }
     setLoading(false)
   }, [orgToken])
 
   useEffect(() => { fetchFacilities() }, [fetchFacilities])
 
-  // Portfolio aggregates
   const totals = facilities.reduce((acc, f) => {
-    const campaigns = f.campaigns || []
-    campaigns.forEach(c => {
-      acc.spend += Number(c.spend) || 0
-      acc.leads += Number(c.leads) || 0
-      acc.moveIns += Number(c.moveIns) || 0
-    })
+    (f.campaigns || []).forEach(c => { acc.spend += Number(c.spend) || 0; acc.leads += Number(c.leads) || 0; acc.moveIns += Number(c.moveIns) || 0 })
     return acc
   }, { spend: 0, leads: 0, moveIns: 0 })
   const avgCpl = totals.leads > 0 ? totals.spend / totals.leads : 0
 
-  // Monthly rollup for chart
   const monthlyMap = new Map<string, { month: string; spend: number; leads: number; moveIns: number }>()
   facilities.forEach(f => {
     (f.campaigns || []).forEach(c => {
       const existing = monthlyMap.get(c.month) || { month: c.month, spend: 0, leads: 0, moveIns: 0 }
-      existing.spend += Number(c.spend) || 0
-      existing.leads += Number(c.leads) || 0
-      existing.moveIns += Number(c.moveIns) || 0
+      existing.spend += Number(c.spend) || 0; existing.leads += Number(c.leads) || 0; existing.moveIns += Number(c.moveIns) || 0
       monthlyMap.set(c.month, existing)
     })
   })
   const monthlyData = Array.from(monthlyMap.values()).sort((a, b) => a.month.localeCompare(b.month))
-
   const isAdmin = auth.user.role === 'org_admin'
+
+  const openBilling = async () => {
+    try {
+      const res = await fetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken } })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { /* silent */ }
+  }
+
+  const TABS: [string, string, typeof BarChart3][] = [
+    ['portfolio', 'Portfolio', BarChart3],
+    ['earnings', 'Earnings', BadgeDollarSign],
+    ['benchmarks', 'Benchmarks', Target],
+    ...(isAdmin ? [['billing', 'Billing', DollarSign] as [string, string, typeof BarChart3]] : []),
+    ...(isAdmin ? [['team', 'Team', Users] as [string, string, typeof BarChart3]] : []),
+    ...(isAdmin ? [['branding', 'Branding', Palette] as [string, string, typeof BarChart3]] : []),
+    ...(isAdmin ? [['settings', 'Settings', Settings] as [string, string, typeof BarChart3]] : []),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors">
-              <ArrowLeft size={20} />
-            </button>
+            <button onClick={onBack} className="p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"><ArrowLeft size={20} /></button>
             {org.logoUrl ? (
               <img src={org.logoUrl} alt={org.name} className="h-7 object-contain" />
             ) : (
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: primaryColor }}>
-                <Building2 size={16} className="text-white" />
-              </div>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: primaryColor }}><Building2 size={16} className="text-white" /></div>
             )}
             <div>
               <h1 className="text-base font-bold tracking-tight">{org.name}</h1>
@@ -1145,53 +322,77 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider hidden sm:inline ${
+              org.plan === 'enterprise' ? 'bg-amber-100 text-amber-700' : org.plan === 'growth' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+            }`}>{org.plan}</span>
             <span className="text-xs text-slate-400 hidden sm:inline">{facilities.length} facilities</span>
-            <button onClick={onLogout} className="text-sm text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1.5">
-              <LogOut size={14} /> Sign out
-            </button>
+            <button onClick={onLogout} className="text-sm text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1.5"><LogOut size={14} /> Sign out</button>
           </div>
         </div>
-        {/* Tabs */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px">
-          {([
-            ['portfolio', 'Portfolio', BarChart3],
-            ['earnings', 'Earnings', BadgeDollarSign],
-            ['benchmarks', 'Benchmarks', Target],
-            ...(isAdmin ? [['billing', 'Billing', DollarSign]] : []),
-            ...(isAdmin ? [['team', 'Team', Users]] : []),
-            ...(isAdmin ? [['branding', 'Branding', Palette]] : []),
-            ...(isAdmin ? [['settings', 'Settings', Settings]] : []),
-          ] as [string, string, typeof BarChart3][]).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              onClick={() => { setActiveTab(id as PartnerTab); setSelectedFacility(null) }}
+          {TABS.map(([id, label, Icon]) => (
+            <button key={id} onClick={() => { setActiveTab(id as PartnerTab); setSelectedFacility(null) }}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === id
-                  ? 'text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                activeTab === id ? 'text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
               style={activeTab === id ? { borderBottomColor: primaryColor, color: primaryColor } : undefined}
-            >
-              <Icon size={15} />
-              {label}
-            </button>
+            ><Icon size={15} />{label}</button>
           ))}
         </div>
       </header>
 
+      {org.subscriptionStatus === 'past_due' && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-amber-600" />
+              <p className="text-sm text-amber-800">Your payment is past due. Please update your payment method to avoid service interruption.</p>
+            </div>
+            {isAdmin && org.hasStripe && (
+              <button onClick={openBilling} className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap">Update Payment</button>
+            )}
+          </div>
+        </div>
+      )}
+      {org.subscriptionStatus === 'canceled' && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-600" />
+            <p className="text-sm text-red-800">Your subscription has been canceled. Some features may be restricted.</p>
+          </div>
+        </div>
+      )}
+
+      {org.facilityLimit && org.facilityLimit < 999 && (
+        <div className="bg-white border-b border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-3">
+            <Gauge size={14} className="text-slate-400" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[11px] text-slate-500">{facilities.length} / {org.facilityLimit} facilities used</span>
+                {facilities.length >= org.facilityLimit && <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Limit reached</span>}
+              </div>
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${facilities.length >= org.facilityLimit ? 'bg-amber-500' : facilities.length >= org.facilityLimit * 0.8 ? 'bg-yellow-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${Math.min(100, (facilities.length / org.facilityLimit) * 100)}%` }} />
+              </div>
+            </div>
+            {isAdmin && facilities.length >= org.facilityLimit * 0.8 && org.hasStripe && (
+              <button onClick={openBilling} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 whitespace-nowrap">Upgrade Plan</button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Portfolio Tab */}
         {activeTab === 'portfolio' && !selectedFacility && (
           <div>
-            {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <StatCard label="Facilities" value={facilities.length.toString()} icon={Building2} color="bg-slate-700" />
               <StatCard label="Total Spend" value={`$${totals.spend.toLocaleString()}`} icon={DollarSign} color="bg-blue-500" />
               <StatCard label="Total Leads" value={totals.leads.toString()} icon={Users} color="bg-indigo-500" />
               <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(0)}`} icon={Target} color="bg-purple-500" />
             </div>
-
-            {/* Portfolio chart */}
             {monthlyData.length > 0 && (
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-6">
                 <h3 className="text-sm font-semibold mb-4">Portfolio Performance</h3>
@@ -1207,12 +408,9 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
                 </ResponsiveContainer>
               </div>
             )}
-
-            {/* Facility list */}
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-700">Facilities ({facilities.length})</h2>
             </div>
-
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
             ) : facilities.length === 0 ? (
@@ -1223,9 +421,7 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
               </div>
             ) : (
               <div className="space-y-2">
-                {facilities.map(f => (
-                  <FacilityRow key={f.id} facility={f} primaryColor={primaryColor} onSelect={() => setSelectedFacility(f)} />
-                ))}
+                {facilities.map(f => <FacilityRow key={f.id} facility={f} primaryColor={primaryColor} onSelect={() => setSelectedFacility(f)} />)}
               </div>
             )}
           </div>
@@ -1235,7 +431,6 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           <FacilityDetail facility={selectedFacility} primaryColor={primaryColor} onBack={() => setSelectedFacility(null)} />
         )}
 
-        {/* Benchmarks Tab */}
         {activeTab === 'benchmarks' && (
           <div>
             <h2 className="text-lg font-bold mb-4">Facility Benchmarks</h2>
@@ -1247,31 +442,23 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
             ) : (() => {
               const benchmarks = facilities.map(f => {
                 const campaigns = f.campaigns || []
-                const t = campaigns.reduce((acc, c) => ({
-                  spend: acc.spend + Number(c.spend), leads: acc.leads + Number(c.leads), moveIns: acc.moveIns + Number(c.moveIns),
-                }), { spend: 0, leads: 0, moveIns: 0 })
+                const t = campaigns.reduce((acc, c) => ({ spend: acc.spend + Number(c.spend), leads: acc.leads + Number(c.leads), moveIns: acc.moveIns + Number(c.moveIns) }), { spend: 0, leads: 0, moveIns: 0 })
                 return { ...f, t, cpl: t.leads > 0 ? t.spend / t.leads : 0, cpmi: t.moveIns > 0 ? t.spend / t.moveIns : 0, roas: campaigns.length > 0 ? Number(campaigns[campaigns.length - 1].roas) : 0 }
               }).sort((a, b) => b.roas - a.roas)
-              const avgCpl = benchmarks.reduce((s, b) => s + b.cpl, 0) / (benchmarks.length || 1)
+              const benchAvgCpl = benchmarks.reduce((s, b) => s + b.cpl, 0) / (benchmarks.length || 1)
               return (
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50">
-                        <th className="text-left px-4 py-2.5 font-medium text-slate-600">#</th>
-                        <th className="text-left px-4 py-2.5 font-medium text-slate-600">Facility</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Spend</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Leads</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">CPL</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Move-Ins</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">Cost/MI</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">ROAS</th>
-                        <th className="text-right px-4 py-2.5 font-medium text-slate-600">vs Avg CPL</th>
+                        {['#', 'Facility', 'Spend', 'Leads', 'CPL', 'Move-Ins', 'Cost/MI', 'ROAS', 'vs Avg CPL'].map((h, i) => (
+                          <th key={h} className={`${i < 2 ? 'text-left' : 'text-right'} px-4 py-2.5 font-medium text-slate-600`}>{h}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
                       {benchmarks.map((b, i) => {
-                        const diff = avgCpl > 0 ? ((b.cpl - avgCpl) / avgCpl * 100) : 0
+                        const diff = benchAvgCpl > 0 ? ((b.cpl - benchAvgCpl) / benchAvgCpl * 100) : 0
                         return (
                           <tr key={b.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                             <td className={`px-4 py-2.5 ${i === 0 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>{i + 1}</td>
@@ -1299,12 +486,8 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           </div>
         )}
 
-        {/* Earnings Tab */}
-        {activeTab === 'earnings' && (
-          <RevenueShareTab facilities={facilities} />
-        )}
+        {activeTab === 'earnings' && <RevenueShareTab facilities={facilities} />}
 
-        {/* Billing Tab */}
         {activeTab === 'billing' && isAdmin && (() => {
           const PLAN_PRICING: Record<string, number> = { starter: 499, growth: 1499, enterprise: 3999 }
           const baseFee = PLAN_PRICING[org.plan] || 499
@@ -1316,16 +499,12 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           return (
             <div>
               <h2 className="text-lg font-bold mb-4">Billing</h2>
-
-              {/* Revenue share offset banner */}
               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center">
-                    <BadgeDollarSign size={20} className="text-white" />
-                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center"><BadgeDollarSign size={20} className="text-white" /></div>
                   <div>
                     <div className="text-sm font-bold text-emerald-800">Revenue Share Credit</div>
-                    <div className="text-xs text-emerald-600">{tier.name} tier — {tier.pct}% on {facilities.length} facilities</div>
+                    <div className="text-xs text-emerald-600">{tier.name} tier &mdash; {tier.pct}% on {facilities.length} facilities</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -1333,7 +512,6 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
                   <div className="text-[10px] text-emerald-500">applied to your bill</div>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                   <p className="text-xs text-slate-500 mb-1">Platform Fee</p>
@@ -1397,54 +575,11 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           )
         })()}
 
-        {activeTab === 'team' && isAdmin && (
-          <TeamTab orgToken={orgToken} orgUser={auth.user} primaryColor={primaryColor} />
-        )}
-
-        {activeTab === 'branding' && isAdmin && (
-          <BrandingTab org={org} orgToken={orgToken} onUpdate={setOrg} />
-        )}
-
-        {activeTab === 'settings' && isAdmin && (
-          <div>
-            <h2 className="text-lg font-bold mb-4">Organization Settings</h2>
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium">Plan</p>
-                  <p className="text-xs text-slate-500">Current subscription tier</p>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 capitalize">{org.plan}</span>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium">White-Label</p>
-                  <p className="text-xs text-slate-500">Remove StowStack branding from all client-facing pages</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${org.whiteLabel ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                  {org.whiteLabel ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium">Organization Slug</p>
-                  <p className="text-xs text-slate-500">Used for login and URLs</p>
-                </div>
-                <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono">{org.slug}</code>
-              </div>
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium">Facilities</p>
-                  <p className="text-xs text-slate-500">Active facility count</p>
-                </div>
-                <span className="text-sm font-medium">{facilities.length}</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'team' && isAdmin && <TeamTab orgToken={orgToken} orgUser={auth.user} primaryColor={primaryColor} />}
+        {activeTab === 'branding' && isAdmin && <BrandingTab org={org} orgToken={orgToken} onUpdate={setOrg} />}
+        {activeTab === 'settings' && isAdmin && <SettingsTab org={org} orgToken={orgToken} facilities={facilities} />}
       </div>
 
-      {/* Footer */}
       {!org.whiteLabel && (
         <div className="border-t border-slate-200 py-4 text-center">
           <p className="text-xs text-slate-400">Powered by StowStack</p>
@@ -1456,22 +591,39 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
 
 /* ── Export ── */
 
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000
+
 export default function PartnerPortal({ onBack }: { onBack: () => void }) {
   const [auth, setAuth] = useState<AuthState | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
-      return stored ? JSON.parse(stored) : null
+      if (!stored) return null
+      const parsed = JSON.parse(stored)
+      if (parsed._loginAt && Date.now() - parsed._loginAt > SESSION_DURATION_MS) { localStorage.removeItem(STORAGE_KEY); return null }
+      return parsed
     } catch { return null }
   })
 
-  const handleLogout = () => {
-    localStorage.removeItem(STORAGE_KEY)
-    setAuth(null)
+  const handleLogin = (data: AuthState) => {
+    const withTimestamp = { ...data, _loginAt: Date.now() }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(withTimestamp))
+    setAuth(withTimestamp)
   }
 
-  if (!auth) {
-    return <PartnerLogin onAuth={setAuth} />
-  }
+  const handleLogout = () => { localStorage.removeItem(STORAGE_KEY); setAuth(null) }
 
+  useEffect(() => {
+    if (!auth) return
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return
+    const { _loginAt } = JSON.parse(stored)
+    if (!_loginAt) return
+    const remaining = SESSION_DURATION_MS - (Date.now() - _loginAt)
+    if (remaining <= 0) { handleLogout(); return }
+    const timer = setTimeout(handleLogout, remaining)
+    return () => clearTimeout(timer)
+  }, [auth])
+
+  if (!auth) return <PartnerLoginComponent onLogin={handleLogin} />
   return <PartnerDashboardInner auth={auth} onLogout={handleLogout} onBack={onBack} />
 }

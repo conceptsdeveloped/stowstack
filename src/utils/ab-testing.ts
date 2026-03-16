@@ -75,7 +75,7 @@ export interface VariantEventData {
   visitorId: string;
   eventName: string;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -278,7 +278,7 @@ export async function trackABEvent(
   testId: string,
   variantId: string,
   eventName: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<void> {
   const visitorId = getVisitorId();
 
@@ -295,7 +295,7 @@ function recordEventLocally(
   variantId: string,
   visitorId: string,
   eventName: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): void {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.AB_EVENTS);
@@ -482,7 +482,7 @@ export function getVariantResults(
   if (test.metrics.primary === 'move_in_completed' || test.metrics.primary === 'reservation_completed') {
     conversionEvents.forEach(e => {
       if (e.metadata?.monthly_rent) {
-        revenue += e.metadata.monthly_rent;
+        revenue += Number(e.metadata.monthly_rent);
       }
     });
   }
