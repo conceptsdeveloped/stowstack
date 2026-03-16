@@ -13,8 +13,11 @@ import TikTokCreator from './TikTokCreator'
 import VideoGenerator from './VideoGenerator'
 import GoogleAdsLab from './GoogleAdsLab'
 import GBPTab from './GBPTab'
+import PMSDataTab from './PMSDataTab'
+import RevenueIntelligence from './RevenueIntelligence'
+import OccupancyIntelligence from './OccupancyIntelligence'
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -78,6 +81,9 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       <div className={`flex gap-1 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
         {([
           ['overview', 'Overview'],
+          ['pms-data', 'PMS Data'],
+          ['revenue-intel', 'Revenue Intel'],
+          ['occupancy-intel', 'Occupancy'],
           ['creative', 'Creative'],
           ['assets', 'Assets'],
           ['ad-preview', 'Ad Preview'],
@@ -107,6 +113,18 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       {/* Sub-tab content */}
       {subTab === 'overview' && (
         <OverviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} onFacilityUpdate={onFacilityUpdate} />
+      )}
+
+      {subTab === 'pms-data' && (
+        <PMSDataTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'revenue-intel' && (
+        <RevenueIntelligence facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'occupancy-intel' && (
+        <OccupancyIntelligence facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'creative' && (

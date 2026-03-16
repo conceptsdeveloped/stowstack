@@ -1014,6 +1014,180 @@ CREATE TABLE IF NOT EXISTS marketing_plans (
   generated_from  JSONB                  -- snapshot of inputs used to generate
 );
 CREATE INDEX IF NOT EXISTS idx_marketing_plans_facility ON marketing_plans(facility_id);
+
+-- ============================================================
+-- PMS (Property Management System) manual data per facility
+-- ============================================================
+
+-- Facility-level PMS snapshot: overall facility info from PMS export
+CREATE TABLE IF NOT EXISTS facility_pms_snapshots (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+  total_units     INTEGER,
+  occupied_units  INTEGER,
+  occupancy_pct   NUMERIC(5,2),
+  total_sqft      INTEGER,
+  occupied_sqft   INTEGER,
+  gross_potential NUMERIC(12,2),    -- total potential rent if 100% occupied at street rates
+  actual_revenue  NUMERIC(12,2),    -- actual monthly rent collected
+  delinquency_pct NUMERIC(5,2),
+  move_ins_mtd    INTEGER DEFAULT 0,
+  move_outs_mtd   INTEGER DEFAULT 0,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, snapshot_date)
+);
+CREATE INDEX IF NOT EXISTS idx_pms_snapshots_facility ON facility_pms_snapshots(facility_id);
+
+-- Unit types: rows of unit inventory from PMS (one row per unit type per facility)
+CREATE TABLE IF NOT EXISTS facility_pms_units (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  unit_type       TEXT NOT NULL,          -- e.g. '10×10 Climate'
+  size_label      TEXT,                   -- e.g. '10x10'
+  width_ft        NUMERIC(6,1),
+  depth_ft        NUMERIC(6,1),
+  sqft            NUMERIC(8,1),
+  floor           TEXT,                   -- '1st', '2nd', 'outdoor', etc.
+  features        TEXT[] DEFAULT '{}',    -- climate, drive_up, interior, elevator, power, alarmed
+  total_count     INTEGER NOT NULL DEFAULT 0,
+  occupied_count  INTEGER NOT NULL DEFAULT 0,
+  vacant_count    INTEGER GENERATED ALWAYS AS (total_count - occupied_count) STORED,
+  street_rate     NUMERIC(8,2),           -- current advertised rate
+  actual_avg_rate NUMERIC(8,2),           -- avg rate tenants are actually paying
+  web_rate        NUMERIC(8,2),           -- online/promo rate if different
+  push_rate       NUMERIC(8,2),           -- rate you're pushing new tenants toward
+  ecri_eligible   INTEGER DEFAULT 0,      -- units eligible for existing customer rate increase
+  last_updated    TIMESTAMPTZ DEFAULT NOW(),
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, unit_type)
+);
+CREATE INDEX IF NOT EXISTS idx_pms_units_facility ON facility_pms_units(facility_id);
+
+-- Rate history: track rate changes over time per unit type
+CREATE TABLE IF NOT EXISTS facility_pms_rate_history (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  unit_type       TEXT NOT NULL,
+  effective_date  DATE NOT NULL,
+  street_rate     NUMERIC(8,2),
+  web_rate        NUMERIC(8,2),
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_rate_history_facility ON facility_pms_rate_history(facility_id);
+
+-- Specials / promotions currently active per facility
+CREATE TABLE IF NOT EXISTS facility_pms_specials (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,          -- e.g. '1st Month Free', '50% Off 3 Months'
+  description     TEXT,
+  applies_to      TEXT[] DEFAULT '{}',    -- unit types this applies to, empty = all
+  discount_type   TEXT DEFAULT 'fixed',   -- fixed | percent | months_free
+  discount_value  NUMERIC(8,2),
+  min_lease_months INTEGER DEFAULT 1,
+  start_date      DATE,
+  end_date        DATE,
+  active          BOOLEAN DEFAULT TRUE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_specials_facility ON facility_pms_specials(facility_id);
+
+-- Monthly revenue history (from storEDGE Annual Revenue & Occupancy report)
+CREATE TABLE IF NOT EXISTS facility_pms_revenue_history (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  year            INTEGER NOT NULL,
+  month           TEXT NOT NULL,
+  quarter         INTEGER,
+  revenue         NUMERIC(12,2) DEFAULT 0,
+  monthly_tax     NUMERIC(10,2) DEFAULT 0,
+  move_ins        INTEGER DEFAULT 0,
+  move_outs       INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, year, month)
+);
+CREATE INDEX IF NOT EXISTS idx_pms_revenue_history_facility ON facility_pms_revenue_history(facility_id);
+
+-- Aging / delinquency detail (from storEDGE Aging report)
+CREATE TABLE IF NOT EXISTS facility_pms_aging (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+  unit            TEXT NOT NULL,
+  tenant_name     TEXT,
+  bucket_0_30     NUMERIC(10,2) DEFAULT 0,
+  bucket_31_60    NUMERIC(10,2) DEFAULT 0,
+  bucket_61_90    NUMERIC(10,2) DEFAULT 0,
+  bucket_91_120   NUMERIC(10,2) DEFAULT 0,
+  bucket_120_plus NUMERIC(10,2) DEFAULT 0,
+  total           NUMERIC(10,2) DEFAULT 0,
+  move_out_date   DATE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_aging_facility ON facility_pms_aging(facility_id, snapshot_date);
+
+-- Tenant length of stay / lead source tracking (from storEDGE Length of Stay report)
+CREATE TABLE IF NOT EXISTS facility_pms_length_of_stay (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  tenant_name     TEXT NOT NULL,
+  latest_unit     TEXT,
+  move_in         DATE,
+  move_out        DATE,
+  days_in_unit    INTEGER DEFAULT 0,
+  lead_source     TEXT,
+  lead_category   TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_los_facility ON facility_pms_length_of_stay(facility_id);
+
+-- Rent roll tenant detail (from storEDGE Rent Roll)
+CREATE TABLE IF NOT EXISTS facility_pms_rent_roll (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+  unit            TEXT NOT NULL,
+  size_label      TEXT,
+  tenant_name     TEXT,
+  account         TEXT,
+  rental_start    DATE,
+  paid_thru       DATE,
+  rent_rate       NUMERIC(8,2),
+  insurance_premium NUMERIC(8,2),
+  total_due       NUMERIC(10,2) DEFAULT 0,
+  days_past_due   INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_rent_roll_facility ON facility_pms_rent_roll(facility_id, snapshot_date);
+
+-- Per-tenant rate detail (from storEDGE Rent Rates by Tenant) — powers ECRI engine
+CREATE TABLE IF NOT EXISTS facility_pms_tenant_rates (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  snapshot_date     DATE NOT NULL DEFAULT CURRENT_DATE,
+  unit              TEXT NOT NULL,
+  size_label        TEXT,               -- e.g. '10x20'
+  unit_type         TEXT,               -- e.g. 'parking', 'Self-Storage'
+  access_type       TEXT,               -- 'Indoor', 'Outdoor'
+  tenant_name       TEXT,
+  moved_in          DATE,
+  standard_rate     NUMERIC(8,2),       -- street rate for this unit
+  actual_rate       NUMERIC(8,2),       -- what tenant is paying
+  paid_rate         NUMERIC(8,2),       -- after discounts
+  rate_variance     NUMERIC(8,2),       -- actual - standard (positive = paying above street)
+  discount          NUMERIC(8,2) DEFAULT 0,
+  discount_desc     TEXT,
+  days_as_tenant    INTEGER DEFAULT 0,  -- computed from moved_in
+  ecri_flag         BOOLEAN DEFAULT FALSE,  -- computed: eligible for rate increase
+  ecri_suggested    NUMERIC(8,2),       -- suggested new rate
+  ecri_revenue_lift NUMERIC(8,2),       -- monthly revenue gain if applied
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pms_tenant_rates_facility ON facility_pms_tenant_rates(facility_id, snapshot_date);
 `
 
 async function migrate() {

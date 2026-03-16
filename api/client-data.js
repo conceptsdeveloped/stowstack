@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         client: {
+          facilityId: client.facility_id,
           email: client.email,
           name: client.name,
           facilityName: client.facility_name,

@@ -6,6 +6,7 @@ import {
   MessageSquare, ArrowUpRight, ArrowDownRight, Send
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
+import { usePMSData } from '@/hooks/usePMSData'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell
@@ -14,6 +15,7 @@ import {
 /* ── Types ── */
 
 interface ClientData {
+  facilityId?: string
   email: string
   name: string
   facilityName: string
@@ -142,6 +144,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
   const [messages, setMessages] = useState<{ id: string; from: string; text: string; timestamp: string }[]>([])
   const [msgText, setMsgText] = useState('')
   const [msgSending, setMsgSending] = useState(false)
+  const { data: pmsData } = usePMSData(client.facilityId || null)
   const [liveAttribution, setLiveAttribution] = useState<{
     hasData: boolean
     totals: { spend: number; leads: number; move_ins: number; revenue: number; cpl: number; cost_per_move_in: number; roas: number }
@@ -611,6 +614,83 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             </button>
           </div>
         </div>
+
+        {/* Unit Mix from PMS Data */}
+        {pmsData && pmsData.units.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 mt-6 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h3 className="font-semibold">Unit Mix & Availability</h3>
+              <p className="text-xs text-slate-500">Current inventory from your property management system</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 border-b border-slate-100">
+              <div className="text-center">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Total Units</p>
+                <p className="text-2xl font-bold">{pmsData.totalUnits}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Occupancy</p>
+                <p className="text-2xl font-bold">{pmsData.occupancyPct.toFixed(1)}%</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Vacant</p>
+                <p className="text-2xl font-bold text-red-500">{pmsData.vacantUnits}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Monthly Revenue</p>
+                <p className="text-2xl font-bold text-emerald-600">${pmsData.actualRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-left">
+                    <th className="px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Unit Type</th>
+                    <th className="px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide text-right">Units</th>
+                    <th className="px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide text-right">Rate</th>
+                    <th className="px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide text-right">Vacant</th>
+                    <th className="px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide text-right">Lost MRR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pmsData.unitMix.map(u => (
+                    <tr key={u.type} className="border-t border-slate-100 hover:bg-slate-50/50">
+                      <td className="px-5 py-3 font-medium">{u.type}</td>
+                      <td className="px-5 py-3 text-right text-slate-600">{u.count}</td>
+                      <td className="px-5 py-3 text-right text-slate-600">${u.rate}/mo</td>
+                      <td className={`px-5 py-3 text-right ${u.vacancy > 0 ? 'text-red-500 font-medium' : 'text-emerald-600'}`}>{u.vacancy}</td>
+                      <td className="px-5 py-3 text-right text-red-500 font-medium">
+                        {u.vacancy > 0 ? `-$${(u.vacancy * u.rate).toLocaleString()}/mo` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                    <td className="px-5 py-3">Total</td>
+                    <td className="px-5 py-3 text-right">{pmsData.totalUnits}</td>
+                    <td className="px-5 py-3 text-right">—</td>
+                    <td className="px-5 py-3 text-right text-red-500">{pmsData.vacantUnits}</td>
+                    <td className="px-5 py-3 text-right text-red-500">
+                      -${pmsData.unitMix.reduce((s, u) => s + (u.vacancy * u.rate), 0).toLocaleString()}/mo
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {pmsData.specials.filter(s => s.active).length > 0 && (
+              <div className="px-5 py-4 border-t border-slate-100">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Active Specials</p>
+                <div className="flex flex-wrap gap-2">
+                  {pmsData.specials.filter(s => s.active).map(s => (
+                    <span key={s.id} className="px-3 py-1.5 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Contact Card */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
