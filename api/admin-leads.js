@@ -121,21 +121,66 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  // GET — list all leads
+  // GET — list all leads (with optional pagination)
   if (req.method === 'GET') {
     try {
+      const page = Math.max(1, parseInt(req.query?.page) || 1)
+      const limit = Math.max(1, Math.min(200, parseInt(req.query?.limit) || 50))
+      const search = req.query?.search || ''
+      const statusFilter = req.query?.status || ''
+      const offset = (page - 1) * limit
+
+      // Build WHERE clauses for filtering
+      const whereClauses = []
+      const whereValues = []
+      let paramIdx = 1
+
+      if (search) {
+        whereClauses.push(`(
+          contact_name ILIKE $${paramIdx} OR
+          name ILIKE $${paramIdx} OR
+          location ILIKE $${paramIdx} OR
+          contact_email ILIKE $${paramIdx}
+        )`)
+        whereValues.push(`%${search}%`)
+        paramIdx++
+      }
+
+      if (statusFilter) {
+        whereClauses.push(`pipeline_status = $${paramIdx}`)
+        whereValues.push(statusFilter)
+        paramIdx++
+      }
+
+      const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+      // Count total matching rows
+      const countRows = await query(
+        `SELECT COUNT(*) as count FROM facilities ${whereSQL}`,
+        whereValues
+      )
+      const total = parseInt(countRows[0]?.count || 0)
+      const totalPages = Math.max(1, Math.ceil(total / limit))
+
+      // Fetch paginated facilities
       const facilities = await query(
-        `SELECT * FROM facilities ORDER BY created_at DESC`
+        `SELECT * FROM facilities ${whereSQL} ORDER BY created_at DESC LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+        [...whereValues, limit, offset]
       )
 
-      // Batch-fetch notes for all facilities
-      const noteRows = await query(
-        `SELECT facility_id, text, created_at FROM lead_notes ORDER BY created_at ASC`
-      )
-      const notesByFacility = {}
-      for (const n of noteRows) {
-        if (!notesByFacility[n.facility_id]) notesByFacility[n.facility_id] = []
-        notesByFacility[n.facility_id].push({ text: n.text, at: n.created_at?.toISOString?.() || n.created_at })
+      // Batch-fetch notes for returned facilities only
+      let notesByFacility = {}
+      if (facilities.length > 0) {
+        const facilityIds = facilities.map(f => f.id)
+        const placeholders = facilityIds.map((_, i) => `$${i + 1}`).join(', ')
+        const noteRows = await query(
+          `SELECT facility_id, text, created_at FROM lead_notes WHERE facility_id IN (${placeholders}) ORDER BY created_at ASC`,
+          facilityIds
+        )
+        for (const n of noteRows) {
+          if (!notesByFacility[n.facility_id]) notesByFacility[n.facility_id] = []
+          notesByFacility[n.facility_id].push({ text: n.text, at: n.created_at?.toISOString?.() || n.created_at })
+        }
       }
 
       const leads = facilities.map(f => facilityToLead(f, notesByFacility[f.id] || []))
@@ -144,7 +189,16 @@ export default async function handler(req, res) {
       const auditCountRows = await query(`SELECT COUNT(*) as count FROM shared_audits`)
       const auditCount = parseInt(auditCountRows[0]?.count || 0)
 
-      return res.status(200).json({ leads, auditCount })
+      return res.status(200).json({
+        leads,
+        auditCount,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      })
     } catch (err) {
       console.error('Admin leads list error:', err)
       return res.status(500).json({ error: 'Failed to list leads' })

@@ -76,6 +76,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const [guideScrollTarget, setGuideScrollTarget] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('stowstack_sidebar') === 'collapsed')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalLeads, setTotalLeads] = useState(0)
+  const LEADS_PER_PAGE = 50
 
   const openGuideToSection = useCallback((section: string) => {
     setGuideScrollTarget(section)
@@ -85,7 +89,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const fetchLeads = useCallback(async () => {
     try {
       setError(null)
-      const res = await fetch('/api/admin-leads', {
+      const res = await fetch(`/api/admin-leads?page=${page}&limit=${LEADS_PER_PAGE}`, {
         headers: { 'X-Admin-Key': adminKey },
       })
       if (res.status === 401) { onLogout(); return }
@@ -93,12 +97,16 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
       const data = await res.json()
       setLeads(data.leads || [])
       setAuditCount(data.auditCount || 0)
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages)
+        setTotalLeads(data.pagination.total)
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [adminKey, onLogout])
+  }, [adminKey, onLogout, page])
 
   useEffect(() => { fetchLeads() }, [fetchLeads])
 
@@ -112,7 +120,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           const data = await res.json()
           setLeadScores(data.scores || {})
         }
-      } catch { /* silent */ }
+      } catch (err) {
+        console.error('[AdminDashboard] Failed to fetch lead scores:', err)
+      }
     }
     fetchScores()
   }, [leads, adminKey])
@@ -127,7 +137,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           setNotifications(data.notifications || [])
           setUnreadCount(data.unreadCount || 0)
         }
-      } catch { /* silent */ }
+      } catch (err) {
+        console.error('[AdminDashboard] Failed to fetch notifications:', err)
+      }
     }
     fetchNotifs()
     const interval = setInterval(fetchNotifs, 60000)
@@ -185,7 +197,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     try {
       await fetch('/api/notifications?markSeen=true', { headers: { 'X-Admin-Key': adminKey } })
       setUnreadCount(0)
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('[AdminDashboard] Failed to mark notifications read:', err)
+    }
   }
 
   const updateLead = async (id: string, updates: { status?: string; note?: string; followUpDate?: string }) => {
@@ -219,7 +233,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
           body: JSON.stringify({ id, status: bulkStatus }),
         })
-      } catch { /* continue */ }
+      } catch (err) {
+        console.error('[AdminDashboard] Failed to bulk update lead:', id, err)
+      }
     }
     setSelectedIds(new Set())
     setBulkStatus('')
@@ -238,7 +254,9 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
       a.download = `stowstack-leads-${new Date().toISOString().slice(0, 10)}.csv`
       a.click()
       URL.revokeObjectURL(url)
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('[AdminDashboard] Failed to download CSV:', err)
+    }
   }
 
   const toggleSelect = (id: string) => {
@@ -699,6 +717,31 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
                 isOverdue={!!isOverdue(lead)}
               />
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className={`flex items-center justify-between border-t pt-4 mt-4 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Page {page} of {totalPages} ({totalLeads} total)
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className={`px-3 py-1.5 text-sm rounded-md border disabled:opacity-40 ${darkMode ? 'border-slate-600 hover:bg-slate-700 text-slate-300' : 'border-slate-300 hover:bg-slate-50 text-slate-700'}`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className={`px-3 py-1.5 text-sm rounded-md border disabled:opacity-40 ${darkMode ? 'border-slate-600 hover:bg-slate-700 text-slate-300' : 'border-slate-300 hover:bg-slate-50 text-slate-700'}`}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
         </>)}

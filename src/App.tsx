@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import AdminDashboard from '@/components/AdminDashboard'
 import ClientPortal from '@/components/ClientPortal'
@@ -303,15 +304,15 @@ function Nav() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <a href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Blog
-          </a>
-          <a href="/guide" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          </Link>
+          <Link to="/guide" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Guide
-          </a>
-          <a href="/portal" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          </Link>
+          <Link to="/portal" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Client Login
-          </a>
+          </Link>
           <a href="tel:+12699298541" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <Phone size={14} /> (269) 929-8541
           </a>
@@ -334,15 +335,15 @@ function Nav() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-4">
-            <a href="/blog" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+            <Link to="/blog" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
               Blog
-            </a>
-            <a href="/guide" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+            </Link>
+            <Link to="/guide" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
               Guide
-            </a>
-            <a href="/portal" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
+            </Link>
+            <Link to="/portal" onClick={() => setMobileOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
               Client Login
-            </a>
+            </Link>
             <a href="tel:+12699298541" className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Phone size={14} /> (269) 929-8541
             </a>
@@ -408,13 +409,12 @@ function Hero() {
           </Reveal>
 
           <Reveal delay={350}>
-            <a
-              href="/demo"
-              onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/demo'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+            <Link
+              to="/demo"
               className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors mb-4"
             >
               <Play size={14} /> See a live attribution dashboard with sample data
-            </a>
+            </Link>
           </Reveal>
 
           <Reveal delay={400}>
@@ -1398,9 +1398,8 @@ function CaseStudyTeaser() {
                   See what this system looks like for your facility <ArrowUpRight size={16} />
                 </a>
               </div>
-              <a
-                href="/demo"
-                onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/demo'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+              <Link
+                to="/demo"
                 className="bg-gradient-to-br from-emerald-50 to-teal-100 p-8 flex items-center justify-center group hover:from-emerald-100 hover:to-teal-200 transition-all cursor-pointer"
               >
                 <div className="text-center text-emerald-600">
@@ -1408,7 +1407,7 @@ function CaseStudyTeaser() {
                   <p className="text-sm font-semibold">Explore the Live Demo</p>
                   <p className="text-xs text-emerald-600/60">See a full client dashboard in action</p>
                 </div>
-              </a>
+              </Link>
             </div>
           </div>
         </Reveal>
@@ -1717,9 +1716,9 @@ function Footer() {
               {['Free Audit', 'Case Studies', 'How It Works'].map(l => (
                 <a key={l} href="#cta" className="block text-sm text-slate-400 hover:text-white transition-colors">{l}</a>
               ))}
-              <a href="/blog" className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
-              <a href="/guide" className="block text-sm text-slate-400 hover:text-white transition-colors">Platform Guide</a>
-              <a href="/portal" className="block text-sm text-slate-400 hover:text-white transition-colors">Client Login</a>
+              <Link to="/blog" className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</Link>
+              <Link to="/guide" className="block text-sm text-slate-400 hover:text-white transition-colors">Platform Guide</Link>
+              <Link to="/portal" className="block text-sm text-slate-400 hover:text-white transition-colors">Client Login</Link>
             </div>
           </div>
           <div>
@@ -1744,8 +1743,8 @@ function Footer() {
           <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {BRAND}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <span>Serving operators across the US & Canada</span>
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
           </div>
         </div>
       </div>
@@ -1808,46 +1807,7 @@ function BackToTop() {
 /*  APP                                                     */
 /* ═══════════════════════════════════════════════════════ */
 
-type View = 'website' | 'admin' | 'portal' | 'partner' | 'privacy' | 'terms' | 'data-deletion' | 'demo' | 'guide' | 'landing-page' | 'blog' | 'shared-audit'
-
-function pathToView(pathname: string): View {
-  if (pathname === '/admin') return 'admin'
-  if (pathname === '/portal') return 'portal'
-  if (pathname === '/privacy') return 'privacy'
-  if (pathname === '/terms') return 'terms'
-  if (pathname === '/data-deletion') return 'data-deletion'
-  if (pathname === '/partner') return 'partner'
-  if (pathname === '/demo') return 'demo'
-  if (pathname === '/guide') return 'guide'
-  if (pathname.startsWith('/lp/')) return 'landing-page'
-  if (pathname.startsWith('/audit/')) return 'shared-audit'
-  if (pathname.startsWith('/blog')) return 'blog'
-  return 'website'
-}
-
-export default function App() {
-  const [view, setView] = useState<View>(() => pathToView(window.location.pathname))
-
-  useEffect(() => {
-    const onPop = () => setView(pathToView(window.location.pathname))
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
-  const goHome = () => { window.history.pushState({}, '', '/'); setView('website') }
-
-  if (view === 'admin') return <AdminDashboard onBack={goHome} />
-  if (view === 'portal') return <ClientPortal onBack={goHome} />
-  if (view === 'partner') return <PartnerPortal onBack={goHome} />
-  if (view === 'privacy') return <PrivacyPolicy onBack={goHome} />
-  if (view === 'terms') return <TermsOfService onBack={goHome} />
-  if (view === 'data-deletion') return <DataDeletion onBack={goHome} />
-  if (view === 'demo') return <DemoDashboard onBack={goHome} />
-  if (view === 'guide') return <GuidePage onBack={goHome} />
-  if (view === 'landing-page') return <LandingPageView slug={window.location.pathname.replace('/lp/', '')} />
-  if (view === 'shared-audit') return <SharedAuditView slug={window.location.pathname.replace('/audit/', '')} />
-  if (view === 'blog') return <BlogRouter onBack={goHome} />
-
+function WebsiteView() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       <AuditBanner />
@@ -1880,5 +1840,46 @@ export default function App() {
       <BackToTop />
       <ConsentBanner />
     </div>
+  )
+}
+
+function LandingPageRoute() {
+  const { slug } = useParams()
+  return <LandingPageView slug={slug || ''} />
+}
+
+function SharedAuditRoute() {
+  const { slug } = useParams()
+  return <SharedAuditView slug={slug || ''} />
+}
+
+function AppRoutes() {
+  const navigate = useNavigate()
+  const goHome = () => navigate('/')
+
+  return (
+    <Routes>
+      <Route path="/" element={<WebsiteView />} />
+      <Route path="/admin" element={<AdminDashboard onBack={goHome} />} />
+      <Route path="/portal" element={<ClientPortal onBack={goHome} />} />
+      <Route path="/partner" element={<PartnerPortal onBack={goHome} />} />
+      <Route path="/privacy" element={<PrivacyPolicy onBack={goHome} />} />
+      <Route path="/terms" element={<TermsOfService onBack={goHome} />} />
+      <Route path="/data-deletion" element={<DataDeletion onBack={goHome} />} />
+      <Route path="/demo" element={<DemoDashboard onBack={goHome} />} />
+      <Route path="/guide" element={<GuidePage onBack={goHome} />} />
+      <Route path="/lp/:slug" element={<LandingPageRoute />} />
+      <Route path="/audit/:slug" element={<SharedAuditRoute />} />
+      <Route path="/blog/*" element={<BlogRouter onBack={goHome} />} />
+      <Route path="*" element={<WebsiteView />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }
