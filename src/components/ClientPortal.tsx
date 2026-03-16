@@ -159,7 +159,9 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
         const data = await res.json()
         setMessages(data.messages || [])
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[ClientPortal] Failed to fetch messages:', err)
+    }
   }
 
   useEffect(() => {
@@ -171,7 +173,9 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
           const json = await res.json()
           setOnboardingPct(json.completionPct)
         }
-      } catch { /* silent */ }
+      } catch (err) {
+        console.warn('[ClientPortal] Failed to fetch onboarding:', err)
+      }
     }
     fetchOnboarding()
     fetchMessages()
@@ -183,7 +187,9 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
           const data = await res.json()
           if (data.hasData) setLiveAttribution(data)
         }
-      } catch { /* silent */ }
+      } catch (err) {
+        console.warn('[ClientPortal] Failed to fetch attribution:', err)
+      }
     }
     fetchAttribution()
     // Poll messages every 30s
@@ -204,7 +210,9 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
         setMsgText('')
         fetchMessages()
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[ClientPortal] Failed to send message:', err)
+    }
     setMsgSending(false)
   }
 

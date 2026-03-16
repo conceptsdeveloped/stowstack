@@ -7,6 +7,8 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ]
 
+const NOTIFICATION_RECIPIENTS = (process.env.AUDIT_NOTIFICATION_EMAILS || 'blake@urkovro.resend.app,anna@storepawpaw.com').split(',').map(e => e.trim())
+
 const VALID_OCCUPANCY = ['below-60', '60-75', '75-85', '85-95', 'above-95']
 const VALID_UNITS = ['under-100', '100-300', '300-500', '500+']
 const VALID_ISSUES = [
@@ -128,7 +130,7 @@ async function sendNotificationEmail(body, apiKey) {
     },
     body: JSON.stringify({
       from: 'StowStack <notifications@stowstack.co>',
-      to: ['blake@urkovro.resend.app', 'anna@storepawpaw.com'],
+      to: NOTIFICATION_RECIPIENTS,
       subject: `New Audit Request: ${body.facilityName} — ${body.location}`,
       html,
     }),

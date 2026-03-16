@@ -9,6 +9,11 @@ import App from './App.tsx'
 // Initialize all opt-in plugins (PostHog, Umami, Chatwoot, Cal.com, Formbricks, Novu, Langfuse)
 initPlugins()
 
+// Global handler for unhandled promise rejections (catches async errors that ErrorBoundary misses)
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[StowStack] Unhandled promise rejection:', event.reason)
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
