@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Mail, Phone, Loader2, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Loader2, ChevronRight } from 'lucide-react'
 import { Facility, FACILITY_STATUSES, STATUS_COLORS } from './types'
+import OverviewTab from './OverviewTab'
 import CreativeTab from './CreativeTab'
 import AssetsTab from './AssetsTab'
 import AdPreviewTab from './AdPreviewTab'
@@ -24,7 +25,6 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
   const [subTab, setSubTab] = useState<FacilitySubTab>('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
 
-  const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
 
@@ -103,82 +103,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {/* Sub-tab content */}
       {subTab === 'overview' && (
-        <div className={`border rounded-xl ${card}`}>
-          <div className="p-5 space-y-5">
-            {/* Contact + facility info + Google */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Contact</p>
-                <div className="space-y-1">
-                  <p className={text}>{facility.contact_name}</p>
-                  <p className={`flex items-center gap-1.5 ${sub}`}><Mail size={13} />{facility.contact_email}</p>
-                  <p className={`flex items-center gap-1.5 ${sub}`}><Phone size={13} />{facility.contact_phone}</p>
-                </div>
-              </div>
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Facility Info</p>
-                <div className="space-y-1">
-                  <p className={text}>Occupancy: {facility.occupancy_range}</p>
-                  <p className={text}>Units: {facility.total_units}</p>
-                  <p className={text}>Issue: {facility.biggest_issue}</p>
-                </div>
-              </div>
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Google Data</p>
-                {facility.google_address ? (
-                  <div className="space-y-1">
-                    <p className={sub}>{facility.google_address}</p>
-                    <div className="flex gap-2">
-                      {facility.website && <a href={facility.website} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Website ↗</a>}
-                      {facility.google_maps_url && <a href={facility.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Maps ↗</a>}
-                    </div>
-                  </div>
-                ) : <p className={sub}>Not scraped yet</p>}
-              </div>
-            </div>
-
-            {/* Notes */}
-            {facility.notes && (
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Notes</p>
-                <p className={`text-sm ${text}`}>{facility.notes}</p>
-              </div>
-            )}
-
-            {/* Photos */}
-            {facility.photos && facility.photos.length > 0 && (
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Photos</p>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {facility.photos.map(photo => (
-                    <img key={photo.index} src={photo.url} alt="" className="h-24 w-36 object-cover rounded-lg shrink-0" />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Reviews */}
-            {facility.reviews && facility.reviews.length > 0 && (
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Top Reviews</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {facility.reviews.map((r, i) => (
-                    <div key={i} className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
-                        <span className={`font-medium ${text}`}>{r.author}</span>
-                        <span className={`text-xs ${sub}`}>{r.time}</span>
-                      </div>
-                      <p className={sub}>{r.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className={`text-xs ${sub}`}>Added {new Date(facility.created_at).toLocaleDateString()}</p>
-          </div>
-        </div>
+        <OverviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'creative' && (

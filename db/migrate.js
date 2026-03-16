@@ -987,6 +987,33 @@ CREATE TABLE IF NOT EXISTS tenant_communications (
 CREATE INDEX IF NOT EXISTS idx_tenant_comms_tenant ON tenant_communications(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_comms_facility ON tenant_communications(facility_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_comms_type ON tenant_communications(type);
+
+-- Business context documents uploaded per facility (not creative assets — business intel)
+CREATE TABLE IF NOT EXISTS facility_context (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  type            TEXT NOT NULL,  -- competitor_info | business_plan | pricing_sheet | market_research | branding | other
+  title           TEXT NOT NULL,
+  content         TEXT,           -- extracted text content from uploaded docs
+  file_url        TEXT,           -- original file URL if uploaded
+  metadata        JSONB
+);
+CREATE INDEX IF NOT EXISTS idx_facility_context_facility ON facility_context(facility_id);
+
+-- AI-generated marketing plans per facility
+CREATE TABLE IF NOT EXISTS marketing_plans (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  version         INTEGER DEFAULT 1,
+  status          TEXT DEFAULT 'draft',  -- draft | active | archived
+  plan_json       JSONB NOT NULL,        -- full structured plan
+  spend_recommendation JSONB,            -- budget allocation recommendation
+  assigned_playbooks TEXT[],             -- IDs of seasonal playbook triggers assigned
+  generated_from  JSONB                  -- snapshot of inputs used to generate
+);
+CREATE INDEX IF NOT EXISTS idx_marketing_plans_facility ON marketing_plans(facility_id);
 `
 
 async function migrate() {
