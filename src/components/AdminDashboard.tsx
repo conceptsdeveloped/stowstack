@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Building2, RefreshCw, Search, ArrowLeft,
+  Building2, RefreshCw, Search,
   Users, TrendingUp, Clock, CheckCircle2, XCircle, Loader2,
-  Download, CalendarClock, CheckSquare,
-  Settings, Columns3, CreditCard, Moon, Sun,
-  Bell, Sparkles, BookOpen, BarChart3, Share2, Flame, CalendarRange, Target, Gift,
-  Wallet, ShieldAlert, TrendingDown, RotateCcw
+  Download, CheckSquare, Moon, Sun,
+  Bell, BookOpen, Menu
 } from 'lucide-react'
 
 import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
@@ -36,6 +34,7 @@ import ChurnPredictionView from './dashboard/ChurnPredictionView'
 import UpsellEngineView from './dashboard/UpsellEngineView'
 import MoveOutRemarketingView from './dashboard/MoveOutRemarketingView'
 import AttributionView from './dashboard/AttributionView'
+import AdminSidebar from './dashboard/AdminSidebar'
 
 /* ── Admin Auth Gate ── */
 
@@ -75,6 +74,8 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [guideScrollTarget, setGuideScrollTarget] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('stowstack_sidebar') === 'collapsed')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const openGuideToSection = useCallback((section: string) => {
     setGuideScrollTarget(section)
@@ -138,6 +139,16 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('stowstack_theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  // Sidebar collapse persistence
+  useEffect(() => {
+    localStorage.setItem('stowstack_sidebar', sidebarCollapsed ? 'collapsed' : 'expanded')
+  }, [sidebarCollapsed])
+
+  // Close mobile menu on tab change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [activeTab])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -284,157 +295,176 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
   }
 
   return (
-    <div className={`min-h-screen transition-colors ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      {/* Header */}
-      <header className={`sticky top-0 z-30 border-b ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={onBack} className={`p-2 -ml-2 transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-600'}`}>
-              <ArrowLeft size={20} />
-            </button>
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-              <Building2 size={16} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">StowStack Admin</h1>
-              <p className={`text-xs -mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Manage leads & campaign performance</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCommandPalette(true)}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
-              }`}
-              title="Search (Cmd+K)"
-            >
-              <Search size={12} />
-              <span>Search...</span>
-              <kbd className={`text-[10px] px-1 rounded ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>⌘K</kbd>
-            </button>
-            <div className="relative">
-              <button
-                onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markNotificationsRead() }}
-                className={`p-2 rounded-lg transition-colors relative ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-                title="Notifications (N)"
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotifications && (
-                <NotificationPanel
-                  notifications={notifications}
-                  darkMode={darkMode}
-                  onClose={() => setShowNotifications(false)}
-                />
-              )}
-            </div>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-amber-400 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-              title={darkMode ? 'Light mode' : 'Dark mode'}
-            >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button
-              onClick={() => setShowGuide(true)}
-              className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-              title="Admin Guide (H)"
-            >
-              <BookOpen size={18} />
-            </button>
-            <button onClick={downloadCsv} className={`flex items-center gap-1.5 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`} title="Export leads as CSV">
-              <Download size={14} />
-              <span className="hidden sm:inline">CSV</span>
-            </button>
-            <button onClick={() => { setLoading(true); fetchLeads() }} className={`flex items-center gap-2 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button onClick={onLogout} className={`text-sm transition-colors ${darkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-600'}`}>
-              Sign out
-            </button>
-          </div>
-        </div>
-        {/* Tab bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px overflow-x-auto">
-          {([
-            ['pipeline', 'Pipeline', Users],
-            ['kanban', 'Kanban', Columns3],
-            ['portfolio', 'Portfolio', BarChart3],
-            ['optimizer', 'Optimizer', Target],
-            ['insights', 'Insights', TrendingUp],
-            ['billing', 'Billing', CreditCard],
-            ['settings', 'Settings', Settings],
-            ['facilities', 'Facilities', Building2],
-            ['sequences', 'Sequences', CalendarClock],
-            ['shared-audits', 'Shared Audits', Share2],
-            ['recovery', 'Recovery', Flame],
-            ['attribution', 'Attribution', Target],
-            ['partners', 'Partners', Building2],
-            ['referrals', 'Referrals', Gift],
-            ['playbooks', 'Playbooks', CalendarRange],
-            ['tenants', 'Tenants', Wallet],
-            ['churn', 'Churn', ShieldAlert],
-            ['upsell', 'Upsell', TrendingDown],
-            ['remarketing', 'Remarketing', RotateCcw],
-            ['whats-new', "What's New", Sparkles],
-          ] as const).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === id
-                  ? `border-emerald-600 ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`
-                  : `border-transparent ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:border-slate-600' : 'text-slate-500 hover:text-slate-700 hover:border-slate-300'}`
-              }`}
-            >
-              <Icon size={15} />
-              {label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {/* Command Palette */}
-      {showCommandPalette && (
-        <CommandPalette
-          query={commandQuery}
-          onQueryChange={setCommandQuery}
-          leads={leads}
+    <div className={`min-h-screen flex transition-colors ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      {/* ── Sidebar ── */}
+      <div className="hidden md:block">
+        <AdminSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onBack={onBack}
+          onCommandPalette={() => setShowCommandPalette(true)}
           darkMode={darkMode}
-          onClose={() => { setShowCommandPalette(false); setCommandQuery('') }}
-          onSelectLead={(id) => { setExpandedId(id); setActiveTab('pipeline'); setShowCommandPalette(false); setCommandQuery('') }}
-          onAction={(action) => {
-            if (action === 'pipeline') setActiveTab('pipeline')
-            if (action === 'kanban') setActiveTab('kanban')
-            if (action === 'portfolio') setActiveTab('portfolio')
-            if (action === 'optimizer') setActiveTab('optimizer')
-            if (action === 'insights') setActiveTab('insights')
-            if (action === 'billing') setActiveTab('billing')
-            if (action === 'settings') setActiveTab('settings')
-            if (action === 'sequences') setActiveTab('sequences')
-            if (action === 'recovery') setActiveTab('recovery')
-            if (action === 'dark') setDarkMode(!darkMode)
-            if (action === 'guide') setShowGuide(true)
-            if (action === 'csv') downloadCsv()
-            if (action === 'refresh') { setLoading(true); fetchLeads() }
-            setShowCommandPalette(false)
-            setCommandQuery('')
-          }}
+          adminKey={adminKey}
+          leadCount={leads.length}
+          activeLeadCount={activeLeads}
+          signedCount={statusCounts['client_signed'] || 0}
         />
+      </div>
+
+      {/* ── Mobile sidebar overlay ── */}
+      {mobileMenuOpen && (
+        <>
+          <div className="admin-sidebar-overlay md:hidden" onClick={() => setMobileMenuOpen(false)} />
+          <div className="md:hidden">
+            <AdminSidebar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              collapsed={false}
+              onToggleCollapse={() => setMobileMenuOpen(false)}
+              onBack={onBack}
+              onCommandPalette={() => { setMobileMenuOpen(false); setShowCommandPalette(true) }}
+              darkMode={darkMode}
+              adminKey={adminKey}
+              leadCount={leads.length}
+              activeLeadCount={activeLeads}
+              signedCount={statusCounts['client_signed'] || 0}
+            />
+          </div>
+        </>
       )}
 
-      {/* Keyboard Shortcuts Modal */}
-      {showShortcuts && (
-        <ShortcutsModal darkMode={darkMode} onClose={() => setShowShortcuts(false)} />
-      )}
+      {/* ── Main content ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar */}
+        <header className={`sticky top-0 z-30 border-b ${darkMode ? 'bg-slate-800/95 border-slate-700 backdrop-blur-sm' : 'bg-white/95 border-slate-200 backdrop-blur-sm'}`}>
+          <div className="px-4 sm:px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className={`md:hidden p-2 -ml-2 transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Menu size={20} />
+              </button>
+              <div className="hidden md:flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                  <Building2 size={14} className="text-white" />
+                </div>
+                <h1 className="text-sm font-bold tracking-tight">Admin Console</h1>
+              </div>
+              <div className="md:hidden flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                  <Building2 size={14} className="text-white" />
+                </div>
+                <h1 className="text-sm font-bold tracking-tight">StowStack</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
+                  darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                }`}
+                title="Search (Cmd+K)"
+              >
+                <Search size={12} />
+                <span>Search...</span>
+                <kbd className={`text-[10px] px-1 rounded ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>⌘K</kbd>
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markNotificationsRead() }}
+                  className={`p-2 rounded-lg transition-colors relative ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                  title="Notifications (N)"
+                >
+                  <Bell size={16} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {showNotifications && (
+                  <NotificationPanel
+                    notifications={notifications}
+                    darkMode={darkMode}
+                    onClose={() => setShowNotifications(false)}
+                  />
+                )}
+              </div>
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-amber-400 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title={darkMode ? 'Light mode' : 'Dark mode'}
+              >
+                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button
+                onClick={() => setShowGuide(true)}
+                className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title="Admin Guide (H)"
+              >
+                <BookOpen size={16} />
+              </button>
+              <button onClick={downloadCsv} className={`flex items-center gap-1.5 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`} title="Export leads as CSV">
+                <Download size={14} />
+                <span className="hidden sm:inline text-xs">CSV</span>
+              </button>
+              <button onClick={() => { setLoading(true); fetchLeads() }} className={`flex items-center gap-2 text-sm transition-colors ${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button onClick={onLogout} className={`text-xs transition-colors ${darkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-600'}`}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Command Palette */}
+        {showCommandPalette && (
+          <CommandPalette
+            query={commandQuery}
+            onQueryChange={setCommandQuery}
+            leads={leads}
+            darkMode={darkMode}
+            onClose={() => { setShowCommandPalette(false); setCommandQuery('') }}
+            onSelectLead={(id) => { setExpandedId(id); setActiveTab('pipeline'); setShowCommandPalette(false); setCommandQuery('') }}
+            onAction={(action) => {
+              if (action === 'pipeline') setActiveTab('pipeline')
+              if (action === 'kanban') setActiveTab('kanban')
+              if (action === 'portfolio') setActiveTab('portfolio')
+              if (action === 'optimizer') setActiveTab('optimizer')
+              if (action === 'insights') setActiveTab('insights')
+              if (action === 'billing') setActiveTab('billing')
+              if (action === 'settings') setActiveTab('settings')
+              if (action === 'sequences') setActiveTab('sequences')
+              if (action === 'recovery') setActiveTab('recovery')
+              if (action === 'attribution') setActiveTab('attribution')
+              if (action === 'partners') setActiveTab('partners')
+              if (action === 'referrals') setActiveTab('referrals')
+              if (action === 'playbooks') setActiveTab('playbooks')
+              if (action === 'tenants') setActiveTab('tenants')
+              if (action === 'churn') setActiveTab('churn')
+              if (action === 'upsell') setActiveTab('upsell')
+              if (action === 'remarketing') setActiveTab('remarketing')
+              if (action === 'whats-new') setActiveTab('whats-new')
+              if (action === 'dark') setDarkMode(!darkMode)
+              if (action === 'guide') setShowGuide(true)
+              if (action === 'csv') downloadCsv()
+              if (action === 'refresh') { setLoading(true); fetchLeads() }
+              setShowCommandPalette(false)
+              setCommandQuery('')
+            }}
+          />
+        )}
+
+        {/* Keyboard Shortcuts Modal */}
+        {showShortcuts && (
+          <ShortcutsModal darkMode={darkMode} onClose={() => setShowShortcuts(false)} />
+        )}
+
+        <div className="flex-1 px-4 sm:px-6 py-6 max-w-7xl w-full mx-auto">
         {activeTab === 'portfolio' && (<>
           <div className="flex items-center gap-2 mb-4">
             <HelpTooltip text="View client campaign data, monthly performance metrics, and manage your client portfolio." guideSection="portfolio" onOpenGuide={openGuideToSection} darkMode={darkMode} />
@@ -672,6 +702,7 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           </div>
         )}
         </>)}
+        </div>
       </div>
     </div>
   )

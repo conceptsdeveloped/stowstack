@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { Search, Users, Columns3, BarChart3, TrendingUp, CreditCard, Settings, Sun, Moon, BookOpen, Download, RefreshCw, ChevronRight } from 'lucide-react'
+import {
+  Search, Users, Columns3, BarChart3, TrendingUp, CreditCard, Settings, Sun, Moon,
+  BookOpen, Download, RefreshCw, ChevronRight, Building2, Target, CalendarClock,
+  Share2, Flame, Gift, CalendarRange, Wallet, ShieldAlert, TrendingDown, RotateCcw, Sparkles
+} from 'lucide-react'
 import { Lead } from './types'
 
 export default function CommandPalette({ query, onQueryChange, leads, darkMode, onClose, onSelectLead, onAction }: {
@@ -24,16 +28,38 @@ export default function CommandPalette({ query, onQueryChange, leads, darkMode, 
   ).slice(0, 5) : []
 
   const actions = [
-    { id: 'pipeline', label: 'Go to Pipeline', icon: Users },
-    { id: 'kanban', label: 'Go to Kanban Board', icon: Columns3 },
-    { id: 'portfolio', label: 'Go to Portfolio', icon: BarChart3 },
-    { id: 'insights', label: 'Go to Insights', icon: TrendingUp },
-    { id: 'billing', label: 'Go to Billing', icon: CreditCard },
-    { id: 'settings', label: 'Go to Settings', icon: Settings },
-    { id: 'dark', label: darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode', icon: darkMode ? Sun : Moon },
-    { id: 'guide', label: 'Open Admin Guide', icon: BookOpen },
-    { id: 'csv', label: 'Export Leads as CSV', icon: Download },
-    { id: 'refresh', label: 'Refresh Data', icon: RefreshCw },
+    // Leads
+    { id: 'pipeline', label: 'Go to Pipeline', icon: Users, group: 'Leads' },
+    { id: 'kanban', label: 'Go to Kanban Board', icon: Columns3, group: 'Leads' },
+    // Portfolio
+    { id: 'portfolio', label: 'Go to Portfolio', icon: BarChart3, group: 'Portfolio' },
+    { id: 'optimizer', label: 'Go to Optimizer', icon: Target, group: 'Portfolio' },
+    { id: 'facilities', label: 'Go to Facilities', icon: Building2, group: 'Portfolio' },
+    // Analytics
+    { id: 'insights', label: 'Go to Insights', icon: TrendingUp, group: 'Analytics' },
+    { id: 'attribution', label: 'Go to Attribution', icon: Target, group: 'Analytics' },
+    // Revenue
+    { id: 'billing', label: 'Go to Billing', icon: CreditCard, group: 'Revenue' },
+    { id: 'tenants', label: 'Go to Tenants', icon: Wallet, group: 'Revenue' },
+    { id: 'upsell', label: 'Go to Upsell Engine', icon: TrendingDown, group: 'Revenue' },
+    { id: 'churn', label: 'Go to Churn Intel', icon: ShieldAlert, group: 'Revenue' },
+    // Marketing
+    { id: 'sequences', label: 'Go to Sequences', icon: CalendarClock, group: 'Marketing' },
+    { id: 'playbooks', label: 'Go to Playbooks', icon: CalendarRange, group: 'Marketing' },
+    { id: 'remarketing', label: 'Go to Remarketing', icon: RotateCcw, group: 'Marketing' },
+    { id: 'recovery', label: 'Go to Recovery', icon: Flame, group: 'Marketing' },
+    // Ops
+    { id: 'shared-audits', label: 'Go to Audits', icon: Share2, group: 'Ops' },
+    { id: 'partners', label: 'Go to Partners', icon: Building2, group: 'Ops' },
+    { id: 'referrals', label: 'Go to Referrals', icon: Gift, group: 'Ops' },
+    // System
+    { id: 'settings', label: 'Go to Settings', icon: Settings, group: 'System' },
+    { id: 'whats-new', label: "Go to What's New", icon: Sparkles, group: 'System' },
+    // Actions
+    { id: 'dark', label: darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode', icon: darkMode ? Sun : Moon, group: 'Actions' },
+    { id: 'guide', label: 'Open Admin Guide', icon: BookOpen, group: 'Actions' },
+    { id: 'csv', label: 'Export Leads as CSV', icon: Download, group: 'Actions' },
+    { id: 'refresh', label: 'Refresh Data', icon: RefreshCw, group: 'Actions' },
   ]
 
   const matchedActions = q ? actions.filter(a => a.label.toLowerCase().includes(q)) : actions
