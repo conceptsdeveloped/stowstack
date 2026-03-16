@@ -37,7 +37,7 @@ interface WizardProps {
 const STEP_KEYS = ['facilityDetails', 'targetDemographics', 'unitMix', 'competitorIntel', 'adPreferences', 'review'] as const
 type StepKey = typeof STEP_KEYS[number]
 
-const STEP_META: { key: StepKey; label: string; shortLabel: string; icon: any }[] = [
+const STEP_META: { key: StepKey; label: string; shortLabel: string; icon: React.ComponentType<{ size?: number | string; className?: string }> }[] = [
   { key: 'facilityDetails', label: 'Facility Details', shortLabel: 'Facility', icon: Building2 },
   { key: 'targetDemographics', label: 'Target Demographics', shortLabel: 'Targeting', icon: Target },
   { key: 'unitMix', label: 'Unit Mix & Pricing', shortLabel: 'Units', icon: LayoutGrid },
@@ -129,8 +129,8 @@ export default function OnboardingWizard({ accessCode, adminKey, clientEmail, on
         )
         if (firstIncomplete >= 0) setStep(firstIncomplete)
         else setStep(5) // All done, show review
-      } catch (err: any) {
-        setFetchError(err.message)
+      } catch (err: unknown) {
+        setFetchError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)
       }
@@ -155,7 +155,7 @@ export default function OnboardingWizard({ accessCode, adminKey, clientEmail, on
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
   }, [])
 
-  const saveStep = useCallback(async (stepKey: keyof StepData, stepData: any) => {
+  const saveStep = useCallback(async (stepKey: keyof StepData, stepData: Record<string, unknown>) => {
     setSaving(true)
     setSaveStatus('saving')
     try {
@@ -178,7 +178,7 @@ export default function OnboardingWizard({ accessCode, adminKey, clientEmail, on
     }
   }, [accessCode, adminKey, clientEmail])
 
-  const scheduleAutoSave = (stepKey: keyof StepData, stepData: any) => {
+  const scheduleAutoSave = (stepKey: keyof StepData, stepData: Record<string, unknown>) => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     setSaveStatus('unsaved')
     autoSaveTimer.current = setTimeout(() => saveStep(stepKey, stepData), 3000)

@@ -465,7 +465,7 @@ export function serializeAttributionDataForApi(): string | null {
 /**
  * Create a concise attribution summary for logging/debugging
  */
-export function getAttributionSummary(): Record<string, any> {
+export function getAttributionSummary(): Record<string, unknown> {
   const firstTouch = getFirstTouchUtm();
   const lastTouch = getLastTouchUtm();
   const channels = getAttributionChannelBreakdown();

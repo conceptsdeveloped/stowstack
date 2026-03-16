@@ -1,4 +1,5 @@
 import { query, queryOne } from './_db.js'
+import { sendPushToAll } from './_push.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -115,4 +116,14 @@ async function logActivity(lead) {
   } catch {
     // Silent — don't fail the conversion for an activity log error
   }
+
+  // Push notification to admin
+  sendPushToAll({
+    title: 'New Landing Page Lead',
+    body: `${lead.name || lead.email || 'New visitor'} submitted contact info`,
+    url: '/admin',
+    tag: 'consumer-lead',
+    phone: lead.phone || null,
+    leadId: lead.id,
+  }).catch(err => console.error('Push notification failed:', err.message))
 }

@@ -8,7 +8,7 @@ import type { GBPConnection, GBPPost, GBPReview, GBPSyncLog, GBPQuestion, GBPIns
 
 type Section = 'posts' | 'reviews' | 'qa' | 'insights' | 'sync' | 'settings'
 
-export default function GBPTab({ facility, adminKey, darkMode }: { facility: any; adminKey: string; darkMode: boolean }) {
+export default function GBPTab({ facility, adminKey, darkMode }: { facility: { id: string; name: string }; adminKey: string; darkMode: boolean }) {
   const [section, setSection] = useState<Section>('posts')
   const [connection, setConnection] = useState<GBPConnection | null>(null)
   const [posts, setPosts] = useState<GBPPost[]>([])
@@ -18,7 +18,7 @@ export default function GBPTab({ facility, adminKey, darkMode }: { facility: any
   const [questions, setQuestions] = useState<GBPQuestion[]>([])
   const [qaStats, setQaStats] = useState({ total: 0, answered: 0, unanswered: 0 })
   const [insights, setInsights] = useState<GBPInsights[]>([])
-  const [insightsSummary, setInsightsSummary] = useState<any>(null)
+  const [insightsSummary, setInsightsSummary] = useState<{ period?: string; total_impressions?: number; total_actions?: number; [key: string]: unknown } | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Post form state
@@ -847,16 +847,16 @@ export default function GBPTab({ facility, adminKey, darkMode }: { facility: any
                 </div>
               </div>
 
-              {insightsSummary.total_impressions > 0 && (
+              {Number(insightsSummary.total_impressions) > 0 && (
                 <div className={`border rounded-xl p-4 ${card}`}>
                   <h4 className={`text-xs font-semibold ${sub} mb-2`}>ACTION RATE</h4>
                   <div className="flex items-center gap-3">
                     <div className={`flex-1 h-6 rounded-full overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                       <div className="h-full rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${Math.min(100, (insightsSummary.total_actions / insightsSummary.total_impressions) * 100)}%` }} />
+                        style={{ width: `${Math.min(100, (Number(insightsSummary.total_actions) / Number(insightsSummary.total_impressions)) * 100)}%` }} />
                     </div>
                     <span className={`text-sm font-bold ${text}`}>
-                      {((insightsSummary.total_actions / insightsSummary.total_impressions) * 100).toFixed(1)}%
+                      {((Number(insightsSummary.total_actions) / Number(insightsSummary.total_impressions)) * 100).toFixed(1)}%
                     </span>
                   </div>
                   <p className={`text-xs ${sub} mt-1`}>Percentage of viewers who took an action</p>

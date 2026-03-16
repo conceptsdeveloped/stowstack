@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Building2, Bell, Settings, Sun, Moon, Loader2, Phone } from 'lucide-react'
+import { Building2, Bell, Settings, Sun, Moon, Loader2, Phone, Smartphone } from 'lucide-react'
+import { PushNotificationToggle } from '@/components/PushNotificationToggle'
+import { usePWA } from '@/hooks/usePWA'
 
 export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
   adminKey: string; darkMode: boolean; onToggleDarkMode: () => void
@@ -110,7 +112,7 @@ export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
                 <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
               </div>
               <div className="relative">
-                <input type="checkbox" checked={(settings as any)[item.key]}
+                <input type="checkbox" checked={settings[item.key as keyof typeof settings] as boolean}
                   onChange={e => setSettings({ ...settings, [item.key]: e.target.checked })}
                   className="sr-only peer" />
                 <div className={`w-9 h-5 rounded-full transition-colors peer-checked:bg-emerald-500 ${darkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
@@ -118,8 +120,20 @@ export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
               </div>
             </label>
           ))}
+          <div className={`pt-3 mt-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>Push Notifications</p>
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Get instant alerts on your phone when new leads come in</p>
+              </div>
+            </div>
+            <PushNotificationToggle adminKey={adminKey} darkMode={darkMode} />
+          </div>
         </div>
       </div>
+
+      {/* PWA Install */}
+      <PWAInstallCard darkMode={darkMode} cardClass={cardClass} />
 
       {/* Defaults */}
       <div className={`rounded-xl border p-5 ${cardClass}`}>
@@ -179,6 +193,36 @@ export default function SettingsView({ adminKey, darkMode, onToggleDarkMode }: {
         </button>
         {saved && <span className="text-xs text-emerald-600 font-medium">Settings saved successfully</span>}
       </div>
+    </div>
+  )
+}
+
+function PWAInstallCard({ darkMode, cardClass }: { darkMode: boolean; cardClass: string }) {
+  const { canInstall, isInstalled, install } = usePWA()
+
+  return (
+    <div className={`rounded-xl border p-5 ${cardClass}`}>
+      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Smartphone size={16} /> Mobile App</h3>
+      {isInstalled ? (
+        <div className={`flex items-center gap-2 text-xs ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+          StowStack is installed on this device
+        </div>
+      ) : canInstall ? (
+        <div>
+          <p className={`text-xs mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Install StowStack as an app on this device for instant lead alerts, offline access, and quick actions from your home screen.
+          </p>
+          <button onClick={install}
+            className="px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+            Install App
+          </button>
+        </div>
+      ) : (
+        <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Visit stowstack.co in Chrome or Safari to install StowStack as a mobile app. On iOS, tap Share then "Add to Home Screen."
+        </p>
+      )}
     </div>
   )
 }

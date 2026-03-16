@@ -58,6 +58,10 @@ function ClientLogin({ onAuth }: { onAuth: (data: ClientData) => void }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,12 +81,27 @@ function ClientLogin({ onAuth }: { onAuth: (data: ClientData) => void }) {
         setLoading(false)
         return
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: email.trim(), accessCode: code.trim() }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: email.trim(), accessCode: code.trim(), _loginAt: Date.now() }))
       onAuth(data.client)
     } catch {
       setError('Connection error. Please try again.')
       setLoading(false)
     }
+  }
+
+  const submitForgotCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+    setForgotLoading(true)
+    try {
+      await fetch('/api/resend-access-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      })
+      setForgotSent(true)
+    } catch { /* silent */ }
+    setForgotLoading(false)
   }
 
   return (
@@ -93,44 +112,98 @@ function ClientLogin({ onAuth }: { onAuth: (data: ClientData) => void }) {
             <Building2 size={24} className="text-white" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Client Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">Sign in with your email and access code</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {showForgot ? 'Recover your access code' : 'Sign in with your email and access code'}
+          </p>
         </div>
-        <form onSubmit={submit} className="space-y-3">
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError('') }}
-            autoFocus
-            className={`w-full px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 ${
-              error ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          <input
-            type="text"
-            placeholder="Access code"
-            value={code}
-            onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
-            className={`w-full px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 font-mono tracking-wider ${
-              error ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={!email.trim() || !code.trim() || loading}
-            className="w-full py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {loading ? 'Signing in...' : 'View My Dashboard'}
-          </button>
-        </form>
-        <p className="text-xs text-slate-400 text-center mt-6">
-          Your access code was provided by StowStack when you signed on. Contact <a href="mailto:anna@storepawpaw.com" className="text-emerald-600 hover:text-emerald-700">anna@storepawpaw.com</a> if you need help.
-        </p>
-        <p className="text-xs text-slate-400 text-center mt-3">
-          By signing in, you agree to our <a href="/terms" className="text-emerald-600 hover:text-emerald-700">Terms of Service</a> and <a href="/privacy" className="text-emerald-600 hover:text-emerald-700">Privacy Policy</a>.
-        </p>
+
+        {showForgot ? (
+          forgotSent ? (
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                <Mail size={20} className="text-emerald-600" />
+              </div>
+              <p className="text-sm text-slate-600">
+                If an account exists with that email, we've sent your access code. Check your inbox.
+              </p>
+              <button
+                onClick={() => { setShowForgot(false); setForgotSent(false); setEmail(forgotEmail) }}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submitForgotCode} className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+              />
+              <button
+                type="submit"
+                disabled={!forgotEmail.trim() || forgotLoading}
+                className="w-full py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {forgotLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {forgotLoading ? 'Sending...' : 'Send Access Code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForgot(false)}
+                className="w-full text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Back to sign in
+              </button>
+            </form>
+          )
+        ) : (
+          <>
+            <form onSubmit={submit} className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError('') }}
+                autoFocus
+                className={`w-full px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 ${
+                  error ? 'border-red-300' : 'border-slate-200'
+                }`}
+              />
+              <input
+                type="text"
+                placeholder="Access code"
+                value={code}
+                onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
+                className={`w-full px-4 py-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 font-mono tracking-wider ${
+                  error ? 'border-red-300' : 'border-slate-200'
+                }`}
+              />
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={!email.trim() || !code.trim() || loading}
+                className="w-full py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {loading ? 'Signing in...' : 'View My Dashboard'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(true); setForgotEmail(email) }}
+                className="w-full text-xs text-slate-400 hover:text-emerald-500 transition-colors"
+              >
+                Forgot your access code?
+              </button>
+            </form>
+            <p className="text-xs text-slate-400 text-center mt-4">
+              By signing in, you agree to our <a href="/terms" className="text-emerald-600 hover:text-emerald-700">Terms of Service</a> and <a href="/privacy" className="text-emerald-600 hover:text-emerald-700">Privacy Policy</a>.
+            </p>
+          </>
+        )}
       </div>
     </div>
   )
@@ -726,7 +799,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
   )
 }
 
-function KpiCard({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: boolean }) {
+function KpiCard({ icon: Icon, label, value, accent }: { icon: React.ComponentType<{ size?: number | string; className?: string }>; label: string; value: string; accent?: boolean }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
       <div className="flex items-center gap-2 mb-2">
@@ -740,9 +813,16 @@ function KpiCard({ icon: Icon, label, value, accent }: { icon: any; label: strin
 
 /* ── Portal Entry ── */
 
+const CLIENT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
+
 export default function ClientPortal({ onBack }: { onBack: () => void }) {
   const [client, setClient] = useState<ClientData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const logout = () => {
+    localStorage.removeItem(STORAGE_KEY)
+    setClient(null)
+  }
 
   // Try to restore session from localStorage
   useEffect(() => {
@@ -750,7 +830,16 @@ export default function ClientPortal({ onBack }: { onBack: () => void }) {
     if (!stored) { setLoading(false); return }
 
     try {
-      const { email, accessCode } = JSON.parse(stored)
+      const parsed = JSON.parse(stored)
+      const { email, accessCode, _loginAt } = parsed
+
+      // Check session expiry
+      if (_loginAt && Date.now() - _loginAt > CLIENT_SESSION_DURATION_MS) {
+        localStorage.removeItem(STORAGE_KEY)
+        setLoading(false)
+        return
+      }
+
       fetch('/api/client-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -768,11 +857,6 @@ export default function ClientPortal({ onBack }: { onBack: () => void }) {
       setLoading(false)
     }
   }, [])
-
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY)
-    setClient(null)
-  }
 
   if (loading) {
     return (

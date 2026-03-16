@@ -12,6 +12,7 @@ interface LPSection {
   id: string
   section_type: string
   sort_order: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: Record<string, any>
 }
 
@@ -24,7 +25,7 @@ interface LandingPageRecord {
   variation_ids?: string[]
   meta_title?: string
   meta_description?: string
-  theme?: Record<string, any>
+  theme?: Record<string, string>
   sections?: LPSection[]
   created_at: string
   updated_at: string
@@ -33,7 +34,7 @@ interface LandingPageRecord {
 
 /* ── Constants ── */
 
-const SECTION_TYPE_META: Record<string, { label: string; icon: string; defaultConfig: Record<string, any> }> = {
+const SECTION_TYPE_META: Record<string, { label: string; icon: string; defaultConfig: Record<string, unknown> }> = {
   hero: { label: 'Hero', icon: '🎯', defaultConfig: { headline: '', subheadline: '', ctaText: 'Reserve Now', ctaUrl: '#cta', badgeText: '', style: 'dark' } },
   trust_bar: { label: 'Trust Bar', icon: '✅', defaultConfig: { items: [{ icon: 'check', text: '' }] } },
   features: { label: 'Features', icon: '⚡', defaultConfig: { headline: '', items: [{ icon: 'check', title: '', desc: '' }] } },
@@ -58,13 +59,13 @@ function AssetPickerModal({ facilityId, adminKey, darkMode, onSelect, onClose }:
   facilityId: string; adminKey: string; darkMode: boolean
   onSelect: (url: string) => void; onClose: () => void
 }) {
-  const [assets, setAssets] = useState<{ id: string; url: string; metadata?: any }[]>([])
+  const [assets, setAssets] = useState<{ id: string; url: string; metadata?: Record<string, unknown> }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch(`/api/facility-assets?facilityId=${facilityId}`, { headers: { 'X-Admin-Key': adminKey } })
       .then(r => r.json())
-      .then(data => setAssets((data.assets || []).filter((a: any) => a.type === 'photo' || a.url?.match(/\.(jpg|jpeg|png|webp|gif)/i))))
+      .then(data => setAssets((data.assets || []).filter((a: { type?: string; url?: string }) => a.type === 'photo' || a.url?.match(/\.(jpg|jpeg|png|webp|gif)/i))))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [facilityId, adminKey])
@@ -94,7 +95,7 @@ function AssetPickerModal({ facilityId, adminKey, darkMode, onSelect, onClose }:
                 onClick={() => { onSelect(a.url); onClose() }}
                 className={`rounded-lg overflow-hidden border-2 hover:border-emerald-500 transition-colors aspect-square ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}
               >
-                <img src={a.url} alt={a.metadata?.alt || ''} className="w-full h-full object-cover" />
+                <img src={a.url} alt={String(a.metadata?.alt || '')} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -126,22 +127,22 @@ function SectionEditor({
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
   const config = section.config
 
-  function set(key: string, val: any) {
+  function set(key: string, val: unknown) {
     onUpdate({ ...config, [key]: val })
   }
 
-  function setItem(arrayKey: string, idx: number, field: string, val: any) {
+  function setItem(arrayKey: string, idx: number, field: string, val: unknown) {
     const arr = [...(config[arrayKey] || [])]
     arr[idx] = { ...arr[idx], [field]: val }
     onUpdate({ ...config, [arrayKey]: arr })
   }
 
-  function addItem(arrayKey: string, template: Record<string, any>) {
+  function addItem(arrayKey: string, template: Record<string, unknown>) {
     onUpdate({ ...config, [arrayKey]: [...(config[arrayKey] || []), template] })
   }
 
   function removeItem(arrayKey: string, idx: number) {
-    onUpdate({ ...config, [arrayKey]: (config[arrayKey] || []).filter((_: any, i: number) => i !== idx) })
+    onUpdate({ ...config, [arrayKey]: (config[arrayKey] || []).filter((_: unknown, i: number) => i !== idx) })
   }
 
   return (
@@ -223,7 +224,7 @@ function SectionEditor({
           {/* Trust Bar */}
           {section.section_type === 'trust_bar' && (
             <>
-              {(config.items || []).map((item: any, i: number) => (
+              {(config.items || []).map((item: Record<string, string>, i: number) => (
                 <div key={i} className="flex items-center gap-2">
                   <select className={`${inputClass} w-20`} value={item.icon || 'check'} onChange={e => setItem('items', i, 'icon', e.target.value)}>
                     <option value="check">✓</option>
@@ -250,7 +251,7 @@ function SectionEditor({
                 <label className={`text-xs ${sub} mb-1 block`}>Headline</label>
                 <input className={inputClass} value={config.headline || ''} onChange={e => set('headline', e.target.value)} />
               </div>
-              {(config.items || []).map((item: any, i: number) => (
+              {(config.items || []).map((item: Record<string, string>, i: number) => (
                 <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-medium ${sub}`}>Feature {i + 1}</span>
@@ -273,7 +274,7 @@ function SectionEditor({
                 <label className={`text-xs ${sub} mb-1 block`}>Headline</label>
                 <input className={inputClass} value={config.headline || ''} onChange={e => set('headline', e.target.value)} />
               </div>
-              {(config.units || []).map((unit: any, i: number) => (
+              {(config.units || []).map((unit: Record<string, string>, i: number) => (
                 <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-medium ${sub}`}>Unit {i + 1}</span>
@@ -299,7 +300,7 @@ function SectionEditor({
                 <label className={`text-xs ${sub} mb-1 block`}>Headline</label>
                 <input className={inputClass} value={config.headline || ''} onChange={e => set('headline', e.target.value)} />
               </div>
-              {(config.images || []).map((img: any, i: number) => (
+              {(config.images || []).map((img: Record<string, string>, i: number) => (
                 <div key={i} className="flex items-center gap-2">
                   <input className={`${inputClass} flex-1`} value={img.url || ''} onChange={e => setItem('images', i, 'url', e.target.value)} placeholder="Image URL" />
                   {onPickAsset && <button onClick={() => onPickAsset('url', 'images', i)} className={`shrink-0 px-2 py-1.5 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`} title="Browse assets"><Image size={12} /></button>}
@@ -320,7 +321,7 @@ function SectionEditor({
                 <label className={`text-xs ${sub} mb-1 block`}>Headline</label>
                 <input className={inputClass} value={config.headline || ''} onChange={e => set('headline', e.target.value)} />
               </div>
-              {(config.items || []).map((item: any, i: number) => (
+              {(config.items || []).map((item: Record<string, string>, i: number) => (
                 <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-medium ${sub}`}>Review {i + 1}</span>
@@ -346,7 +347,7 @@ function SectionEditor({
                 <label className={`text-xs ${sub} mb-1 block`}>Headline</label>
                 <input className={inputClass} value={config.headline || ''} onChange={e => set('headline', e.target.value)} />
               </div>
-              {(config.items || []).map((item: any, i: number) => (
+              {(config.items || []).map((item: Record<string, string>, i: number) => (
                 <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-medium ${sub}`}>Q{i + 1}</span>
@@ -438,7 +439,7 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop')
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const [assetPicker, setAssetPicker] = useState<{ field: string; sectionId?: string; arrayKey?: string; arrayIdx?: number } | null>(null)
-  const [variations, setVariations] = useState<{ id: string; platform: string; angle?: string; content_json?: any }[]>([])
+  const [variations, setVariations] = useState<{ id: string; platform: string; angle?: string; content_json?: Record<string, unknown> }[]>([])
 
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
@@ -462,8 +463,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
       if (!res.ok) throw new Error('Failed to fetch pages')
       const data = await res.json()
       setPages(data.data || [])
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -493,7 +494,7 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
       testimonials: { headline: 'What Our Customers Say', items: [{ name: 'Happy Customer', text: 'Great facility with friendly staff. I highly recommend it!', metric: 'Long-term tenant' }] },
       faq: { headline: 'Frequently Asked Questions', items: [{ q: 'What are your access hours?', a: 'Our facility offers convenient access hours. Contact us for specific times.' }, { q: 'Do you offer climate-controlled units?', a: 'Yes! We have a variety of climate-controlled options available.' }] },
       cta: { headline: 'Reserve Your Unit Today', subheadline: 'Limited availability. Secure your space before it is gone.', ctaText: 'Check Availability', phone: facility.contact_phone || '', email: facility.contact_email || '', style: 'gradient' },
-      location_map: { headline: 'Find Us', address: (facility as any).google_address || facility.location || '', directions: '' },
+      location_map: { headline: 'Find Us', address: facility.google_address || facility.location || '', directions: '' },
     }
     return defaults[sectionType] || SECTION_TYPE_META[sectionType]?.defaultConfig || {}
   }
@@ -535,8 +536,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
       const data = await res.json()
       fetchPages()
       setEditingPage(data.data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     }
   }
 
@@ -574,8 +575,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
 
       setEditingPage(data.data)
       fetchPages()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setSaving(false)
     }
@@ -598,8 +599,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
       if (!res.ok) throw new Error(data.error || 'Publish failed')
       setEditingPage({ ...editingPage, status: 'published', published_at: new Date().toISOString() })
       fetchPages()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setSaving(false)
     }
@@ -624,8 +625,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
       if (!res.ok) throw new Error('Failed to load page')
       const data = await res.json()
       setEditingPage(data.data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     }
   }
 
@@ -912,11 +913,11 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={(editingPage.theme as any)?.primaryColor || '#10b981'}
+                      value={editingPage.theme?.primaryColor || '#10b981'}
                       onChange={e => setEditingPage({ ...editingPage, theme: { ...editingPage.theme, primaryColor: e.target.value } })}
                       className="w-8 h-8 rounded cursor-pointer border-0 p-0"
                     />
-                    <span className={`text-xs ${sub}`}>{(editingPage.theme as any)?.primaryColor || '#10b981'}</span>
+                    <span className={`text-xs ${sub}`}>{editingPage.theme?.primaryColor || '#10b981'}</span>
                   </div>
                 </div>
                 <div>
@@ -924,11 +925,11 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={(editingPage.theme as any)?.accentColor || '#0f172a'}
+                      value={editingPage.theme?.accentColor || '#0f172a'}
                       onChange={e => setEditingPage({ ...editingPage, theme: { ...editingPage.theme, accentColor: e.target.value } })}
                       className="w-8 h-8 rounded cursor-pointer border-0 p-0"
                     />
-                    <span className={`text-xs ${sub}`}>{(editingPage.theme as any)?.accentColor || '#0f172a'}</span>
+                    <span className={`text-xs ${sub}`}>{editingPage.theme?.accentColor || '#0f172a'}</span>
                   </div>
                 </div>
                 <div className="flex items-end">
@@ -952,7 +953,7 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {variations.map(v => {
                     const isLinked = (editingPage.variation_ids || []).includes(v.id)
-                    const label = v.content_json?.headline || v.content_json?.primary_text?.substring(0, 40) || `${v.platform} — ${v.angle || 'ad'}`
+                    const label = String(v.content_json?.headline || '') || String(v.content_json?.primary_text || '').substring(0, 40) || `${v.platform} — ${v.angle || 'ad'}`
                     return (
                       <label key={v.id} className={`flex items-center gap-2 text-xs cursor-pointer p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
                         <input

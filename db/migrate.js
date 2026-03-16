@@ -241,11 +241,15 @@ CREATE TABLE IF NOT EXISTS organizations (
   payout_method     TEXT DEFAULT 'bank_transfer', -- bank_transfer | paypal | check
   payout_email      TEXT,
   settings          JSONB DEFAULT '{}',
+  stripe_customer_id     TEXT,
+  stripe_subscription_id TEXT,
+  subscription_status    TEXT DEFAULT 'incomplete',
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
 CREATE INDEX IF NOT EXISTS idx_organizations_custom_domain ON organizations(custom_domain);
+CREATE INDEX IF NOT EXISTS idx_organizations_stripe_customer ON organizations(stripe_customer_id);
 
 -- Org users: role-based access within an organization
 CREATE TABLE IF NOT EXISTS org_users (
@@ -255,16 +259,19 @@ CREATE TABLE IF NOT EXISTS org_users (
   name              TEXT NOT NULL,
   role              TEXT NOT NULL DEFAULT 'viewer',  -- org_admin | facility_manager | viewer
   password_hash     TEXT,
-  invite_token      VARCHAR(64),
-  invite_expires_at TIMESTAMPTZ,
-  last_login_at     TIMESTAMPTZ,
-  status            TEXT DEFAULT 'invited',  -- invited | active | disabled
-  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  invite_token           VARCHAR(64),
+  invite_expires_at      TIMESTAMPTZ,
+  reset_token            VARCHAR(64),
+  reset_token_expires_at TIMESTAMPTZ,
+  last_login_at          TIMESTAMPTZ,
+  status                 TEXT DEFAULT 'invited',  -- invited | active | disabled
+  created_at             TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(organization_id, email)
 );
 CREATE INDEX IF NOT EXISTS idx_org_users_email ON org_users(email);
 CREATE INDEX IF NOT EXISTS idx_org_users_org ON org_users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_org_users_invite ON org_users(invite_token);
+CREATE INDEX IF NOT EXISTS idx_org_users_reset ON org_users(reset_token);
 
 -- ============================================================
 -- Lead pipeline tables (migrated from Redis)
@@ -460,6 +467,43 @@ CREATE TABLE IF NOT EXISTS commit_comments (
 );
 CREATE INDEX IF NOT EXISTS idx_commit_comments_hash ON commit_comments(commit_hash);
 
+-- Commit reviews: mark commits as reviewed/approved
+CREATE TABLE IF NOT EXISTS commit_reviews (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  commit_hash TEXT NOT NULL,
+  reviewed_by TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'reviewed',  -- reviewed | approved | needs-changes
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commit_reviews_unique ON commit_reviews(commit_hash, reviewed_by);
+
+-- Dev handoffs: context notes between developers
+CREATE TABLE IF NOT EXISTS dev_handoffs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_dev    TEXT NOT NULL,
+  to_dev      TEXT,
+  title       TEXT NOT NULL,
+  body        TEXT NOT NULL,
+  commit_hash TEXT,
+  status      TEXT NOT NULL DEFAULT 'active',  -- active | acknowledged | archived
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dev_handoffs_status ON dev_handoffs(status);
+
+-- Deployment tags: mark commits as deployed to environments
+CREATE TABLE IF NOT EXISTS deployment_tags (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  commit_hash TEXT NOT NULL,
+  environment TEXT NOT NULL DEFAULT 'production',  -- production | staging | preview
+  deployed_by TEXT NOT NULL,
+  version     TEXT,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_deployment_tags_hash ON deployment_tags(commit_hash);
+CREATE INDEX IF NOT EXISTS idx_deployment_tags_env ON deployment_tags(environment);
+
 -- A/B Tests: server-side experiment definitions
 CREATE TABLE IF NOT EXISTS ab_tests (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -594,6 +638,10 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS rev_share_tier TEXT DEFAULT '
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS lifetime_earnings NUMERIC(12,2) DEFAULT 0;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payout_method TEXT DEFAULT 'bank_transfer';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payout_email TEXT;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'incomplete';
+CREATE INDEX IF NOT EXISTS idx_organizations_stripe_customer ON organizations(stripe_customer_id);
 
 -- Revenue share payouts: monthly payout records per org
 CREATE TABLE IF NOT EXISTS rev_share_payouts (
@@ -1225,6 +1273,91 @@ CREATE TABLE IF NOT EXISTS facility_pms_tenant_rates (
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_pms_tenant_rates_facility ON facility_pms_tenant_rates(facility_id, snapshot_date);
+
+-- ============================================================
+-- Public API: API keys and webhooks
+-- ============================================================
+
+-- API keys: scoped, per-organization keys for programmatic access
+CREATE TABLE IF NOT EXISTS api_keys (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  key_hash        TEXT NOT NULL UNIQUE,
+  key_prefix      VARCHAR(8) NOT NULL,
+  scopes          TEXT[] NOT NULL DEFAULT '{}',
+  rate_limit      INTEGER DEFAULT 100,
+  last_used_at    TIMESTAMPTZ,
+  expires_at      TIMESTAMPTZ,
+  revoked         BOOLEAN DEFAULT FALSE,
+  revoked_at      TIMESTAMPTZ,
+  created_by      UUID,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys(organization_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix);
+
+-- Webhooks: outbound event notifications per organization
+CREATE TABLE IF NOT EXISTS webhooks (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  url             TEXT NOT NULL,
+  events          TEXT[] NOT NULL DEFAULT '{}',
+  secret          TEXT NOT NULL,
+  active          BOOLEAN DEFAULT TRUE,
+  failure_count   INTEGER DEFAULT 0,
+  last_triggered_at TIMESTAMPTZ,
+  last_status     INTEGER,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_webhooks_org ON webhooks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(active) WHERE active = TRUE;
+
+-- Webhook delivery log: audit trail for each dispatch attempt
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  webhook_id      UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+  event           TEXT NOT NULL,
+  payload         JSONB NOT NULL,
+  status          INTEGER,
+  response_body   TEXT,
+  duration_ms     INTEGER,
+  error           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_created ON webhook_deliveries(created_at DESC);
+
+-- ============================================================
+-- Additional indexes for frequently filtered columns
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_call_tracking_status ON call_tracking_numbers(status);
+CREATE INDEX IF NOT EXISTS idx_call_logs_status ON call_logs(status);
+CREATE INDEX IF NOT EXISTS idx_landing_pages_status ON landing_pages(status);
+CREATE INDEX IF NOT EXISTS idx_organizations_status ON organizations(status);
+CREATE INDEX IF NOT EXISTS idx_org_users_status ON org_users(status);
+CREATE INDEX IF NOT EXISTS idx_facilities_contact_email ON facilities(contact_email);
+CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(status);
+CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
+CREATE INDEX IF NOT EXISTS idx_partial_leads_facility_created ON partial_leads(facility_id, created_at DESC);
+
+-- API usage log: per-request tracking for analytics
+CREATE TABLE IF NOT EXISTS api_usage_log (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  api_key_id      UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL,
+  method          TEXT NOT NULL,
+  path            TEXT NOT NULL,
+  status_code     INTEGER,
+  duration_ms     INTEGER,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_api_usage_key ON api_usage_log(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_api_usage_org ON api_usage_log(organization_id);
+CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage_log(created_at DESC);
 `
 
 async function migrate() {

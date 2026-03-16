@@ -124,7 +124,7 @@ function parseCsv(text: string): CsvRow[] {
   const rows: CsvRow[] = []
   for (let i = 1; i < lines.length; i++) {
     const vals = lines[i].split(',').map(v => v.trim())
-    const row: any = {}
+    const row: Record<string, string> = {}
     headers.forEach((h, idx) => {
       row[h] = vals[idx] || ''
     })
@@ -206,7 +206,7 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
         const res = await fetch('/api/admin-facilities', { headers: { 'X-Admin-Key': adminKey } })
         if (res.ok) {
           const data = await res.json()
-          setFacilities((data.facilities || []).map((f: any) => ({ id: f.id, name: f.name })))
+          setFacilities((data.facilities || []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name })))
         }
       } catch { /* silent */ }
     }

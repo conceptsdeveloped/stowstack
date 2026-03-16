@@ -22,7 +22,7 @@ interface ActivityEntry {
   leadName: string
   facilityName: string
   detail: string
-  meta: Record<string, any>
+  meta: Record<string, unknown>
   timestamp: string
 }
 

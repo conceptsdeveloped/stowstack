@@ -11,6 +11,9 @@ import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
 import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt'
+import { OfflineBanner } from '@/components/OfflineBanner'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
   ChevronDown, ChevronUp, Menu, X, Phone, Mail, Check,
@@ -1533,8 +1536,8 @@ function CTASection() {
         }),
       }).catch(() => {}) // background — don't block or surface errors to user
 
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -1879,7 +1882,10 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <OfflineBanner />
       <AppRoutes />
+      <PWAInstallPrompt />
+      <PWAUpdatePrompt />
     </BrowserRouter>
   )
 }

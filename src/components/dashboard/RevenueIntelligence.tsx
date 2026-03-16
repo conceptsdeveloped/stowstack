@@ -222,7 +222,7 @@ function VarianceList({ title, entries, direction, darkMode, text, sub }: {
   )
 }
 
-function RevenueTrend({ revenueHistory, expanded, onToggle, darkMode, card, text, sub }: {
+function RevenueTrend({ revenueHistory, expanded, onToggle, darkMode, card, sub }: {
   revenueHistory: RevenueMonth[]; expanded: boolean; onToggle: () => void
 } & StyleProps) {
   if (revenueHistory.length === 0) return null

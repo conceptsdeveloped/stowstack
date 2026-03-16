@@ -12,6 +12,20 @@
  * Server-side CAPI events still fire for first-party data collection.
  */
 
+declare global {
+  interface Window {
+    fbq?: ((...args: unknown[]) => void) & {
+      callMethod?: (...args: unknown[]) => void
+      push: (...args: unknown[]) => void
+      loaded: boolean
+      version: string
+      queue: unknown[]
+    }
+    gtag?: (...args: unknown[]) => void
+    dataLayer?: unknown[]
+  }
+}
+
 import { hasTrackingConsent, onConsentChange } from './consent'
 
 /**
@@ -39,7 +53,7 @@ export interface StowStackEvent {
     content_type?: string
     content_id?: string
     num_items?: number
-    [key: string]: any
+    [key: string]: string | number | undefined
   }
   gclid?: string
   fbclid?: string
@@ -57,6 +71,17 @@ export interface PixelConfig {
   debug?: boolean
   capiEndpoint?: string
   googleConversionEndpoint?: string
+}
+
+/** Response from a server-side pixel API call */
+interface PixelApiResponse {
+  [key: string]: unknown
+}
+
+/** Combined response from both Meta and Google tracking */
+interface ConversionResult {
+  meta: PixelApiResponse | null
+  google: PixelApiResponse | null
 }
 
 /**
@@ -115,31 +140,36 @@ class PixelManager {
    * Adds Facebook Pixel script and configures event tracking.
    */
   private initializeMetaPixel(): void {
-    const win = window as any
-
     // Check if fbq already exists (if Meta Pixel script was loaded)
-    if (win.fbq) {
+    if (window.fbq) {
         return
     }
 
     // Create fbq object if not present
-    if (!win.fbq) {
-      win.fbq = function () {
-        win.fbq.callMethod
-          ? win.fbq.callMethod.apply(win.fbq, arguments)
-          : win.fbq.queue.push(arguments)
+    const queue: unknown[] = []
+    const fbq = Object.assign(
+      (...args: unknown[]) => {
+        if (fbq.callMethod) {
+          fbq.callMethod(...args)
+        } else {
+          fbq.queue.push(args)
+        }
+      },
+      {
+        callMethod: undefined as ((...a: unknown[]) => void) | undefined,
+        push: (...args: unknown[]) => { queue.push(args) },
+        loaded: true,
+        version: '2.0',
+        queue,
       }
-      win.fbq.push = win.fbq
-      win.fbq.loaded = true
-      win.fbq.version = '2.0'
-      win.fbq.queue = []
-    }
+    )
+    window.fbq = fbq
 
     // Initialize pixel
-    win.fbq('init', this.metaPixelId)
+    window.fbq('init', this.metaPixelId)
 
     // Track standard PageView
-    win.fbq('track', 'PageView')
+    window.fbq('track', 'PageView')
 
   }
 
@@ -149,16 +179,16 @@ class PixelManager {
    */
   private initializeGoogleAds(): void {
     // Check if gtag already exists
-    if ((window as any).gtag) {
+    if (window.gtag) {
         return
     }
 
     // Create gtag object
-    ;(window as any).dataLayer = (window as any).dataLayer || []
-    ;(window as any).gtag = function () {
-      ;(window as any).dataLayer.push(arguments)
+    window.dataLayer = window.dataLayer || []
+    window.gtag = (...args: unknown[]) => {
+      window.dataLayer!.push(args)
     }
-    ;(window as any).gtag('js', new Date())
+    window.gtag('js', new Date())
 
   }
 
@@ -233,7 +263,7 @@ class PixelManager {
    */
   public fireClientMetaEvent(
     eventName: string,
-    customData?: Record<string, any>
+    customData?: Record<string, unknown>
   ): void {
     if (!hasTrackingConsent()) {
       if (this.debug) {
@@ -242,7 +272,7 @@ class PixelManager {
       return
     }
 
-    if (!this.metaPixelId || !(window as any).fbq) {
+    if (!this.metaPixelId || !window.fbq) {
       if (this.debug) {
         console.warn('[Pixel] Meta Pixel not available')
       }
@@ -250,7 +280,7 @@ class PixelManager {
     }
 
     const eventData = customData || {}
-    ;(window as any).fbq('track', eventName, eventData)
+    window.fbq('track', eventName, eventData)
 
   }
 
@@ -261,7 +291,7 @@ class PixelManager {
    */
   public fireClientGoogleEvent(
     eventName: string,
-    customData?: Record<string, any>
+    customData?: Record<string, unknown>
   ): void {
     if (!hasTrackingConsent()) {
       if (this.debug) {
@@ -270,7 +300,7 @@ class PixelManager {
       return
     }
 
-    if (!(window as any).gtag) {
+    if (!window.gtag) {
       if (this.debug) {
         console.warn('[Pixel] Google Ads not available')
       }
@@ -278,7 +308,7 @@ class PixelManager {
     }
 
     const eventData = customData || {}
-    ;(window as any).gtag('event', eventName, eventData)
+    window.gtag('event', eventName, eventData)
 
   }
 
@@ -288,7 +318,7 @@ class PixelManager {
    * @param event - StowStack event data
    * @returns Promise resolving to the API response
    */
-  public async fireServerMetaEvent(event: StowStackEvent): Promise<any> {
+  public async fireServerMetaEvent(event: StowStackEvent): Promise<PixelApiResponse | null> {
     if (!this.metaPixelId) {
       if (this.debug) {
         console.warn('[Pixel] Meta Pixel not configured')
@@ -331,7 +361,7 @@ class PixelManager {
    * @param event - StowStack event data
    * @returns Promise resolving to the API response
    */
-  public async fireServerGoogleEvent(event: StowStackEvent): Promise<any> {
+  public async fireServerGoogleEvent(event: StowStackEvent): Promise<PixelApiResponse | null> {
     if (!this.googleConversionId) {
       if (this.debug) {
         console.warn('[Pixel] Google Ads not configured')
@@ -376,10 +406,7 @@ class PixelManager {
    * @param event - StowStack event data
    * @returns Promise resolving to { meta: response, google: response }
    */
-  public async sendConversion(event: StowStackEvent): Promise<{
-    meta: any
-    google: any
-  }> {
+  public async sendConversion(event: StowStackEvent): Promise<ConversionResult> {
     // Enrich event with auto-captured data
     const enrichedEvent = {
       ...event,
@@ -421,7 +448,7 @@ class PixelManager {
   public async trackLead(
     userData: StowStackEvent['user_data'],
     value?: number
-  ): Promise<{ meta: any; google: any }> {
+  ): Promise<ConversionResult> {
     return this.sendConversion({
       event_name: 'Lead',
       user_data: userData,
@@ -441,7 +468,7 @@ class PixelManager {
   public async trackReservationStart(
     userData: StowStackEvent['user_data'],
     value?: number
-  ): Promise<{ meta: any; google: any }> {
+  ): Promise<ConversionResult> {
     return this.sendConversion({
       event_name: 'InitiateCheckout',
       user_data: userData,
@@ -462,7 +489,7 @@ class PixelManager {
   public async trackMoveInCompleted(
     userData: StowStackEvent['user_data'],
     value: number
-  ): Promise<{ meta: any; google: any }> {
+  ): Promise<ConversionResult> {
     return this.sendConversion({
       event_name: 'Purchase',
       user_data: userData,
@@ -488,7 +515,7 @@ class PixelManager {
       unit_type?: string
       price?: number
     }
-  ): Promise<{ meta: any; google: any }> {
+  ): Promise<ConversionResult> {
     return this.sendConversion({
       event_name: 'ViewContent',
       user_data: userData,
@@ -550,10 +577,7 @@ export function getPixel(): PixelManager {
  * @param event - StowStack event
  * @returns Promise resolving to { meta, google } responses
  */
-export async function trackConversion(event: StowStackEvent): Promise<{
-  meta: any
-  google: any
-}> {
+export async function trackConversion(event: StowStackEvent): Promise<ConversionResult> {
   return getPixel().sendConversion(event)
 }
 
@@ -566,7 +590,7 @@ export async function trackConversion(event: StowStackEvent): Promise<{
 export async function trackLead(
   userData: StowStackEvent['user_data'],
   value?: number
-): Promise<{ meta: any; google: any }> {
+): Promise<ConversionResult> {
   return getPixel().trackLead(userData, value)
 }
 
@@ -579,7 +603,7 @@ export async function trackLead(
 export async function trackMoveIn(
   userData: StowStackEvent['user_data'],
   value: number
-): Promise<{ meta: any; google: any }> {
+): Promise<ConversionResult> {
   return getPixel().trackMoveInCompleted(userData, value)
 }
 

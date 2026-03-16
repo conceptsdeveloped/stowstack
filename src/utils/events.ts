@@ -355,7 +355,7 @@ export function incrementQueuedEventRetry(queuedEventId: string, error?: string)
  */
 function fireMetaPixelEvent(event: ConversionEvent): void {
   try {
-    const fbq = (window as any).fbq;
+    const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
     if (!fbq) {
       if (import.meta.env.DEV) {
         console.warn('[Events] Meta Pixel not initialized');
@@ -422,7 +422,7 @@ function fireMetaPixelEvent(event: ConversionEvent): void {
  */
 function fireGoogleAnalyticsEvent(event: ConversionEvent): void {
   try {
-    const gtag = (window as any).gtag;
+    const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
     if (!gtag) {
       if (import.meta.env.DEV) {
         console.warn('[Events] Google Analytics not initialized');

@@ -1,0 +1,1187 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StowStack API",
+    "version": "1.0.0",
+    "description": "API for StowStack — the demand engine for self-storage operators. All admin endpoints require an `X-Admin-Key` header. Organization endpoints require an `X-Org-Token` header. Client portal endpoints require an `X-Access-Code` header."
+  },
+  "servers": [
+    { "url": "https://stowstack.co", "description": "Production" },
+    { "url": "http://localhost:5173", "description": "Local dev" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "AdminKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Admin-Key",
+        "description": "Admin secret for internal/ops endpoints"
+      },
+      "OrgToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Org-Token",
+        "description": "Organization JWT for partner portal endpoints"
+      },
+      "AccessCode": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Access-Code",
+        "description": "Client portal access code"
+      },
+      "ApiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key for programmatic access (sk_live_...). Scoped per organization. Pass as: Authorization: Bearer sk_live_..."
+      }
+    },
+    "schemas": {
+      "Facility": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "location": { "type": "string" },
+          "contact_name": { "type": "string" },
+          "contact_email": { "type": "string", "format": "email" },
+          "contact_phone": { "type": "string" },
+          "status": { "type": "string", "enum": ["intake", "scraped", "briefed", "generating", "review", "approved", "live", "reporting"] },
+          "pipeline_status": { "type": "string", "enum": ["submitted", "contacted", "qualified", "proposal", "signed", "onboarding", "active", "churned"] },
+          "occupancy_range": { "type": "string" },
+          "total_units": { "type": "string" },
+          "lead_score": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LandingPage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "facility_id": { "type": "string", "format": "uuid" },
+          "slug": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+          "theme": { "type": "object" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ConsumerLead": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "facility_id": { "type": "string", "format": "uuid" },
+          "session_id": { "type": "string" },
+          "email": { "type": "string" },
+          "phone": { "type": "string" },
+          "name": { "type": "string" },
+          "unit_size": { "type": "string" },
+          "lead_status": { "type": "string", "enum": ["partial", "new", "contacted", "toured", "reserved", "moved_in", "lost"] },
+          "lead_score": { "type": "integer" },
+          "utm_source": { "type": "string" },
+          "utm_medium": { "type": "string" },
+          "utm_campaign": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" }
+        },
+        "required": ["error"]
+      },
+      "Unit": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "unit_type": { "type": "string", "example": "10x10 Climate" },
+          "size_label": { "type": "string", "example": "10x10" },
+          "width_ft": { "type": "number" },
+          "depth_ft": { "type": "number" },
+          "sqft": { "type": "number" },
+          "floor": { "type": "string" },
+          "features": { "type": "array", "items": { "type": "string" } },
+          "total_count": { "type": "integer" },
+          "occupied_count": { "type": "integer" },
+          "vacant_count": { "type": "integer" },
+          "street_rate": { "type": "number" },
+          "web_rate": { "type": "number" },
+          "last_updated": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Special": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "applies_to": { "type": "array", "items": { "type": "string" } },
+          "discount_type": { "type": "string", "enum": ["fixed", "percent", "months_free"] },
+          "discount_value": { "type": "number" },
+          "min_lease_months": { "type": "integer" },
+          "start_date": { "type": "string", "format": "date" },
+          "end_date": { "type": "string", "format": "date" },
+          "active": { "type": "boolean" }
+        }
+      },
+      "Availability": {
+        "type": "object",
+        "properties": {
+          "unit_type": { "type": "string" },
+          "size_label": { "type": "string" },
+          "sqft": { "type": "number" },
+          "features": { "type": "array", "items": { "type": "string" } },
+          "available_count": { "type": "integer" },
+          "street_rate": { "type": "number" },
+          "web_rate": { "type": "number" },
+          "specials": { "type": "array", "items": { "$ref": "#/components/schemas/Special" } }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "url": { "type": "string", "format": "uri" },
+          "events": { "type": "array", "items": { "type": "string", "enum": ["lead.created", "lead.updated", "unit.updated", "facility.updated", "special.created", "special.updated"] } },
+          "active": { "type": "boolean" },
+          "secret": { "type": "string", "description": "HMAC signing secret (only returned on creation)" },
+          "failure_count": { "type": "integer" },
+          "last_triggered_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "key": { "type": "string", "description": "Full API key (only returned on creation)" },
+          "key_prefix": { "type": "string", "example": "sk_live_" },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "rate_limit": { "type": "integer" },
+          "last_used_at": { "type": "string", "format": "date-time" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/audit-form": {
+      "post": {
+        "summary": "Submit audit intake form",
+        "description": "Public endpoint. Validates form data, stores facility record, sends notification emails via Resend.",
+        "tags": ["Public"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "facilityName", "location"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
+                  "facilityName": { "type": "string" },
+                  "location": { "type": "string" },
+                  "occupancy": { "type": "string" },
+                  "totalUnits": { "type": "string" },
+                  "biggestIssue": { "type": "string" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Form submitted successfully" },
+          "400": { "description": "Validation errors", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": { "description": "Rate limited" }
+        }
+      }
+    },
+    "/api/admin-leads": {
+      "get": {
+        "summary": "List facility leads with pipeline status",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 25 } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated list of leads" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "patch": {
+        "summary": "Update lead pipeline status or details",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "pipeline_status": { "type": "string" },
+                  "follow_up_date": { "type": "string", "format": "date" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Lead updated" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/consumer-lead": {
+      "post": {
+        "summary": "Submit a consumer lead from a landing page",
+        "tags": ["Public"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "facilityId": { "type": "string", "format": "uuid" },
+                  "landingPageId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "unitSize": { "type": "string" },
+                  "moveInDate": { "type": "string" },
+                  "utmSource": { "type": "string" },
+                  "utmMedium": { "type": "string" },
+                  "utmCampaign": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Lead captured" },
+          "400": { "description": "Validation error" }
+        }
+      }
+    },
+    "/api/consumer-leads": {
+      "get": {
+        "summary": "List consumer leads with filtering",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "summary", "in": "query", "schema": { "type": "string", "enum": ["true"] } }
+        ],
+        "responses": {
+          "200": { "description": "Consumer leads or summary stats" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "patch": {
+        "summary": "Update consumer lead status",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": {
+          "200": { "description": "Lead updated" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/landing-pages": {
+      "get": {
+        "summary": "List or get landing pages",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "slug", "in": "query", "schema": { "type": "string" } },
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Landing page(s) with sections" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create a new landing page",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": {
+          "200": { "description": "Landing page created" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "put": {
+        "summary": "Update a landing page",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": {
+          "200": { "description": "Landing page updated" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/utm-links": {
+      "get": {
+        "summary": "List UTM tracked links for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "List of UTM links" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create a UTM link",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": {
+          "200": { "description": "UTM link created" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/r": {
+      "get": {
+        "summary": "Redirect short URL and track click",
+        "tags": ["Public"],
+        "parameters": [
+          { "name": "c", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Short code" }
+        ],
+        "responses": {
+          "302": { "description": "Redirect to destination URL" },
+          "404": { "description": "Short code not found" }
+        }
+      }
+    },
+    "/api/client-data": {
+      "get": {
+        "summary": "Get client portal data",
+        "tags": ["Client Portal"],
+        "security": [{ "AccessCode": [] }],
+        "responses": {
+          "200": { "description": "Client facility data with campaigns" },
+          "401": { "description": "Invalid access code" }
+        }
+      }
+    },
+    "/api/client-campaigns": {
+      "get": {
+        "summary": "Get client campaign metrics",
+        "tags": ["Client Portal"],
+        "security": [{ "AccessCode": [] }],
+        "responses": {
+          "200": { "description": "Monthly campaign performance data" }
+        }
+      }
+    },
+    "/api/client-onboarding": {
+      "get": {
+        "summary": "Get onboarding wizard state",
+        "tags": ["Client Portal"],
+        "security": [{ "AccessCode": [] }],
+        "responses": { "200": { "description": "Onboarding step progress" } }
+      },
+      "post": {
+        "summary": "Update onboarding step",
+        "tags": ["Client Portal"],
+        "security": [{ "AccessCode": [] }],
+        "responses": { "200": { "description": "Step saved" } }
+      }
+    },
+    "/api/organizations": {
+      "get": {
+        "summary": "List organizations or get a single org",
+        "tags": ["Organizations"],
+        "security": [{ "AdminKey": [] }, { "OrgToken": [] }],
+        "responses": {
+          "200": { "description": "Organization(s) with facilities and users" }
+        }
+      },
+      "post": {
+        "summary": "Create an organization",
+        "tags": ["Organizations"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Organization created" } }
+      }
+    },
+    "/api/org-users": {
+      "get": {
+        "summary": "List users in an organization",
+        "tags": ["Organizations"],
+        "security": [{ "OrgToken": [] }],
+        "responses": { "200": { "description": "List of org users" } }
+      },
+      "post": {
+        "summary": "Invite a user to the organization",
+        "tags": ["Organizations"],
+        "security": [{ "OrgToken": [] }],
+        "responses": { "200": { "description": "User invited" } }
+      }
+    },
+    "/api/partner-signup": {
+      "post": {
+        "summary": "Partner organization signup / login",
+        "tags": ["Organizations"],
+        "responses": {
+          "200": { "description": "Auth token returned" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/facility-assets": {
+      "get": {
+        "summary": "List assets for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "List of facility assets" } }
+      }
+    },
+    "/api/facility-creatives": {
+      "get": {
+        "summary": "List ad creatives for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Ad variations with brief data" } }
+      }
+    },
+    "/api/ab-tests": {
+      "get": {
+        "summary": "List A/B tests for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Active and completed tests" } }
+      },
+      "post": {
+        "summary": "Create or update an A/B test",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Test created/updated" } }
+      }
+    },
+    "/api/activity-log": {
+      "get": {
+        "summary": "Get activity log entries",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Recent activity entries" } }
+      }
+    },
+    "/api/call-tracking": {
+      "get": {
+        "summary": "List tracking numbers for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Tracking numbers with stats" } }
+      },
+      "post": {
+        "summary": "Provision a new tracking number",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Number provisioned" } }
+      }
+    },
+    "/api/call-logs": {
+      "get": {
+        "summary": "Get call logs and analytics for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Call logs with stats" } }
+      }
+    },
+    "/api/call-webhook": {
+      "post": {
+        "summary": "Twilio call status webhook",
+        "tags": ["Webhooks"],
+        "responses": { "200": { "description": "Webhook processed" } }
+      }
+    },
+    "/api/tenants": {
+      "get": {
+        "summary": "List tenants with billing data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Tenant list with financial summary" } }
+      },
+      "post": {
+        "summary": "Update tenant data or trigger actions",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Action completed" } }
+      }
+    },
+    "/api/churn-predictions": {
+      "get": {
+        "summary": "Get churn risk predictions",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Churn predictions with risk scores" } }
+      }
+    },
+    "/api/upsell": {
+      "get": {
+        "summary": "List upsell opportunities",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Upsell opportunities" } }
+      }
+    },
+    "/api/moveout-remarketing": {
+      "get": {
+        "summary": "Get move-out remarketing campaigns",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Remarketing data" } }
+      }
+    },
+    "/api/gbp-reviews": {
+      "get": {
+        "summary": "List GBP reviews for a facility",
+        "tags": ["GBP"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Reviews with AI response drafts" } }
+      }
+    },
+    "/api/gbp-posts": {
+      "get": {
+        "summary": "List GBP posts",
+        "tags": ["GBP"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Published and scheduled posts" } }
+      },
+      "post": {
+        "summary": "Create or publish a GBP post",
+        "tags": ["GBP"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Post created" } }
+      }
+    },
+    "/api/gbp-questions": {
+      "get": {
+        "summary": "List GBP Q&A entries",
+        "tags": ["GBP"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Questions with answer status" } }
+      }
+    },
+    "/api/gbp-insights": {
+      "get": {
+        "summary": "Get GBP performance insights",
+        "tags": ["GBP"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Search views, clicks, calls metrics" } }
+      }
+    },
+    "/api/referrals": {
+      "get": {
+        "summary": "List referral codes and referrals",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Referral data" } }
+      },
+      "post": {
+        "summary": "Create a referral code or record a referral",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Created" } }
+      }
+    },
+    "/api/drip-sequences": {
+      "get": {
+        "summary": "Get drip sequence status for a lead",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Drip sequence state" } }
+      },
+      "post": {
+        "summary": "Enroll, pause, resume, or cancel a drip sequence",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Sequence updated" } }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "summary": "Get admin notifications",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Notification list" } }
+      }
+    },
+    "/api/lead-score": {
+      "get": {
+        "summary": "Get lead scoring data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Lead scores" } }
+      }
+    },
+    "/api/attribution": {
+      "get": {
+        "summary": "Get full-funnel attribution data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Attribution metrics by source/campaign" } }
+      }
+    },
+    "/api/campaign-spend": {
+      "get": {
+        "summary": "Get campaign spend data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Daily spend by platform" } }
+      },
+      "post": {
+        "summary": "Import campaign spend data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Spend data imported" } }
+      }
+    },
+    "/api/facility-pms": {
+      "get": {
+        "summary": "Get PMS data snapshot for a facility",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Units, snapshot, specials, rate history" } }
+      },
+      "post": {
+        "summary": "Update PMS data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "PMS data updated" } }
+      }
+    },
+    "/api/pms-upload": {
+      "post": {
+        "summary": "Upload a PMS report CSV",
+        "tags": ["Public"],
+        "responses": { "200": { "description": "Report parsed and stored" } }
+      }
+    },
+    "/api/storedge-import": {
+      "post": {
+        "summary": "Import storEDGE report data",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Report imported" } }
+      }
+    },
+    "/api/audit-report": {
+      "get": {
+        "summary": "Generate or retrieve an audit report",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Audit report JSON" } }
+      }
+    },
+    "/api/shared-audits": {
+      "get": {
+        "summary": "Get a shared audit by slug",
+        "tags": ["Public"],
+        "parameters": [
+          { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Shared audit data" } }
+      },
+      "post": {
+        "summary": "Create a shared audit link",
+        "tags": ["Admin"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Share link created" } }
+      }
+    },
+    "/api/meta-capi": {
+      "post": {
+        "summary": "Send Meta Conversions API event",
+        "tags": ["Tracking"],
+        "responses": { "200": { "description": "Event sent" } }
+      }
+    },
+    "/api/google-conversion": {
+      "post": {
+        "summary": "Send Google Ads conversion",
+        "tags": ["Tracking"],
+        "responses": { "200": { "description": "Conversion sent" } }
+      }
+    },
+    "/api/partial-lead": {
+      "post": {
+        "summary": "Capture partial form data for abandoned lead recovery",
+        "tags": ["Public"],
+        "responses": { "200": { "description": "Partial data saved" } }
+      }
+    },
+    "/api/commit-notes": {
+      "get": {
+        "summary": "Get dev notes for commits",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Commit enrichments" } }
+      },
+      "post": {
+        "summary": "Add or update a dev note",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Note saved" } }
+      }
+    },
+    "/api/commit-flags": {
+      "get": {
+        "summary": "Get commit flags",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Flags list" } }
+      },
+      "post": {
+        "summary": "Add or remove a commit flag",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Flag updated" } }
+      }
+    },
+    "/api/commit-comments": {
+      "get": {
+        "summary": "Get commit comments",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Comments list" } }
+      },
+      "post": {
+        "summary": "Add a commit comment",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Comment added" } }
+      }
+    },
+    "/api/ideas": {
+      "get": {
+        "summary": "List feature ideas",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Ideas list" } }
+      },
+      "post": {
+        "summary": "Create a feature idea",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Idea created" } }
+      },
+      "patch": {
+        "summary": "Update or vote on an idea",
+        "tags": ["What's New"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Idea updated" } }
+      }
+    },
+    "/api/generate-copy": {
+      "post": {
+        "summary": "Generate ad copy via Claude AI",
+        "tags": ["AI"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Generated copy" } }
+      }
+    },
+    "/api/marketing-plan": {
+      "get": {
+        "summary": "Get marketing plan for a facility",
+        "tags": ["AI"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Marketing plan JSON" } }
+      },
+      "post": {
+        "summary": "Generate a new marketing plan",
+        "tags": ["AI"],
+        "security": [{ "AdminKey": [] }],
+        "responses": { "200": { "description": "Plan generated" } }
+      }
+    },
+    "/api/cron/process-drips": {
+      "get": {
+        "summary": "Process pending drip email sends",
+        "description": "Vercel cron — runs hourly",
+        "tags": ["Cron"],
+        "responses": { "200": { "description": "Processed" } }
+      }
+    },
+    "/api/cron/process-recovery": {
+      "get": {
+        "summary": "Process abandoned lead recovery emails",
+        "description": "Vercel cron — runs every 30 minutes",
+        "tags": ["Cron"],
+        "responses": { "200": { "description": "Processed" } }
+      }
+    },
+    "/api/cron/process-gbp": {
+      "get": {
+        "summary": "Sync GBP data (reviews, posts, insights)",
+        "description": "Vercel cron — runs every 2 hours",
+        "tags": ["Cron"],
+        "responses": { "200": { "description": "Synced" } }
+      }
+    },
+    "/api/v1/api-keys": {
+      "get": {
+        "summary": "List API keys for an organization",
+        "tags": ["Public API v1"],
+        "security": [{ "AdminKey": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "name": "organizationId", "in": "query", "schema": { "type": "string", "format": "uuid" }, "description": "Required for admin auth" }
+        ],
+        "responses": {
+          "200": { "description": "List of API keys (key_prefix shown, never full key)", "content": { "application/json": { "schema": { "type": "object", "properties": { "keys": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKeyResponse" } } } } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create a new API key",
+        "description": "Admin only. Returns the full key once — store it securely.",
+        "tags": ["Public API v1"],
+        "security": [{ "AdminKey": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["organizationId", "name"], "properties": { "organizationId": { "type": "string", "format": "uuid" }, "name": { "type": "string", "example": "StorEDGE Integration" }, "scopes": { "type": "array", "items": { "type": "string", "enum": ["facilities:read", "facilities:write", "units:read", "units:write", "leads:read", "leads:write", "webhooks:manage"] } }, "rateLimitPerMinute": { "type": "integer", "default": 100 }, "expiresAt": { "type": "string", "format": "date-time" } } } } } },
+        "responses": {
+          "200": { "description": "API key created (includes full key)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiKeyResponse" } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "delete": {
+        "summary": "Revoke an API key",
+        "tags": ["Public API v1"],
+        "security": [{ "AdminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Key revoked" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/facilities": {
+      "get": {
+        "summary": "List facilities",
+        "description": "Returns facilities belonging to the authenticated organization. Supports pagination and status filtering.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" }, "description": "Get a single facility by ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 25, "maximum": 100 } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Facility list or single facility", "content": { "application/json": { "schema": { "type": "object", "properties": { "facilities": { "type": "array", "items": { "$ref": "#/components/schemas/Facility" } }, "total": { "type": "integer" }, "page": { "type": "integer" }, "totalPages": { "type": "integer" } } } } } },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Insufficient scope" }
+        }
+      },
+      "post": {
+        "summary": "Create a facility",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name", "location"], "properties": { "name": { "type": "string" }, "location": { "type": "string" }, "contactName": { "type": "string" }, "contactEmail": { "type": "string", "format": "email" }, "contactPhone": { "type": "string" }, "totalUnits": { "type": "string" }, "occupancyRange": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Facility created. Triggers facility.updated webhook." },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "patch": {
+        "summary": "Update a facility",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" }, "location": { "type": "string" }, "contactName": { "type": "string" }, "contactEmail": { "type": "string" }, "contactPhone": { "type": "string" }, "totalUnits": { "type": "string" }, "occupancyRange": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Facility updated. Triggers facility.updated webhook." },
+          "404": { "description": "Facility not found or not owned by org" }
+        }
+      }
+    },
+    "/api/v1/facility-units": {
+      "get": {
+        "summary": "List unit types for a facility",
+        "description": "Returns unit inventory with occupancy counts and public pricing. Excludes internal rate data (actual_avg_rate, push_rate, ecri).",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Unit list", "content": { "application/json": { "schema": { "type": "object", "properties": { "units": { "type": "array", "items": { "$ref": "#/components/schemas/Unit" } } } } } } }
+        }
+      },
+      "post": {
+        "summary": "Upsert unit types",
+        "description": "Create or update unit types. Send a single unit or { units: [...] } for bulk. Triggers unit.updated webhook.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "units": { "type": "array", "items": { "type": "object", "required": ["unitType"], "properties": { "unitType": { "type": "string" }, "sizeLabel": { "type": "string" }, "widthFt": { "type": "number" }, "depthFt": { "type": "number" }, "sqft": { "type": "number" }, "floor": { "type": "string" }, "features": { "type": "array", "items": { "type": "string" } }, "totalCount": { "type": "integer" }, "occupiedCount": { "type": "integer" }, "streetRate": { "type": "number" }, "webRate": { "type": "number" } } } } } } } } },
+        "responses": {
+          "200": { "description": "Units upserted" }
+        }
+      }
+    },
+    "/api/v1/facility-availability": {
+      "get": {
+        "summary": "Get available units with active specials",
+        "description": "Public-friendly availability view. Returns only units with vacant_count > 0, with matching specials attached.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Availability with specials", "content": { "application/json": { "schema": { "type": "object", "properties": { "availability": { "type": "array", "items": { "$ref": "#/components/schemas/Availability" } } } } } } }
+        }
+      }
+    },
+    "/api/v1/facility-specials": {
+      "get": {
+        "summary": "List specials/promotions for a facility",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Specials list", "content": { "application/json": { "schema": { "type": "object", "properties": { "specials": { "type": "array", "items": { "$ref": "#/components/schemas/Special" } } } } } } }
+        }
+      },
+      "post": {
+        "summary": "Create or update a special",
+        "description": "Pass id to update an existing special. Triggers special.created or special.updated webhook.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": { "id": { "type": "string", "format": "uuid", "description": "Include to update existing" }, "name": { "type": "string" }, "description": { "type": "string" }, "appliesTo": { "type": "array", "items": { "type": "string" } }, "discountType": { "type": "string", "enum": ["fixed", "percent", "months_free"] }, "discountValue": { "type": "number" }, "minLeaseMonths": { "type": "integer" }, "startDate": { "type": "string", "format": "date" }, "endDate": { "type": "string", "format": "date" }, "active": { "type": "boolean" } } } } } },
+        "responses": {
+          "200": { "description": "Special created/updated" }
+        }
+      }
+    },
+    "/api/v1/leads": {
+      "get": {
+        "summary": "List leads",
+        "description": "Returns leads for the organization's facilities. Excludes internal analytics (scroll_depth, ip_hash) and revenue data (monthly_revenue).",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" }, "description": "Get a single lead by ID" },
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "Filter leads created after this timestamp" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 25, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": { "description": "Lead list or single lead", "content": { "application/json": { "schema": { "type": "object", "properties": { "leads": { "type": "array", "items": { "$ref": "#/components/schemas/ConsumerLead" } }, "total": { "type": "integer" }, "page": { "type": "integer" }, "totalPages": { "type": "integer" } } } } } }
+        }
+      },
+      "post": {
+        "summary": "Create a lead",
+        "description": "Push a reservation, inquiry, or lead into StowStack from an external system. Triggers lead.created webhook.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["facilityId"], "properties": { "facilityId": { "type": "string", "format": "uuid" }, "name": { "type": "string" }, "email": { "type": "string" }, "phone": { "type": "string" }, "unitSize": { "type": "string" }, "leadStatus": { "type": "string", "enum": ["new", "contacted", "toured", "reserved", "moved_in"] }, "utmSource": { "type": "string" }, "utmMedium": { "type": "string" }, "utmCampaign": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Lead created" }
+        }
+      },
+      "patch": {
+        "summary": "Update a lead",
+        "description": "Update lead status, contact info, or notes. Triggers lead.updated webhook.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "leadStatus": { "type": "string" }, "moveInDate": { "type": "string", "format": "date" }, "notes": { "type": "string" }, "name": { "type": "string" }, "email": { "type": "string" }, "phone": { "type": "string" }, "unitSize": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Lead updated" }
+        }
+      }
+    },
+    "/api/v1/webhooks": {
+      "get": {
+        "summary": "List webhooks",
+        "description": "Pass ?id= to get a single webhook with recent delivery history.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Webhook list or single webhook with deliveries", "content": { "application/json": { "schema": { "type": "object", "properties": { "webhooks": { "type": "array", "items": { "$ref": "#/components/schemas/Webhook" } } } } } } }
+        }
+      },
+      "post": {
+        "summary": "Register a webhook",
+        "description": "Register a URL to receive event notifications. The signing secret is returned only on creation — store it securely. Webhook URL must use HTTPS.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["url", "events"], "properties": { "url": { "type": "string", "format": "uri", "example": "https://your-pms.com/webhooks/stowstack" }, "events": { "type": "array", "items": { "type": "string", "enum": ["lead.created", "lead.updated", "unit.updated", "facility.updated", "special.created", "special.updated"] } } } } } } },
+        "responses": {
+          "200": { "description": "Webhook created (includes secret)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Webhook" } } } }
+        }
+      },
+      "patch": {
+        "summary": "Update a webhook",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string" }, "events": { "type": "array", "items": { "type": "string" } }, "active": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "Webhook updated" } }
+      },
+      "delete": {
+        "summary": "Delete a webhook",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Webhook deleted" } }
+      }
+    },
+    "/api/v1/facility-snapshots": {
+      "get": {
+        "summary": "List occupancy snapshots",
+        "description": "Returns daily PMS snapshots for a facility (occupancy, move-ins/outs, delinquency). Excludes revenue data (gross_potential, actual_revenue).",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 30, "maximum": 90 } }
+        ],
+        "responses": { "200": { "description": "Snapshot history" } }
+      },
+      "post": {
+        "summary": "Push a daily occupancy snapshot",
+        "description": "Upsert a facility snapshot for a given date. Used by PMS systems to push daily occupancy data.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "snapshotDate": { "type": "string", "format": "date" }, "totalUnits": { "type": "integer" }, "occupiedUnits": { "type": "integer" }, "occupancyPct": { "type": "number" }, "totalSqft": { "type": "integer" }, "occupiedSqft": { "type": "integer" }, "delinquencyPct": { "type": "number" }, "moveInsMtd": { "type": "integer" }, "moveOutsMtd": { "type": "integer" }, "notes": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Snapshot saved" } }
+      }
+    },
+    "/api/v1/tenants": {
+      "get": {
+        "summary": "List tenants",
+        "description": "Returns tenants for a facility or a single tenant by ID. Includes payment history for single tenant lookups.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" }, "description": "Get single tenant with payment history" },
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["active", "delinquent", "moved_out", "reserved"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 100 } }
+        ],
+        "responses": { "200": { "description": "Tenant list or single tenant with payments" } }
+      },
+      "post": {
+        "summary": "Bulk import/upsert tenants",
+        "description": "Import tenants from a PMS. Upserts on (facility_id, external_id) if external_id is provided.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["facilityId", "tenants"], "properties": { "facilityId": { "type": "string", "format": "uuid" }, "tenants": { "type": "array", "items": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "externalId": { "type": "string" }, "email": { "type": "string" }, "phone": { "type": "string" }, "unitNumber": { "type": "string" }, "unitSize": { "type": "string" }, "unitType": { "type": "string" }, "monthlyRate": { "type": "number" }, "moveInDate": { "type": "string", "format": "date" }, "autopayEnabled": { "type": "boolean" }, "hasInsurance": { "type": "boolean" }, "balance": { "type": "number" }, "status": { "type": "string" } } } } } } } } },
+        "responses": { "200": { "description": "Import results: { imported, total, errors }" } }
+      },
+      "patch": {
+        "summary": "Update a tenant",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Tenant updated" } }
+      }
+    },
+    "/api/v1/landing-pages": {
+      "get": {
+        "summary": "List landing pages",
+        "description": "Read-only. Returns landing pages with sections and UTM links for a facility. Use slug or id for single page, facilityId for listing.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "slug", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Landing page(s) with sections and UTM links" } }
+      }
+    },
+    "/api/v1/call-logs": {
+      "get": {
+        "summary": "Get call tracking logs and stats",
+        "description": "Read-only. Use summary=true for aggregate stats and tracking number breakdown, or paginate through individual call records.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "facilityId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "summary", "in": "query", "schema": { "type": "string", "enum": ["true"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 100 } }
+        ],
+        "responses": { "200": { "description": "Call logs or summary stats" } }
+      }
+    },
+    "/api/v1/usage": {
+      "get": {
+        "summary": "API usage analytics",
+        "description": "Returns request counts, error rates, latency, and daily breakdown for the authenticated organization's API usage.",
+        "tags": ["Public API v1"],
+        "security": [{ "ApiKey": [] }],
+        "parameters": [
+          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 30, "maximum": 90 } }
+        ],
+        "responses": { "200": { "description": "Usage summary, daily breakdown, by-endpoint, by-key, and recent errors" } }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Public", "description": "Unauthenticated endpoints (rate limited)" },
+    { "name": "Admin", "description": "Internal admin endpoints (X-Admin-Key required)" },
+    { "name": "Client Portal", "description": "Client-facing portal (X-Access-Code required)" },
+    { "name": "Organizations", "description": "Partner organization management" },
+    { "name": "GBP", "description": "Google Business Profile automation" },
+    { "name": "What's New", "description": "Dev notes, flags, comments, and ideas" },
+    { "name": "Tracking", "description": "Conversion tracking (Meta CAPI, Google Ads)" },
+    { "name": "AI", "description": "AI-powered content generation" },
+    { "name": "Webhooks", "description": "External service webhooks" },
+    { "name": "Cron", "description": "Scheduled background jobs" },
+    { "name": "Public API v1", "description": "Versioned API for PMS integrations and external tools. Auth via Bearer token (API key). See /api/v1/api-keys to create keys." }
+  ]
+}

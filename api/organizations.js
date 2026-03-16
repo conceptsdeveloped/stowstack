@@ -84,7 +84,8 @@ export default async function handler(req, res) {
 
         const user = await queryOne(
           `SELECT ou.*, o.id as org_id, o.name as org_name, o.slug as org_slug, o.logo_url, o.primary_color, o.accent_color,
-                  o.white_label, o.plan, o.settings as org_settings, o.status as org_status
+                  o.white_label, o.plan, o.facility_limit, o.settings as org_settings, o.status as org_status,
+                  o.subscription_status, o.stripe_customer_id
            FROM org_users ou JOIN organizations o ON o.id = ou.organization_id
            WHERE ou.email = $1 AND o.slug = $2 AND ou.status = 'active' AND o.status = 'active'`,
           [email.toLowerCase(), orgSlug]
@@ -106,7 +107,9 @@ export default async function handler(req, res) {
           organization: {
             id: user.org_id, name: user.org_name, slug: user.org_slug,
             logoUrl: user.logo_url, primaryColor: user.primary_color, accentColor: user.accent_color,
-            whiteLabel: user.white_label, plan: user.plan, settings: user.org_settings,
+            whiteLabel: user.white_label, plan: user.plan, facilityLimit: user.facility_limit,
+            settings: user.org_settings, subscriptionStatus: user.subscription_status,
+            hasStripe: !!user.stripe_customer_id,
           },
         })
       }
@@ -136,6 +139,23 @@ export default async function handler(req, res) {
 
         const token = Buffer.from(`${user.organization_id}:${user.email}`).toString('base64')
         return res.json({ token, user: { id: user.id, email: user.email, name: name || user.name, role: user.role } })
+      }
+
+      // Change password
+      if (action === 'change_password') {
+        if (!orgUser) return res.status(401).json({ error: 'Unauthorized' })
+        const { currentPassword, newPassword } = req.body
+        if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' })
+
+        // Verify current password if user has one set
+        if (orgUser.password_hash && currentPassword) {
+          const hash = crypto.createHash('sha256').update(currentPassword + orgUser.id).digest('hex')
+          if (hash !== orgUser.password_hash) return res.status(401).json({ error: 'Current password is incorrect' })
+        }
+
+        const newHash = crypto.createHash('sha256').update(newPassword + orgUser.id).digest('hex')
+        await query('UPDATE org_users SET password_hash = $1 WHERE id = $2', [newHash, orgUser.id])
+        return res.json({ success: true })
       }
 
       // Create org (admin only)

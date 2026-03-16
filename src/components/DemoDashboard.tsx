@@ -117,7 +117,7 @@ function DemoBanner() {
 }
 
 function KpiCard({ icon: Icon, label, value, prefix = '', suffix = '', change, accent }: {
-  icon: any; label: string; value: number; prefix?: string; suffix?: string; change?: string; accent?: boolean
+  icon: React.ComponentType<{ size?: number | string; className?: string }>; label: string; value: number; prefix?: string; suffix?: string; change?: string; accent?: boolean
 }) {
   const animated = useAnimatedNumber(value)
   const display = Number.isInteger(value) ? Math.round(animated) : animated.toFixed(2)

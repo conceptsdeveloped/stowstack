@@ -23,7 +23,7 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 }
 
 function Section({ id, icon: Icon, title, collapsed, onToggle, children, darkMode, bookmarked, onToggleBookmark }: {
-  id: string; icon: any; title: string; collapsed: boolean; onToggle: () => void; children: React.ReactNode; darkMode: boolean
+  id: string; icon: React.ComponentType<{ size?: number | string; className?: string }>; title: string; collapsed: boolean; onToggle: () => void; children: React.ReactNode; darkMode: boolean
   bookmarked?: boolean; onToggleBookmark?: () => void
 }) {
   return (

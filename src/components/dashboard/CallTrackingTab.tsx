@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Plus, Phone, PhoneCall, PhoneOff, Clock, Users, Download, Trash2, PhoneForwarded } from 'lucide-react'
-import type { CallTrackingNumber, CallLog, CallSummary } from './types'
+import type { CallTrackingNumber, CallLog, CallSummary, Facility } from './types'
 
-export default function CallTrackingTab({ facility, adminKey, darkMode }: { facility: any; adminKey: string; darkMode: boolean }) {
+export default function CallTrackingTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
   const [numbers, setNumbers] = useState<CallTrackingNumber[]>([])
   const [logs, setLogs] = useState<CallLog[]>([])
   const [summary, setSummary] = useState<CallSummary | null>(null)
-  const [landingPages, setLandingPages] = useState<any[]>([])
-  const [utmLinks, setUtmLinks] = useState<any[]>([])
+  const [landingPages, setLandingPages] = useState<{ id: string; title: string }[]>([])
+  const [utmLinks, setUtmLinks] = useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [provisioning, setProvisioning] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -200,14 +200,14 @@ export default function CallTrackingTab({ facility, adminKey, darkMode }: { faci
                 <label className={`text-xs font-medium ${sub}`}>Link to Landing Page</label>
                 <select value={landingPageId} onChange={e => setLandingPageId(e.target.value)} className={`mt-1 ${inputCls}`}>
                   <option value="">None</option>
-                  {landingPages.map((lp: any) => <option key={lp.id} value={lp.id}>{lp.title}</option>)}
+                  {landingPages.map((lp: { id: string; title: string }) => <option key={lp.id} value={lp.id}>{lp.title}</option>)}
                 </select>
               </div>
               <div>
                 <label className={`text-xs font-medium ${sub}`}>Link to UTM Campaign</label>
                 <select value={utmLinkId} onChange={e => setUtmLinkId(e.target.value)} className={`mt-1 ${inputCls}`}>
                   <option value="">None</option>
-                  {utmLinks.map((ul: any) => <option key={ul.id} value={ul.id}>{ul.label}</option>)}
+                  {utmLinks.map((ul: { id: string; label: string }) => <option key={ul.id} value={ul.id}>{ul.label}</option>)}
                 </select>
               </div>
             </div>

@@ -114,8 +114,8 @@ export function usePMSData(facilityId: string | null, adminKey?: string) {
       }))
 
       setData({ snapshot, units, specials, rateHistory, totalUnits, occupiedUnits, vacantUnits, occupancyPct, grossPotential, actualRevenue, revenueCapture, unitMix })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     }
     setLoading(false)
   }, [facilityId, adminKey])

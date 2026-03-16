@@ -4,7 +4,7 @@ import {
   Building2, CalendarClock, Share2, Flame, Gift, CalendarRange, Wallet,
   ShieldAlert, TrendingDown, RotateCcw, Sparkles, ChevronRight,
   Terminal, Search, Zap, Activity, PanelLeftClose, PanelLeft,
-  ArrowLeft, Hash, CircleDot, Phone
+  ArrowLeft, Hash, CircleDot, Phone, Bell, UserCheck
 } from 'lucide-react'
 import { AdminTab } from './types'
 import SidebarTicker from './SidebarTicker'
@@ -36,6 +36,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'pipeline', label: 'Pipeline', icon: Users, shortcut: '1', badge: 'leads' },
       { id: 'kanban', label: 'Kanban', icon: Columns3, shortcut: '2', badge: 'active' },
+      { id: 'consumer-leads', label: 'Consumer Leads', icon: UserCheck },
+      { id: 'alerts', label: 'Alerts', icon: Bell },
     ],
   },
   {
@@ -145,7 +147,6 @@ export default function AdminSidebar({
   onToggleCollapse,
   onBack,
   onCommandPalette,
-  darkMode,
   adminKey,
   leadCount,
   activeLeadCount,
@@ -157,7 +158,6 @@ export default function AdminSidebar({
   onToggleCollapse: () => void
   onBack: () => void
   onCommandPalette: () => void
-  darkMode: boolean
   adminKey: string
   leadCount: number
   activeLeadCount: number

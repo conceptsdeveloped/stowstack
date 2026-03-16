@@ -1,9 +1,31 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Plus, Search, Download, Link2, Copy, ExternalLink, ClipboardList, Trash2, MousePointerClick, CheckCircle2, ChevronRight } from 'lucide-react'
 
-export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility: any; adminKey: string; darkMode: boolean }) {
-  const [links, setLinks] = useState<any[]>([])
-  const [landingPages, setLandingPages] = useState<any[]>([])
+
+interface UTMLink {
+  id: string
+  short_code: string
+  label: string
+  landing_page_id?: string
+  landing_page_slug?: string
+  landing_page_title?: string
+  utm_source: string
+  utm_medium: string
+  utm_campaign?: string
+  utm_content?: string
+  utm_term?: string
+  clicks?: number
+  created_at?: string
+  click_count?: number
+  last_clicked_at?: string
+  status?: string
+  title?: string
+  slug?: string
+}
+
+export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility: { id: string; name: string }; adminKey: string; darkMode: boolean }) {
+  const [links, setLinks] = useState<UTMLink[]>([])
+  const [landingPages, setLandingPages] = useState<UTMLink[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -46,7 +68,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
 
   const selectedPage = landingPages.find(p => p.id === landingPageId)
 
-  const buildDestinationUrl = (link: any) => {
+  const buildDestinationUrl = ( link: UTMLink) => {
     let dest = PROD_URL
     if (link.landing_page_slug) dest = `${PROD_URL}/lp/${link.landing_page_slug}`
     const params = new URLSearchParams()
@@ -85,7 +107,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
     .sort((a, b) => {
       if (sortBy === 'clicks') return (b.click_count || 0) - (a.click_count || 0)
       if (sortBy === 'name') return a.label.localeCompare(b.label)
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
     })
 
   const uniqueSources = [...new Set(links.map(l => l.utm_source))].sort()
@@ -103,7 +125,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
     setUtmTerm('')
   }
 
-  const prefillForm = (link: any) => {
+  const prefillForm = ( link: UTMLink) => {
     setLabel(`${link.label} (copy)`)
     setLandingPageId(link.landing_page_id || '')
     setUtmSource(link.utm_source)
@@ -169,7 +191,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
       `${PROD_URL}/api/r?c=${l.short_code}`,
       buildDestinationUrl(l),
       l.click_count || 0,
-      new Date(l.created_at).toLocaleDateString(),
+      new Date(l.created_at || '').toLocaleDateString(),
       l.last_clicked_at ? new Date(l.last_clicked_at).toLocaleDateString() : '',
     ])
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -259,7 +281,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
           <select
             className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
             value={sortBy}
-            onChange={e => setSortBy(e.target.value as any)}
+            onChange={e => setSortBy(e.target.value as 'date' | 'clicks' | 'name')}
           >
             <option value="date">Newest first</option>
             <option value="clicks">Most clicks</option>
@@ -465,7 +487,7 @@ export default function UTMLinksTab({ facility, adminKey, darkMode }: { facility
 
                   {/* Timestamps */}
                   <div className={`flex gap-4 mt-2 text-xs ${sub} ml-5`}>
-                    <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
+                    <span>Created {new Date(link.created_at || '').toLocaleDateString()}</span>
                     {link.last_clicked_at && <span>Last click {new Date(link.last_clicked_at).toLocaleDateString()}</span>}
                   </div>
                 </div>

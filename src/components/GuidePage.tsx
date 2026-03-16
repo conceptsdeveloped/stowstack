@@ -11,7 +11,7 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
   )
 }
 
-function Section({ id, icon: Icon, title, children }: { id: string; icon: any; title: string; children: React.ReactNode }) {
+function Section({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ size?: number | string; className?: string }>; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
       <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6">

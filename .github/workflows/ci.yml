@@ -31,3 +31,22 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Bundle size check
+        run: |
+          MAX_SIZE_KB=500
+          MAIN_BUNDLE=$(find dist/assets -name '*.js' -not -name 'vendor-*' | head -1)
+          if [ -n "$MAIN_BUNDLE" ]; then
+            SIZE_KB=$(( $(wc -c < "$MAIN_BUNDLE") / 1024 ))
+            echo "Main bundle: ${SIZE_KB}KB (limit: ${MAX_SIZE_KB}KB)"
+            if [ "$SIZE_KB" -gt "$MAX_SIZE_KB" ]; then
+              echo "::warning::Main bundle (${SIZE_KB}KB) exceeds ${MAX_SIZE_KB}KB"
+            fi
+          fi
+          echo "## Bundle sizes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          du -sh dist/assets/*.js | sort -rh >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high || true

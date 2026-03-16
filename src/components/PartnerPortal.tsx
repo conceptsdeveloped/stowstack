@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Building2, DollarSign, Users, BarChart3, ArrowLeft, Loader2, LogOut, Settings,
   CheckCircle2, Palette, Target, ArrowUpRight, ArrowDownRight, Minus,
-  BadgeDollarSign, AlertTriangle, Gauge, Lock, Eye, EyeOff, Shield
+  BadgeDollarSign, AlertTriangle, Gauge, Lock, Eye, EyeOff, Shield, Code2
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import PartnerLoginComponent from './partner/PartnerLogin'
@@ -13,6 +13,7 @@ import {
 import { StatCard, FacilityRow, FacilityDetail } from './partner/FacilityCard'
 import TeamTab from './partner/TeamTab'
 import RevenueShareTab from './partner/RevenueShareTab'
+import DeveloperTab from './partner/DeveloperTab'
 
 /* ── Branding Tab (kept inline) ── */
 
@@ -248,7 +249,7 @@ function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToke
 
 /* ── Main Partner Dashboard ── */
 
-type PartnerTab = 'portfolio' | 'earnings' | 'benchmarks' | 'billing' | 'team' | 'branding' | 'settings'
+type PartnerTab = 'portfolio' | 'earnings' | 'benchmarks' | 'billing' | 'team' | 'branding' | 'developer' | 'settings'
 
 function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; onLogout: () => void; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<PartnerTab>('portfolio')
@@ -302,6 +303,7 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
     ...(isAdmin ? [['billing', 'Billing', DollarSign] as [string, string, typeof BarChart3]] : []),
     ...(isAdmin ? [['team', 'Team', Users] as [string, string, typeof BarChart3]] : []),
     ...(isAdmin ? [['branding', 'Branding', Palette] as [string, string, typeof BarChart3]] : []),
+    ...(isAdmin ? [['developer', 'API', Code2] as [string, string, typeof BarChart3]] : []),
     ...(isAdmin ? [['settings', 'Settings', Settings] as [string, string, typeof BarChart3]] : []),
   ]
 
@@ -577,6 +579,7 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
 
         {activeTab === 'team' && isAdmin && <TeamTab orgToken={orgToken} orgUser={auth.user} primaryColor={primaryColor} />}
         {activeTab === 'branding' && isAdmin && <BrandingTab org={org} orgToken={orgToken} onUpdate={setOrg} />}
+        {activeTab === 'developer' && isAdmin && <DeveloperTab orgToken={orgToken} primaryColor={primaryColor} />}
         {activeTab === 'settings' && isAdmin && <SettingsTab org={org} orgToken={orgToken} facilities={facilities} />}
       </div>
 

@@ -11,6 +11,7 @@ import ConsentBanner from './ConsentBanner'
 /* ═══════════════════════════════════════════════════════ */
 
 interface SectionConfig {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }
 
@@ -179,7 +180,7 @@ export function UnitTypesSection({ config, theme }: { config: SectionConfig; the
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {units.map((unit: { name: string; size?: string; price?: string; features?: string[] }, i: number) => (
-            <div key={i} className="p-6 rounded-2xl bg-white border border-slate-200 hover:shadow-md transition-all" style={theme?.primaryColor ? { ['--hover-border' as any]: theme.primaryColor } : undefined}>
+            <div key={i} className="p-6 rounded-2xl bg-white border border-slate-200 hover:shadow-md transition-all" style={theme?.primaryColor ? { ['--hover-border' as string]: theme.primaryColor } : undefined}>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">{unit.name}</h3>
               {unit.size && <p className="text-sm text-slate-500 mb-3">{unit.size}</p>}
               {unit.price && (
@@ -699,8 +700,8 @@ export default function LandingPageView({ slug }: { slug: string }) {
         if (data.data.meta_description && metaDesc) {
           metaDesc.setAttribute('content', data.data.meta_description)
         }
-      } catch (err: any) {
-        setError(err.message)
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)
       }

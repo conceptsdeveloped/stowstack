@@ -176,7 +176,7 @@ export default function PortfolioView({ leads, adminKey, loading, darkMode: _dar
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
                 <Tooltip
-                  formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'CPL']}
+                  formatter={(v) => [`$${Number(v).toFixed(2)}`, 'CPL']}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
                 />
                 <Area type="monotone" dataKey="cpl" stroke="#10b981" strokeWidth={2} fill="url(#portCplGrad)" dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
@@ -265,7 +265,7 @@ export default function PortfolioView({ leads, adminKey, loading, darkMode: _dar
 }
 
 function PortfolioKpi({ label, value, sub, icon: Icon, accent }: {
-  label: string; value: string; sub: string; icon: any; accent?: boolean
+  label: string; value: string; sub: string; icon: React.ComponentType<{ size?: number | string; className?: string }>; accent?: boolean
 }) {
   return (
     <div className={`rounded-xl border p-4 ${accent ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>

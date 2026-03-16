@@ -169,7 +169,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       const data = await api('POST', { action: 'save_snapshot', ...snapshot })
       setSnapshot(data.snapshot)
       flash('success', 'Facility snapshot saved')
-    } catch (err: any) { flash('error', err.message) }
+    } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
     setSaving(null)
   }
 
@@ -185,7 +185,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       })
       setEditingUnit(null)
       flash('success', `Unit type "${data.unit.unit_type}" saved`)
-    } catch (err: any) { flash('error', err.message) }
+    } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
     setSaving(null)
   }
 
@@ -197,7 +197,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       await api('DELETE', { type: 'unit', id: unit.id })
       setUnits(prev => prev.filter(u => u.id !== unit.id))
       flash('success', `"${unit.unit_type}" removed`)
-    } catch (err: any) { flash('error', err.message) }
+    } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
     setSaving(null)
   }
 
@@ -215,7 +215,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       })
       setEditingSpecial(null)
       flash('success', `Special "${data.special.name}" saved`)
-    } catch (err: any) { flash('error', err.message) }
+    } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
     setSaving(null)
   }
 
@@ -227,7 +227,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       await api('DELETE', { type: 'special', id: special.id })
       setSpecials(prev => prev.filter(s => s.id !== special.id))
       flash('success', `"${special.name}" removed`)
-    } catch (err: any) { flash('error', err.message) }
+    } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
     setSaving(null)
   }
 
@@ -263,7 +263,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
         setShowPaste(false)
         setPasteText('')
         flash('success', `${data.units.length} unit types imported`)
-      } catch (err: any) { flash('error', err.message) }
+      } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
       setSaving(null)
     })()
   }
@@ -317,9 +317,10 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       }
 
       flash('success', `${report.label} imported successfully`)
-    } catch (err: any) {
-      setImportResults(prev => ({ ...prev, [report.type]: { success: false, msg: err.message } }))
-      flash('error', `${report.label} import failed: ${err.message}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setImportResults(prev => ({ ...prev, [report.type]: { success: false, msg } }))
+      flash('error', `${report.label} import failed: ${msg}`)
     }
     setImportingReport(null)
   }

@@ -120,8 +120,8 @@ function OrgDetailView({ org, adminKey, darkMode, onBack }: { org: Organization;
         // Filter to facilities not assigned to any org
         const assignedIds = new Set(facilities.map(f => f.id))
         setUnassigned(leads
-          .filter((l: any) => !assignedIds.has(l.id))
-          .map((l: any) => ({ id: l.id, name: l.facilityName, location: l.location, status: l.status, total_units: l.totalUnits }))
+          .filter((l: { id: string }) => !assignedIds.has(l.id))
+          .map((l: { id: string; facilityName: string; location: string; status: string; totalUnits: number }) => ({ id: l.id, name: l.facilityName, location: l.location, status: l.status, total_units: l.totalUnits }))
         )
       }
     } catch { /* silent */ }

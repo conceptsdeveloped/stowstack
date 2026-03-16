@@ -295,8 +295,8 @@ export default function OccupancyIntelligence({ facility, adminKey, darkMode }: 
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to load')
       const json = await res.json()
       setData(json)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
     }
     setLoading(false)
   }, [facility.id, adminKey])

@@ -6,7 +6,7 @@ import {
   Bell, BookOpen, Menu
 } from 'lucide-react'
 
-import { Lead, STATUSES, AdminTab, STORAGE_KEY } from './dashboard/types'
+import { Lead, STATUSES, STATUS_MAP, AdminTab, STORAGE_KEY } from './dashboard/types'
 import AdminLogin from './dashboard/AdminLogin'
 import { StatCard, PipelineChip } from './dashboard/StatCard'
 import HelpTooltip from './dashboard/HelpTooltip'
@@ -362,7 +362,6 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           onBack={onBack}
           onCommandPalette={() => setShowCommandPalette(true)}
-          darkMode={darkMode}
           adminKey={adminKey}
           leadCount={leads.length}
           activeLeadCount={activeLeads}
@@ -382,7 +381,6 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
               onToggleCollapse={() => setMobileMenuOpen(false)}
               onBack={onBack}
               onCommandPalette={() => { setMobileMenuOpen(false); setShowCommandPalette(true) }}
-              darkMode={darkMode}
               adminKey={adminKey}
               leadCount={leads.length}
               activeLeadCount={activeLeads}

@@ -237,7 +237,7 @@ function TemplatePreviewModal({
 
   const template = templateDefinitions.find(t => t.id === templateId)
 
-  let Component: any
+  let Component: React.ComponentType<LandingPageTemplateProps>
   switch (templateId) {
     case 'aggressive':
       Component = AggressiveTemplate

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import {
-  Calendar, ChevronRight, ChevronDown, Play, Pause, BarChart3,
+  Calendar, ChevronRight, ChevronDown, BarChart3,
   DollarSign, Copy, Check, Clock,
   Target, MessageSquare, ArrowRight, Layers, Tag,
   Lightbulb, ArrowUpRight, Zap
