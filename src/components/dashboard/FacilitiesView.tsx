@@ -16,12 +16,13 @@ import GBPTab from './GBPTab'
 
 type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
-function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
+function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
   adminKey: string
   darkMode: boolean
   onBack: () => void
   onStatusChange: (id: string, status: string) => void
+  onFacilityUpdate?: (updated: Facility) => void
 }) {
   const [subTab, setSubTab] = useState<FacilitySubTab>('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
@@ -105,7 +106,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {/* Sub-tab content */}
       {subTab === 'overview' && (
-        <OverviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <OverviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} onFacilityUpdate={onFacilityUpdate} />
       )}
 
       {subTab === 'creative' && (
@@ -180,6 +181,10 @@ export default function FacilitiesView({ adminKey, darkMode }: { adminKey: strin
     setFacilities(prev => prev.map(f => f.id === id ? { ...f, status } : f))
   }
 
+  function handleFacilityUpdate(updated: Facility) {
+    setFacilities(prev => prev.map(f => f.id === updated.id ? updated : f))
+  }
+
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-emerald-500" /></div>
   if (error) return <div className="text-center py-20 text-red-500">{error}</div>
   if (facilities.length === 0) return <div className="text-center py-20 text-slate-400">No facilities yet. Submit an audit request to get started.</div>
@@ -194,6 +199,7 @@ export default function FacilitiesView({ adminKey, darkMode }: { adminKey: strin
         darkMode={darkMode}
         onBack={() => setSelectedId(null)}
         onStatusChange={handleStatusChange}
+        onFacilityUpdate={handleFacilityUpdate}
       />
     )
   }

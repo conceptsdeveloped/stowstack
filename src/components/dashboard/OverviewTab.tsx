@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Loader2, FileText, Trash2, Sparkles, ChevronDown, ChevronUp,
-  Target, DollarSign, TrendingUp, Calendar, Zap, Plus, Mail, Phone
+  Target, DollarSign, TrendingUp, Calendar, Zap, Plus, Edit3, Check, X
 } from 'lucide-react'
 import { Facility } from './types'
 
@@ -76,10 +76,11 @@ const BUDGET_TIER_COLORS: Record<string, string> = {
   maintain: 'bg-slate-100 text-slate-600',
 }
 
-export default function OverviewTab({ facility, adminKey, darkMode }: {
+export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUpdate }: {
   facility: Facility
   adminKey: string
   darkMode: boolean
+  onFacilityUpdate?: (updated: Facility) => void
 }) {
   const [contextDocs, setContextDocs] = useState<ContextDoc[]>([])
   const [plan, setPlan] = useState<MarketingPlan | null>(null)
@@ -92,6 +93,22 @@ export default function OverviewTab({ facility, adminKey, darkMode }: {
   const [selectedPlaybooks, setSelectedPlaybooks] = useState<string[]>([])
   const [showPlaybooks, setShowPlaybooks] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>('summary')
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editFields, setEditFields] = useState({
+    contact_name: facility.contact_name || '',
+    contact_email: facility.contact_email || '',
+    contact_phone: facility.contact_phone || '',
+    occupancy_range: facility.occupancy_range || '',
+    total_units: facility.total_units || '',
+    biggest_issue: facility.biggest_issue || '',
+    notes: facility.notes || '',
+    google_address: facility.google_address || '',
+    google_phone: facility.google_phone || '',
+    website: facility.website || '',
+    name: facility.name || '',
+    location: facility.location || '',
+  })
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
@@ -143,6 +160,24 @@ export default function OverviewTab({ facility, adminKey, darkMode }: {
     } catch {}
   }
 
+  async function saveFacilityEdits() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin-facilities', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ id: facility.id, ...editFields }),
+      })
+      const data = await res.json()
+      if (data.facility && onFacilityUpdate) onFacilityUpdate(data.facility)
+      setEditing(false)
+    } catch (err) {
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function generatePlan() {
     setGenerating(true)
     try {
@@ -188,40 +223,96 @@ export default function OverviewTab({ facility, adminKey, darkMode }: {
 
   return (
     <div className="space-y-6">
-      {/* Facility Info (existing) */}
+      {/* Facility Info — editable */}
       <div className={`border rounded-xl ${card}`}>
-        <div className="p-5 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
-            <div>
-              <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Contact</p>
-              <div className="space-y-1">
-                <p className={text}>{facility.contact_name}</p>
-                <p className={`flex items-center gap-1.5 ${sub}`}><Mail size={13} />{facility.contact_email}</p>
-                <p className={`flex items-center gap-1.5 ${sub}`}><Phone size={13} />{facility.contact_phone}</p>
+        <div className="px-5 py-4 flex items-center justify-between">
+          <h4 className={`text-sm font-semibold ${text}`}>{facility.name}</h4>
+          {!editing ? (
+            <button onClick={() => setEditing(true)} className={`flex items-center gap-1.5 text-xs ${sub} hover:underline`}>
+              <Edit3 size={11} /> Edit
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={saveFacilityEdits} disabled={saving} className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40">
+                {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
+              </button>
+              <button onClick={() => setEditing(false)} className={`flex items-center gap-1 px-3 py-1 text-xs ${sub} hover:underline`}>
+                <X size={11} /> Cancel
+              </button>
+            </div>
+          )}
+        </div>
+        <div className={`px-5 pb-5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+          {editing ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm pt-4">
+              <div className="space-y-2">
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub}`}>Contact</p>
+                <input value={editFields.contact_name} onChange={e => setEditFields(f => ({ ...f, contact_name: e.target.value }))} placeholder="Contact name" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.contact_email} onChange={e => setEditFields(f => ({ ...f, contact_email: e.target.value }))} placeholder="Email" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.contact_phone} onChange={e => setEditFields(f => ({ ...f, contact_phone: e.target.value }))} placeholder="Phone" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+              </div>
+              <div className="space-y-2">
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub}`}>Facility Info</p>
+                <input value={editFields.name} onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))} placeholder="Facility name" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.location} onChange={e => setEditFields(f => ({ ...f, location: e.target.value }))} placeholder="Location" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <select value={editFields.occupancy_range} onChange={e => setEditFields(f => ({ ...f, occupancy_range: e.target.value }))} className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`}>
+                  <option value="">Occupancy range</option>
+                  <option value="below-60">Below 60%</option>
+                  <option value="60-75">60-75%</option>
+                  <option value="75-85">75-85%</option>
+                  <option value="85-95">85-95%</option>
+                  <option value="above-95">Above 95%</option>
+                </select>
+                <input value={editFields.total_units} onChange={e => setEditFields(f => ({ ...f, total_units: e.target.value }))} placeholder="Total units" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.biggest_issue} onChange={e => setEditFields(f => ({ ...f, biggest_issue: e.target.value }))} placeholder="Biggest challenge" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+              </div>
+              <div className="space-y-2">
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub}`}>Google / Web</p>
+                <input value={editFields.google_address} onChange={e => setEditFields(f => ({ ...f, google_address: e.target.value }))} placeholder="Address" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.google_phone} onChange={e => setEditFields(f => ({ ...f, google_phone: e.target.value }))} placeholder="Business phone" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+                <input value={editFields.website} onChange={e => setEditFields(f => ({ ...f, website: e.target.value }))} placeholder="Website URL" className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
+              </div>
+              <div className="sm:col-span-3">
+                <textarea value={editFields.notes} onChange={e => setEditFields(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Notes about this facility..." className={`w-full px-2 py-1.5 border rounded text-sm ${inputBg}`} />
               </div>
             </div>
-            <div>
-              <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Facility Info</p>
-              <div className="space-y-1">
-                <p className={text}>Occupancy: {facility.occupancy_range}</p>
-                <p className={text}>Units: {facility.total_units}</p>
-                <p className={text}>Issue: {facility.biggest_issue}</p>
-              </div>
-            </div>
-            <div>
-              <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Google Data</p>
-              {facility.google_address ? (
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm pt-4">
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Contact</p>
                 <div className="space-y-1">
-                  <p className={sub}>{facility.google_address}</p>
+                  <p className={text}>{facility.contact_name || <span className={sub}>—</span>}</p>
+                  <p className={sub}>{facility.contact_email || '—'}</p>
+                  <p className={sub}>{facility.contact_phone || '—'}</p>
+                </div>
+              </div>
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Facility Info</p>
+                <div className="space-y-1">
+                  <p className={text}>Occupancy: {facility.occupancy_range || '—'}</p>
+                  <p className={text}>Units: {facility.total_units || '—'}</p>
+                  <p className={text}>Issue: {facility.biggest_issue || '—'}</p>
+                </div>
+              </div>
+              <div>
+                <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Google Data</p>
+                <div className="space-y-1">
+                  <p className={sub}>{facility.google_address || '—'}</p>
                   {facility.google_rating && <p className="text-amber-500 text-sm font-semibold">★ {facility.google_rating} ({facility.review_count} reviews)</p>}
                   <div className="flex gap-2">
                     {facility.website && <a href={facility.website} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Website ↗</a>}
                     {facility.google_maps_url && <a href={facility.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline text-xs">Maps ↗</a>}
                   </div>
                 </div>
-              ) : <p className={sub}>Not scraped yet</p>}
+              </div>
+              {facility.notes && (
+                <div className="sm:col-span-3">
+                  <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-1`}>Notes</p>
+                  <p className={`text-sm ${text}`}>{facility.notes}</p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
 
