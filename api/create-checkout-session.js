@@ -1,6 +1,9 @@
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-12-18.acacia',
+  httpClient: Stripe.createFetchHttpClient(),
+})
 
 const PRICE_MAP = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -91,7 +94,7 @@ export default async function handler(req, res) {
 
     return res.json({ url: session.url })
   } catch (err) {
-    console.error('Checkout session error:', err)
+    console.error('Checkout session error:', err.message, err.type, err.code)
     return res.status(500).json({ error: 'Failed to create checkout session' })
   }
 }
