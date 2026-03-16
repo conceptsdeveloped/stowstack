@@ -179,6 +179,9 @@ export default async function handler(req, res) {
         lines.push(`\n--- ASSIGNED SEASONAL PLAYBOOKS ---`)
         lines.push(`Active playbooks: ${playbooks.join(', ')}`)
         lines.push('Incorporate these seasonal strategies into the plan.')
+        if (playbooks.includes('b2b-commercial')) {
+          lines.push('B2B/Commercial focus: Target contractors, small businesses, e-commerce sellers, medical/legal offices needing document storage, restaurants needing equipment/inventory overflow, real estate agents staging furniture. Emphasize long-term leases, bulk discounts, invoice billing, after-hours access, and larger unit availability.')
+        }
       }
 
       lines.push(`\n--- BUDGET RECOMMENDATION ---`)

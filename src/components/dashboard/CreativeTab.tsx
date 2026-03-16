@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Sparkles, Search, FileText, Mail, ChevronDown, ChevronUp, Copy, Check, Rocket, Globe, Zap } from 'lucide-react'
+import { Loader2, Sparkles, Search, FileText, Mail, ChevronDown, ChevronUp, Copy, Check, Rocket, Globe, Zap, Target } from 'lucide-react'
 import {
   Facility, AdVariation, MetaAdContent, GoogleRSAContent, LandingPageContent, EmailDripContent,
   ANGLE_ICONS, VARIATION_STATUS_COLORS, PLATFORM_LABELS, PLATFORM_ICONS,
@@ -710,6 +710,13 @@ const GENERATION_OPTIONS: { id: GenerationPlatform; label: string; icon: string;
   { id: 'all', label: 'Generate All', icon: '✨', desc: 'All platforms in one shot' },
 ]
 
+interface PlanContext {
+  summary?: string
+  messaging_pillars?: { pillar: string; example_headline: string }[]
+  target_audiences?: { segment: string; messaging_angle: string }[]
+  quick_wins?: string[]
+}
+
 export default function CreativeTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
   const [variations, setVariations] = useState<AdVariation[]>([])
   const [loading, setLoading] = useState(true)
@@ -718,17 +725,21 @@ export default function CreativeTab({ facility, adminKey, darkMode }: { facility
   const [regenFeedback, setRegenFeedback] = useState('')
   const [showRegenInput, setShowRegenInput] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('all')
+  const [planContext, setPlanContext] = useState<PlanContext | null>(null)
+  const [showPlan, setShowPlan] = useState(false)
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
   const inputBg = darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
 
   useEffect(() => {
-    fetch(`/api/facility-creatives?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } })
-      .then(r => r.json())
-      .then(data => { if (data.variations) setVariations(data.variations) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch(`/api/facility-creatives?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
+      fetch(`/api/marketing-plan?facilityId=${facility.id}`, { headers: { 'X-Admin-Key': adminKey } }).then(r => r.json()),
+    ]).then(([creativeData, planData]) => {
+      if (creativeData.variations) setVariations(creativeData.variations)
+      if (planData.plan?.plan_json) setPlanContext(planData.plan.plan_json)
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [facility.id, adminKey])
 
   async function generateCopy(platform: GenerationPlatform, feedbackText?: string) {
@@ -770,6 +781,52 @@ export default function CreativeTab({ facility, adminKey, darkMode }: { facility
 
   return (
     <div className="space-y-5">
+      {/* Marketing Plan Context Bar */}
+      {planContext && (
+        <div className={`border rounded-xl overflow-hidden ${darkMode ? 'border-emerald-800 bg-emerald-900/10' : 'border-emerald-200 bg-emerald-50/50'}`}>
+          <button
+            onClick={() => setShowPlan(!showPlan)}
+            className="w-full px-4 py-2.5 flex items-center gap-2 text-left"
+          >
+            <Target size={13} className="text-emerald-500" />
+            <span className={`text-xs font-semibold ${text} flex-1`}>Marketing Plan</span>
+            {planContext.messaging_pillars && (
+              <span className={`text-[10px] ${sub}`}>{planContext.messaging_pillars.length} pillars</span>
+            )}
+            {showPlan ? <ChevronUp size={12} className={sub} /> : <ChevronDown size={12} className={sub} />}
+          </button>
+          {showPlan && (
+            <div className={`px-4 pb-3 space-y-2 border-t ${darkMode ? 'border-emerald-800' : 'border-emerald-200'}`}>
+              {planContext.summary && <p className={`text-xs ${text} pt-2`}>{planContext.summary}</p>}
+              {planContext.messaging_pillars?.length ? (
+                <div>
+                  <p className={`text-[10px] uppercase font-semibold ${sub} mt-2 mb-1`}>Messaging Pillars</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {planContext.messaging_pillars.map((m, i) => (
+                      <span key={i} className={`text-[10px] px-2 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-700 border border-slate-200'}`}>
+                        <span className="font-semibold">{m.pillar}</span> — "{m.example_headline}"
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {planContext.target_audiences?.length ? (
+                <div>
+                  <p className={`text-[10px] uppercase font-semibold ${sub} mt-2 mb-1`}>Target Audiences</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {planContext.target_audiences.map((a, i) => (
+                      <span key={i} className={`text-[10px] px-2 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-700 border border-slate-200'}`}>
+                        {a.segment}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

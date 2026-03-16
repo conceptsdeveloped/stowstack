@@ -11,9 +11,10 @@ import PublishTab from './PublishTab'
 import CallTrackingTab from './CallTrackingTab'
 import TikTokCreator from './TikTokCreator'
 import VideoGenerator from './VideoGenerator'
+import GoogleAdsLab from './GoogleAdsLab'
 import GBPTab from './GBPTab'
 
-type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
+type FacilitySubTab = 'overview' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }: {
   facility: Facility
@@ -79,6 +80,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
           ['creative', 'Creative'],
           ['assets', 'Assets'],
           ['ad-preview', 'Ad Preview'],
+          ['google-ads', 'Google Ads'],
           ['tiktok', 'TikTok'],
           ['video', 'Video AI'],
           ['landing-pages', 'Landing Pages'],
@@ -124,6 +126,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange }
 
       {subTab === 'utm-links' && (
         <UTMLinksTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'google-ads' && (
+        <GoogleAdsLab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'tiktok' && (

@@ -65,6 +65,7 @@ const PLAYBOOK_OPTIONS = [
   { id: 'estate', label: 'Estate / Downsizing' },
   { id: 'tax-season', label: 'Tax Season (Business Storage)' },
   { id: 'back-to-school', label: 'Back to School' },
+  { id: 'b2b-commercial', label: 'B2B / Commercial Tenants' },
 ]
 
 const BUDGET_TIER_COLORS: Record<string, string> = {
