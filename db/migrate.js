@@ -423,6 +423,43 @@ CREATE TABLE IF NOT EXISTS ideas (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── What's New: Dev Notes & Enrichments ──
+-- Stores dev intention notes + AI-generated summaries per commit (keyed by commit hash)
+CREATE TABLE IF NOT EXISTS commit_enrichments (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  commit_hash     TEXT NOT NULL UNIQUE,
+  dev_note        TEXT,                         -- dev's manual intention/context note
+  dev_name        TEXT,                         -- who wrote the note (Blake, angelo, etc.)
+  laymans_summary TEXT,                         -- plain-English summary for non-technical readers
+  technical_summary TEXT,                       -- concise technical summary
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_commit_enrichments_hash ON commit_enrichments(commit_hash);
+
+-- ── What's New: Commit Flags ──
+-- Flag commits for attention (needs-review, breaking-change, hotfix, etc.)
+CREATE TABLE IF NOT EXISTS commit_flags (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  commit_hash TEXT NOT NULL,
+  flag_type   TEXT NOT NULL,                    -- needs-review, breaking-change, hotfix, discussion-needed, blocked
+  reason      TEXT DEFAULT '',                  -- optional explanation
+  flagged_by  TEXT NOT NULL,                    -- dev name
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_commit_flags_hash ON commit_flags(commit_hash);
+
+-- ── What's New: Commit Comments ──
+-- Threaded discussion per commit
+CREATE TABLE IF NOT EXISTS commit_comments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  commit_hash TEXT NOT NULL,
+  author      TEXT NOT NULL,                    -- dev name
+  body        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_commit_comments_hash ON commit_comments(commit_hash);
+
 -- A/B Tests: server-side experiment definitions
 CREATE TABLE IF NOT EXISTS ab_tests (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),

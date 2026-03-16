@@ -4,7 +4,9 @@ import {
   Sparkles, Wrench, Zap, Trash2, Settings, Package, Filter,
   Clock, Code, Tag, TrendingUp, TrendingDown, Minus, FileText,
   Plus, Eye, Lightbulb, ArrowUp, ArrowDown,
-  Send, X as XIcon, BarChart3
+  Send, X as XIcon, BarChart3, Flag, MessageSquare,
+  AlertTriangle, Shield, Bug, PenLine, CheckCircle2,
+  Star
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -42,6 +44,34 @@ interface Idea {
   votes: number
 }
 
+interface Enrichment {
+  id: string
+  commit_hash: string
+  dev_note: string | null
+  dev_name: string | null
+  laymans_summary: string | null
+  technical_summary: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface CommitFlag {
+  id: string
+  commit_hash: string
+  flag_type: string
+  reason: string
+  flagged_by: string
+  created_at: string
+}
+
+interface CommitComment {
+  id: string
+  commit_hash: string
+  author: string
+  body: string
+  created_at: string
+}
+
 const commits = commitsData as Commit[]
 
 /* ── Constants ── */
@@ -68,6 +98,16 @@ const AREA_CONFIG: Record<string, { label: string; color: string; chartColor: st
   website:        { label: 'Website',       color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', chartColor: '#8b5cf6' },
   'landing-pages':{ label: 'Landing Pages', color: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400', chartColor: '#d946ef' },
   general:        { label: 'General',       color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300', chartColor: '#64748b' },
+}
+
+const FLAG_CONFIG: Record<string, { label: string; color: string; darkColor: string; icon: typeof Flag }> = {
+  'needs-review':      { label: 'Needs Review',      color: 'bg-amber-100 text-amber-700 border-amber-300',   darkColor: 'bg-amber-900/30 text-amber-400 border-amber-700',   icon: Eye },
+  'breaking-change':   { label: 'Breaking Change',   color: 'bg-red-100 text-red-700 border-red-300',         darkColor: 'bg-red-900/30 text-red-400 border-red-700',         icon: AlertTriangle },
+  'hotfix':            { label: 'Hotfix',             color: 'bg-orange-100 text-orange-700 border-orange-300', darkColor: 'bg-orange-900/30 text-orange-400 border-orange-700', icon: Bug },
+  'discussion-needed': { label: 'Discussion Needed',  color: 'bg-purple-100 text-purple-700 border-purple-300', darkColor: 'bg-purple-900/30 text-purple-400 border-purple-700', icon: MessageSquare },
+  'blocked':           { label: 'Blocked',            color: 'bg-red-100 text-red-700 border-red-300',         darkColor: 'bg-red-900/30 text-red-400 border-red-700',         icon: Shield },
+  'good-example':      { label: 'Good Example',       color: 'bg-emerald-100 text-emerald-700 border-emerald-300', darkColor: 'bg-emerald-900/30 text-emerald-400 border-emerald-700', icon: Star },
+  'needs-testing':     { label: 'Needs Testing',      color: 'bg-blue-100 text-blue-700 border-blue-300',     darkColor: 'bg-blue-900/30 text-blue-400 border-blue-700',     icon: CheckCircle2 },
 }
 
 const IDEA_CATEGORIES = ['feature', 'improvement', 'bug', 'integration', 'design', 'content', 'general']
@@ -189,11 +229,217 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
   // New since last visit
   const [lastVisit, setLastVisit] = useState<string | null>(null)
 
+  // ── NEW: Dev identity ──
+  const [devIdentity, setDevIdentity] = useState<string | null>(null)
+  const [showIdentityPicker, setShowIdentityPicker] = useState(false)
+
+  // ── NEW: Enrichments, flags, comments (loaded from DB) ──
+  const [enrichments, setEnrichments] = useState<Record<string, Enrichment>>({})
+  const [allFlags, setAllFlags] = useState<Record<string, CommitFlag[]>>({})
+  const [allComments, setAllComments] = useState<Record<string, CommitComment[]>>({})
+
+  // ── NEW: Per-commit UI state ──
+  const [showDevNoteFor, setShowDevNoteFor] = useState<string | null>(null)
+  const [devNoteText, setDevNoteText] = useState('')
+  const [devNoteSaving, setDevNoteSaving] = useState(false)
+  const [showFlagMenuFor, setShowFlagMenuFor] = useState<string | null>(null)
+  const [flagReason, setFlagReason] = useState('')
+  const [showCommentsFor, setShowCommentsFor] = useState<Set<string>>(new Set())
+  const [commentText, setCommentText] = useState<Record<string, string>>({})
+  const [commentSaving, setCommentSaving] = useState<string | null>(null)
+
+  // Init dev identity from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('stowstack_dev_identity')
+    if (stored) {
+      setDevIdentity(stored)
+    } else {
+      setShowIdentityPicker(true)
+    }
+  }, [])
+
   useEffect(() => {
     const stored = localStorage.getItem('stowstack_whatsnew_last_visit')
     if (stored) setLastVisit(stored)
     localStorage.setItem('stowstack_whatsnew_last_visit', new Date().toISOString())
   }, [])
+
+  const pickIdentity = (name: string) => {
+    setDevIdentity(name)
+    localStorage.setItem('stowstack_dev_identity', name)
+    setShowIdentityPicker(false)
+  }
+
+  // ── Fetch enrichments, flags, comments on mount ──
+  const headers = useMemo(() => ({ 'Content-Type': 'application/json', 'X-Admin-Key': adminKey }), [adminKey])
+
+  const fetchEnrichments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/commit-notes', { headers })
+      if (res.ok) {
+        const data = await res.json()
+        setEnrichments(data.enrichments || {})
+      }
+    } catch { /* ignore */ }
+  }, [headers])
+
+  const fetchFlags = useCallback(async () => {
+    try {
+      const res = await fetch('/api/commit-flags', { headers })
+      if (res.ok) {
+        const data = await res.json()
+        setAllFlags(data.flags || {})
+      }
+    } catch { /* ignore */ }
+  }, [headers])
+
+  const fetchComments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/commit-comments', { headers })
+      if (res.ok) {
+        const data = await res.json()
+        setAllComments(data.comments || {})
+      }
+    } catch { /* ignore */ }
+  }, [headers])
+
+  useEffect(() => { fetchEnrichments() }, [fetchEnrichments])
+  useEffect(() => { fetchFlags() }, [fetchFlags])
+  useEffect(() => { fetchComments() }, [fetchComments])
+
+  // ── NEW: Notification counts ──
+  const notificationCounts = useMemo(() => {
+    if (!lastVisit) return { comments: 0, flags: 0, total: 0 }
+    const lv = new Date(lastVisit)
+    let comments = 0
+    let flags = 0
+    for (const arr of Object.values(allComments)) {
+      comments += arr.filter(c => new Date(c.created_at) > lv).length
+    }
+    for (const arr of Object.values(allFlags)) {
+      flags += arr.filter(f => new Date(f.created_at) > lv).length
+    }
+    return { comments, flags, total: comments + flags }
+  }, [lastVisit, allComments, allFlags])
+
+  // ── NEW: Save dev note ──
+  const saveDevNote = async (commit: Commit) => {
+    if (!devNoteText.trim() || !devIdentity) return
+    setDevNoteSaving(true)
+    try {
+      const res = await fetch('/api/commit-notes', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          commitHash: commit.hash,
+          devNote: devNoteText.trim(),
+          devName: devIdentity,
+          subject: commit.subject,
+          body: commit.body || '',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setEnrichments(prev => ({ ...prev, [commit.hash]: data.enrichment }))
+        setDevNoteText('')
+        setShowDevNoteFor(null)
+      }
+    } catch { /* ignore */ }
+    setDevNoteSaving(false)
+  }
+
+  // ── NEW: Add flag ──
+  const addFlag = async (commitHash: string, flagType: string) => {
+    if (!devIdentity) return
+    try {
+      const res = await fetch('/api/commit-flags', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          commitHash,
+          flagType,
+          reason: flagReason.trim(),
+          flaggedBy: devIdentity,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAllFlags(prev => ({
+          ...prev,
+          [commitHash]: [...(prev[commitHash] || []), data.flag],
+        }))
+        setFlagReason('')
+        setShowFlagMenuFor(null)
+      }
+    } catch { /* ignore */ }
+  }
+
+  // ── NEW: Remove flag ──
+  const removeFlag = async (commitHash: string, flagId: string) => {
+    try {
+      await fetch('/api/commit-flags', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: flagId }),
+      })
+      setAllFlags(prev => ({
+        ...prev,
+        [commitHash]: (prev[commitHash] || []).filter(f => f.id !== flagId),
+      }))
+    } catch { /* ignore */ }
+  }
+
+  // ── NEW: Add comment ──
+  const addComment = async (commitHash: string) => {
+    const text = commentText[commitHash]?.trim()
+    if (!text || !devIdentity) return
+    setCommentSaving(commitHash)
+    try {
+      const res = await fetch('/api/commit-comments', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          commitHash,
+          author: devIdentity,
+          body: text,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAllComments(prev => ({
+          ...prev,
+          [commitHash]: [...(prev[commitHash] || []), data.comment],
+        }))
+        setCommentText(prev => ({ ...prev, [commitHash]: '' }))
+      }
+    } catch { /* ignore */ }
+    setCommentSaving(null)
+  }
+
+  // ── NEW: Delete comment ──
+  const deleteComment = async (commitHash: string, commentId: string) => {
+    try {
+      await fetch('/api/commit-comments', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: commentId }),
+      })
+      setAllComments(prev => ({
+        ...prev,
+        [commitHash]: (prev[commitHash] || []).filter(c => c.id !== commentId),
+      }))
+    } catch { /* ignore */ }
+  }
+
+  // ── NEW: Toggle comments visibility ──
+  const toggleComments = (hash: string) => {
+    setShowCommentsFor(prev => {
+      const next = new Set(prev)
+      if (next.has(hash)) next.delete(hash)
+      else next.add(hash)
+      return next
+    })
+  }
 
   // Fetch ideas
   const fetchIdeas = useCallback(async () => {
@@ -272,14 +518,16 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
         c.subject.toLowerCase().includes(q) ||
         c.body?.toLowerCase().includes(q) ||
         c.author.toLowerCase().includes(q) ||
-        c.short.toLowerCase().includes(q)
+        c.short.toLowerCase().includes(q) ||
+        enrichments[c.hash]?.dev_note?.toLowerCase().includes(q) ||
+        enrichments[c.hash]?.laymans_summary?.toLowerCase().includes(q)
       )
     }
     if (categoryFilter !== 'all') result = result.filter(c => c.category === categoryFilter)
     if (areaFilter !== 'all') result = result.filter(c => c.area === areaFilter)
     if (authorFilter !== 'all') result = result.filter(c => c.author === authorFilter)
     return result
-  }, [search, categoryFilter, areaFilter, authorFilter])
+  }, [search, categoryFilter, areaFilter, authorFilter, enrichments])
 
   const grouped = useMemo(() => {
     const slice = filtered.slice(0, visibleCount)
@@ -374,13 +622,86 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
       .sort((a, b) => b.value - a.value)
   }, [stats])
 
+  // Count total flags across all commits
+  const totalFlags = useMemo(() => {
+    let count = 0
+    for (const arr of Object.values(allFlags)) count += arr.length
+    return count
+  }, [allFlags])
+
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
   const card = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
   const inputBg = darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
   const heading = darkMode ? 'text-white' : 'text-slate-900'
 
+  /* ═══════════════════════════════════════════════════
+     IDENTITY PICKER MODAL (shown once on first use)
+     ═══════════════════════════════════════════════════ */
+  if (showIdentityPicker) {
+    return (
+      <div className="space-y-6">
+        <div className={`rounded-xl border p-8 text-center ${card}`}>
+          <User size={40} className="mx-auto mb-4 text-emerald-500" />
+          <h2 className={`text-xl font-bold mb-2 ${heading}`}>Who are you?</h2>
+          <p className={`text-sm mb-6 ${sub}`}>
+            Pick your name so your notes, comments, and flags are attributed to you.
+          </p>
+          <div className="flex justify-center gap-4">
+            {['Blake', 'angelo'].map(name => (
+              <button
+                key={name}
+                onClick={() => pickIdentity(name)}
+                className={`flex items-center gap-3 px-6 py-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${
+                  darkMode ? 'border-slate-600 hover:border-emerald-500 bg-slate-750' : 'border-slate-200 hover:border-emerald-500 bg-white'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${getAuthorColor(name)}`}>
+                  {getAuthorInitials(name)}
+                </div>
+                <span className={`text-lg font-semibold ${heading}`}>{name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Dev identity bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold ${getAuthorColor(devIdentity || '')}`}>
+            {getAuthorInitials(devIdentity || '?')}
+          </div>
+          <span className={`text-xs ${sub}`}>Logged in as <strong className={heading}>{devIdentity}</strong></span>
+          <button
+            onClick={() => setShowIdentityPicker(true)}
+            className={`text-[10px] px-2 py-0.5 rounded border cursor-pointer ${darkMode ? 'border-slate-600 text-slate-400 hover:text-slate-300' : 'border-slate-300 text-slate-400 hover:text-slate-600'}`}
+          >
+            Switch
+          </button>
+        </div>
+        {/* Notification summary */}
+        {notificationCounts.total > 0 && (
+          <div className={`flex items-center gap-2 text-xs ${sub}`}>
+            {notificationCounts.comments > 0 && (
+              <span className="flex items-center gap-1">
+                <MessageSquare size={12} className="text-blue-500" />
+                {notificationCounts.comments} new comment{notificationCounts.comments !== 1 ? 's' : ''}
+              </span>
+            )}
+            {notificationCounts.flags > 0 && (
+              <span className="flex items-center gap-1">
+                <Flag size={12} className="text-amber-500" />
+                {notificationCounts.flags} new flag{notificationCounts.flags !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Section tabs */}
       <div className="flex items-center gap-1 overflow-x-auto">
         {([
@@ -404,9 +725,11 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                 {ideas.length}
               </span>
             )}
-            {id === 'timeline' && newSinceLastVisit > 0 && (
+            {id === 'timeline' && (newSinceLastVisit > 0 || notificationCounts.total > 0) && (
               <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                {newSinceLastVisit} new
+                {newSinceLastVisit > 0 ? `${newSinceLastVisit} new` : ''}
+                {newSinceLastVisit > 0 && notificationCounts.total > 0 ? ' · ' : ''}
+                {notificationCounts.total > 0 ? `${notificationCounts.total} activity` : ''}
               </span>
             )}
           </button>
@@ -447,6 +770,51 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
               <p className={`text-2xl font-bold text-red-500`}>-{stats.totalDel.toLocaleString()}</p>
             </div>
           </div>
+
+          {/* Flagged commits summary (new!) */}
+          {totalFlags > 0 && (
+            <div className={`rounded-xl border p-4 ${darkMode ? 'bg-amber-900/10 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Flag size={16} className="text-amber-500" />
+                  <span className={`text-sm font-medium ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                    {totalFlags} flagged commit{totalFlags !== 1 ? 's' : ''} need attention
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActiveSection('timeline')}
+                  className={`text-xs font-medium cursor-pointer ${darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-700'}`}
+                >
+                  View in Timeline
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {Object.entries(allFlags).slice(0, 5).map(([hash, flags]) => {
+                  const commit = commits.find(c => c.hash === hash)
+                  if (!commit) return null
+                  return (
+                    <button
+                      key={hash}
+                      onClick={() => { setActiveSection('timeline'); setExpandedHash(hash) }}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] cursor-pointer border ${
+                        darkMode ? 'border-slate-600 bg-slate-750 hover:border-amber-600' : 'border-slate-200 bg-white hover:border-amber-400'
+                      }`}
+                    >
+                      {flags.map(f => {
+                        const fc = FLAG_CONFIG[f.flag_type]
+                        if (!fc) return null
+                        const FlagIcon = fc.icon
+                        return <FlagIcon key={f.id} size={10} className={darkMode ? 'text-amber-400' : 'text-amber-600'} />
+                      })}
+                      <span className={`truncate max-w-[200px] ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {commit.subject.slice(0, 50)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Velocity card */}
           <div className={`rounded-xl border p-5 ${card}`}>
@@ -665,6 +1033,13 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
               <Eye size={18} className="text-emerald-500" />
               <p className={`text-sm font-medium ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
                 {newSinceLastVisit} new commit{newSinceLastVisit !== 1 ? 's' : ''} since your last visit
+                {notificationCounts.total > 0 && (
+                  <span className={`ml-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    ({notificationCounts.comments > 0 ? `${notificationCounts.comments} comment${notificationCounts.comments !== 1 ? 's' : ''}` : ''}
+                    {notificationCounts.comments > 0 && notificationCounts.flags > 0 ? ', ' : ''}
+                    {notificationCounts.flags > 0 ? `${notificationCounts.flags} flag${notificationCounts.flags !== 1 ? 's' : ''}` : ''})
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -676,7 +1051,7 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                 <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${sub}`} />
                 <input
                   type="text"
-                  placeholder="Search commits by message, author, or hash..."
+                  placeholder="Search commits, dev notes, summaries..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${inputBg}`}
@@ -787,6 +1162,10 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                     const CatIcon = catConfig.icon
                     const isExpanded = expandedHash === commit.hash
                     const isNew = lastVisit && new Date(commit.date) > new Date(lastVisit)
+                    const enrichment = enrichments[commit.hash]
+                    const commitFlags = allFlags[commit.hash] || []
+                    const commitComments = allComments[commit.hash] || []
+                    const commentsOpen = showCommentsFor.has(commit.hash)
 
                     return (
                       <div
@@ -794,11 +1173,14 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                         className={`rounded-xl border transition-all ${
                           isNew ? 'ring-1 ring-emerald-500/30' : ''
                         } ${
+                          commitFlags.length > 0 ? 'ring-1 ring-amber-500/30' : ''
+                        } ${
                           isExpanded
                             ? darkMode ? 'bg-slate-750 border-slate-600' : 'bg-slate-50 border-slate-300'
                             : `${card} hover:border-slate-400 dark:hover:border-slate-500`
                         }`}
                       >
+                        {/* ── Collapsed header ── */}
                         <button
                           onClick={() => setExpandedHash(isExpanded ? null : commit.hash)}
                           className="w-full text-left px-4 py-3 flex items-start gap-3 cursor-pointer"
@@ -808,8 +1190,15 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                           </div>
 
                           <div className="flex-1 min-w-0">
+                            {/* Layman's summary (shown prominently if available) */}
+                            {enrichment?.laymans_summary && (
+                              <p className={`text-sm font-medium leading-snug mb-1 ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                                {enrichment.laymans_summary}
+                              </p>
+                            )}
+
                             <div className="flex items-center gap-2">
-                              <p className={`text-sm font-medium leading-snug ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                              <p className={`text-sm ${enrichment?.laymans_summary ? `${sub} text-xs` : `font-medium leading-snug ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}`}>
                                 {commit.subject}
                               </p>
                               {isNew && (
@@ -834,6 +1223,19 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                                 </span>
                               )}
 
+                              {/* Flag badges inline */}
+                              {commitFlags.map(f => {
+                                const fc = FLAG_CONFIG[f.flag_type]
+                                if (!fc) return null
+                                const FIcon = fc.icon
+                                return (
+                                  <span key={f.id} className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-medium ${darkMode ? fc.darkColor : fc.color}`}>
+                                    <FIcon size={9} />
+                                    {fc.label}
+                                  </span>
+                                )
+                              })}
+
                               <span className={`text-xs ${sub}`}>{commit.author}</span>
                               <span className={`text-xs ${sub}`}>
                                 <Clock size={10} className="inline mr-0.5 -mt-px" />
@@ -853,6 +1255,22 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                                   {commit.deletions > 0 && <span className="text-red-500 ml-1">-{commit.deletions}</span>}
                                 </span>
                               )}
+
+                              {/* Comment count indicator */}
+                              {commitComments.length > 0 && (
+                                <span className={`inline-flex items-center gap-1 text-[10px] ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                                  <MessageSquare size={10} />
+                                  {commitComments.length}
+                                </span>
+                              )}
+
+                              {/* Dev note indicator */}
+                              {enrichment?.dev_note && (
+                                <span className={`inline-flex items-center gap-1 text-[10px] ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                                  <PenLine size={10} />
+                                  note
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -861,11 +1279,65 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                           </div>
                         </button>
 
+                        {/* ── Expanded details ── */}
                         {isExpanded && (
                           <div className={`px-4 pb-4 pt-0 ml-11 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                             <div className="pt-3 space-y-3">
+
+                              {/* ▸ Dev Note (intention) */}
+                              {enrichment?.dev_note && (
+                                <div className={`rounded-lg border p-3 ${darkMode ? 'bg-amber-900/10 border-amber-800/50' : 'bg-amber-50 border-amber-200'}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <PenLine size={12} className={darkMode ? 'text-amber-400' : 'text-amber-600'} />
+                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+                                      Dev Note from {enrichment.dev_name || 'unknown'}
+                                    </span>
+                                  </div>
+                                  <p className={`text-sm ${darkMode ? 'text-amber-200' : 'text-amber-800'}`}>
+                                    {enrichment.dev_note}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* ▸ Layman's summary (expanded view — fuller display) */}
+                              {enrichment?.laymans_summary && (
+                                <div className={`rounded-lg border p-3 ${darkMode ? 'bg-emerald-900/10 border-emerald-800/50' : 'bg-emerald-50 border-emerald-200'}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Eye size={12} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />
+                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                                      In Plain English
+                                    </span>
+                                  </div>
+                                  <p className={`text-sm ${darkMode ? 'text-emerald-200' : 'text-emerald-800'}`}>
+                                    {enrichment.laymans_summary}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* ▸ Technical summary */}
+                              {enrichment?.technical_summary && (
+                                <div className={`rounded-lg border p-3 ${darkMode ? 'bg-blue-900/10 border-blue-800/50' : 'bg-blue-50 border-blue-200'}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Code size={12} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
+                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
+                                      Technical Summary
+                                    </span>
+                                  </div>
+                                  <p className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>
+                                    {enrichment.technical_summary}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* ▸ Original commit body (always shown as-is) */}
                               {commit.body && (
                                 <div className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <GitCommit size={12} className={sub} />
+                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${sub}`}>
+                                      Commit Message
+                                    </span>
+                                  </div>
                                   {commit.body}
                                 </div>
                               )}
@@ -917,6 +1389,214 @@ export default function WhatsNew({ darkMode, adminKey }: { darkMode: boolean; ad
                                   </div>
                                 )}
                               </div>
+
+                              {/* ── Action bar: Add Note / Flag / Comment ── */}
+                              <div className={`flex flex-wrap gap-2 pt-2 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDevNoteFor(showDevNoteFor === commit.hash ? null : commit.hash); setDevNoteText(enrichment?.dev_note || '') }}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                    darkMode ? 'bg-slate-700 text-amber-400 hover:bg-slate-600' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                  }`}
+                                >
+                                  <PenLine size={12} />
+                                  {enrichment?.dev_note ? 'Edit Dev Note' : 'Add Dev Note'}
+                                </button>
+
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowFlagMenuFor(showFlagMenuFor === commit.hash ? null : commit.hash) }}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                    darkMode ? 'bg-slate-700 text-red-400 hover:bg-slate-600' : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                  }`}
+                                >
+                                  <Flag size={12} />
+                                  Flag
+                                </button>
+
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleComments(commit.hash) }}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                    commentsOpen
+                                      ? darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
+                                      : darkMode ? 'bg-slate-700 text-blue-400 hover:bg-slate-600' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  <MessageSquare size={12} />
+                                  Comments {commitComments.length > 0 ? `(${commitComments.length})` : ''}
+                                </button>
+                              </div>
+
+                              {/* ── Dev Note form ── */}
+                              {showDevNoteFor === commit.hash && (
+                                <div className={`rounded-lg border p-3 space-y-2 ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200'}`}>
+                                  <label className={`text-xs font-medium ${sub}`}>
+                                    What was your intention with this change?
+                                  </label>
+                                  <textarea
+                                    value={devNoteText}
+                                    onChange={e => setDevNoteText(e.target.value)}
+                                    placeholder="E.g., I wanted to make it easier for operators to see their revenue at a glance..."
+                                    rows={3}
+                                    className={`w-full rounded-lg border px-3 py-2 text-sm resize-none ${inputBg}`}
+                                  />
+                                  <div className="flex items-center justify-between">
+                                    <p className={`text-[10px] ${sub}`}>
+                                      AI will generate plain-English and technical summaries from this
+                                    </p>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setShowDevNoteFor(null)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer ${darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => saveDevNote(commit)}
+                                        disabled={!devNoteText.trim() || devNoteSaving}
+                                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                      >
+                                        <Send size={11} />
+                                        {devNoteSaving ? 'Saving...' : 'Save & Generate'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ── Flag menu ── */}
+                              {showFlagMenuFor === commit.hash && (
+                                <div className={`rounded-lg border p-3 space-y-3 ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200'}`}>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {Object.entries(FLAG_CONFIG).map(([type, config]) => {
+                                      const FIcon = config.icon
+                                      const alreadyFlagged = commitFlags.some(f => f.flag_type === type && f.flagged_by === devIdentity)
+                                      return (
+                                        <button
+                                          key={type}
+                                          onClick={() => !alreadyFlagged && addFlag(commit.hash, type)}
+                                          disabled={alreadyFlagged}
+                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border cursor-pointer transition-colors ${
+                                            alreadyFlagged
+                                              ? 'opacity-40 cursor-not-allowed'
+                                              : darkMode ? `${config.darkColor} hover:opacity-80` : `${config.color} hover:opacity-80`
+                                          }`}
+                                        >
+                                          <FIcon size={11} />
+                                          {config.label}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Optional reason for flagging..."
+                                    value={flagReason}
+                                    onChange={e => setFlagReason(e.target.value)}
+                                    className={`w-full rounded-lg border px-3 py-1.5 text-xs ${inputBg}`}
+                                  />
+
+                                  {/* Existing flags */}
+                                  {commitFlags.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <p className={`text-[10px] font-medium ${sub}`}>Active flags:</p>
+                                      {commitFlags.map(f => {
+                                        const fc = FLAG_CONFIG[f.flag_type]
+                                        if (!fc) return null
+                                        const FIcon = fc.icon
+                                        return (
+                                          <div key={f.id} className={`flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] ${
+                                            darkMode ? 'bg-slate-600' : 'bg-slate-50'
+                                          }`}>
+                                            <div className="flex items-center gap-2">
+                                              <FIcon size={10} />
+                                              <span className="font-medium">{fc.label}</span>
+                                              <span className={sub}>by {f.flagged_by}</span>
+                                              {f.reason && <span className={sub}>— {f.reason}</span>}
+                                            </div>
+                                            {f.flagged_by === devIdentity && (
+                                              <button
+                                                onClick={() => removeFlag(commit.hash, f.id)}
+                                                className="text-red-400 hover:text-red-500 cursor-pointer"
+                                                title="Remove flag"
+                                              >
+                                                <XIcon size={10} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* ── Comment thread ── */}
+                              {commentsOpen && (
+                                <div className={`rounded-lg border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                                  <div className={`px-3 py-2 border-b flex items-center gap-2 ${darkMode ? 'border-slate-600' : 'border-slate-200'}`}>
+                                    <MessageSquare size={12} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
+                                    <span className={`text-xs font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
+                                      Discussion ({commitComments.length})
+                                    </span>
+                                  </div>
+
+                                  {/* Comments list */}
+                                  {commitComments.length > 0 && (
+                                    <div className="divide-y divide-slate-200 dark:divide-slate-600">
+                                      {commitComments.map(c => (
+                                        <div key={c.id} className="px-3 py-2.5 flex gap-2.5">
+                                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 ${getAuthorColor(c.author)}`}>
+                                            {getAuthorInitials(c.author)}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                              <span className={`text-xs font-semibold ${heading}`}>{c.author}</span>
+                                              <span className={`text-[10px] ${sub}`}>{timeAgo(c.created_at)}</span>
+                                              {c.author === devIdentity && (
+                                                <button
+                                                  onClick={() => deleteComment(commit.hash, c.id)}
+                                                  className="text-red-400 hover:text-red-500 cursor-pointer ml-auto"
+                                                  title="Delete comment"
+                                                >
+                                                  <Trash2 size={10} />
+                                                </button>
+                                              )}
+                                            </div>
+                                            <p className={`text-sm mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                              {c.body}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Add comment form */}
+                                  <div className={`px-3 py-2.5 border-t ${darkMode ? 'border-slate-600' : 'border-slate-200'}`}>
+                                    <div className="flex gap-2">
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 ${getAuthorColor(devIdentity || '')}`}>
+                                        {getAuthorInitials(devIdentity || '?')}
+                                      </div>
+                                      <div className="flex-1 flex gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Write a comment..."
+                                          value={commentText[commit.hash] || ''}
+                                          onChange={e => setCommentText(prev => ({ ...prev, [commit.hash]: e.target.value }))}
+                                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) addComment(commit.hash) }}
+                                          className={`flex-1 rounded-lg border px-3 py-1.5 text-xs ${inputBg}`}
+                                        />
+                                        <button
+                                          onClick={() => addComment(commit.hash)}
+                                          disabled={!commentText[commit.hash]?.trim() || commentSaving === commit.hash}
+                                          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                        >
+                                          <Send size={11} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
