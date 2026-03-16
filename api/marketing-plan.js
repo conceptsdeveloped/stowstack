@@ -188,7 +188,7 @@ export default async function handler(req, res) {
 
       const client = new Anthropic({ apiKey })
       const message = await client.messages.create({
-        model: 'claude-sonnet-4-6-20250514',
+        model: 'claude-sonnet-4-5-20241022',
         max_tokens: 2048,
         system: PLAN_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `Generate a detailed, actionable marketing plan for this self-storage facility. Use all the data provided to make it specific and credible — not generic.\n\n${lines.join('\n')}` }],
