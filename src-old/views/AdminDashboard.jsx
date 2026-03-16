@@ -6,7 +6,7 @@ import {
   Filter, Upload
 } from 'lucide-react'
 
-const ADMIN_KEY = 'stowstack-admin-2024'
+const ADMIN_KEY = '' // key now set server-side via ADMIN_SECRET env var
 
 const STATUSES = [
   { value: 'submitted', label: 'Submitted', color: 'bg-slate-500', textColor: 'text-slate-300' },

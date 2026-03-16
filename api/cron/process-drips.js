@@ -25,7 +25,8 @@ async function sendTemplateEmail(templateId, lead) {
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000'
 
-  const adminKey = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+  const adminKey = process.env.ADMIN_SECRET
+  if (!adminKey) throw new Error('ADMIN_SECRET environment variable is not set')
 
   const res = await fetch(`${baseUrl}/api/send-template`, {
     method: 'POST',
