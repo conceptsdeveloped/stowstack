@@ -47,7 +47,7 @@ function InfoBox({ children }: { children: React.ReactNode }) {
 
 export default function GuidePage({ onBack }: { onBack: () => void }) {
   const tocItems = [
-    { id: 'welcome', label: 'Welcome to StowStack' },
+    { id: 'welcome', label: 'Welcome to StowStack by StorageAds.com' },
     { id: 'getting-started', label: 'Getting Started' },
     { id: 'dashboard', label: 'Your Dashboard' },
     { id: 'charts', label: 'Understanding Your Charts' },
@@ -98,7 +98,7 @@ export default function GuidePage({ onBack }: { onBack: () => void }) {
         <div className="space-y-6">
 
           {/* Welcome */}
-          <Section id="welcome" icon={Building2} title="Welcome to StowStack">
+          <Section id="welcome" icon={Building2} title="Welcome to StowStack by StorageAds.com">
             <p className="text-sm text-slate-600 leading-relaxed">
               StowStack is a marketing platform built specifically for self-storage operators. We run targeted Facebook and Instagram ad campaigns to fill your vacant units with qualified tenants.
             </p>

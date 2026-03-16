@@ -632,7 +632,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             <h3 className="font-semibold mb-4">Getting Started</h3>
             <div className="space-y-4">
               {[
-                { icon: CheckCircle2, label: 'Signed on with StowStack', done: true },
+                { icon: CheckCircle2, label: 'Signed on with StowStack by StorageAds.com', done: true },
                 { icon: ClipboardList, label: 'Campaign onboarding info submitted', done: onboardingPct === 100 },
                 { icon: Eye, label: 'Market & funnel audit in progress', done: false },
                 { icon: MousePointerClick, label: 'Campaign build & creative development', done: false },
@@ -775,7 +775,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
 
         {/* Contact Card */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
-          <h3 className="font-semibold text-sm mb-3">Your StowStack Team</h3>
+          <h3 className="font-semibold text-sm mb-3">Your StowStack <span className="font-normal text-slate-400">by StorageAds.com</span> Team</h3>
           <div className="flex flex-wrap gap-4">
             <a href="mailto:blake@storepawpaw.com" className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700">
               <Mail size={14} /> blake@storepawpaw.com

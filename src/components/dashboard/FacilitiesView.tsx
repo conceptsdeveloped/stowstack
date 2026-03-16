@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Loader2, ChevronRight } from 'lucide-react'
 import { Facility, FACILITY_STATUSES, STATUS_COLORS } from './types'
+import { usePMSData } from '@/hooks/usePMSData'
 import OverviewTab from './OverviewTab'
 import CreativeTab from './CreativeTab'
 import AssetsTab from './AssetsTab'
@@ -29,6 +30,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 }) {
   const [subTab, setSubTab] = useState<FacilitySubTab>('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const { data: pmsData, refetch: refetchPMS } = usePMSData(facility.id, adminKey)
 
   const text = darkMode ? 'text-slate-100' : 'text-slate-900'
   const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
@@ -80,21 +82,21 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       {/* Sub-tab bar */}
       <div className={`flex gap-1 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
         {([
-          ['overview', 'Overview'],
-          ['pms-data', 'PMS Data'],
-          ['revenue-intel', 'Revenue Intel'],
-          ['occupancy-intel', 'Occupancy'],
-          ['creative', 'Creative'],
-          ['assets', 'Assets'],
-          ['ad-preview', 'Ad Preview'],
-          ['google-ads', 'Google Ads'],
-          ['tiktok', 'TikTok'],
-          ['video', 'Video AI'],
-          ['landing-pages', 'Landing Pages'],
-          ['utm-links', 'UTM Links'],
-          ['calls', 'Calls'],
-          ['gbp', 'GBP'],
-          ['publish', 'Publish'],
+          ['overview', 'Facility Overview'],
+          ['pms-data', 'Units & Pricing'],
+          ['revenue-intel', 'Revenue Analytics'],
+          ['occupancy-intel', 'Occupancy Analytics'],
+          ['creative', 'Ad Creative Studio'],
+          ['assets', 'Media Library'],
+          ['ad-preview', 'Ad Mockup Preview'],
+          ['google-ads', 'Google Ads Builder'],
+          ['tiktok', 'TikTok Creator'],
+          ['video', 'Video Ad Generator'],
+          ['landing-pages', 'Landing Page Builder'],
+          ['utm-links', 'Campaign Links'],
+          ['calls', 'Call Tracking'],
+          ['gbp', 'Google Business Profile'],
+          ['publish', 'Ad Publisher'],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -116,7 +118,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       )}
 
       {subTab === 'pms-data' && (
-        <PMSDataTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <PMSDataTab facility={facility} adminKey={adminKey} darkMode={darkMode} onPMSImport={refetchPMS} />
       )}
 
       {subTab === 'revenue-intel' && (
@@ -140,7 +142,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       )}
 
       {subTab === 'landing-pages' && (
-        <LandingPagesTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <LandingPagesTab facility={facility} adminKey={adminKey} darkMode={darkMode} pmsData={pmsData} />
       )}
 
       {subTab === 'utm-links' && (
@@ -148,7 +150,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       )}
 
       {subTab === 'google-ads' && (
-        <GoogleAdsLab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <GoogleAdsLab facility={facility} adminKey={adminKey} darkMode={darkMode} pmsData={pmsData} />
       )}
 
       {subTab === 'tiktok' && (
@@ -164,7 +166,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
       )}
 
       {subTab === 'gbp' && (
-        <GBPTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
+        <GBPTab facility={facility} adminKey={adminKey} darkMode={darkMode} pmsData={pmsData} />
       )}
 
       {subTab === 'publish' && (
@@ -226,7 +228,7 @@ export default function FacilitiesView({ adminKey, darkMode }: { adminKey: strin
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-2">
-        <h2 className={`text-lg font-semibold ${text}`}>Facilities <span className={`text-sm font-normal ${sub}`}>({facilities.length})</span></h2>
+        <h2 className={`text-lg font-semibold ${text}`}>Facility Manager <span className={`text-sm font-normal ${sub}`}>({facilities.length})</span></h2>
       </div>
 
       {/* Summary table */}

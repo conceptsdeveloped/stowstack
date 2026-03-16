@@ -64,22 +64,22 @@ export default function BlogIndex({ onNavigate }: Props) {
   return (
     <>
       <Helmet>
-        <title>StowStack Blog — Self-Storage Acquisition Insights</title>
+        <title>StowStack by StorageAds.com Blog — Self-Storage Acquisition Insights</title>
         <meta name="description" content="Operator-level insights on self-storage acquisition, attribution, and what's actually working in storage marketing." />
         <link rel="canonical" href="https://stowstack.co/blog" />
-        <meta property="og:title" content="StowStack Blog — Self-Storage Acquisition Insights" />
+        <meta property="og:title" content="StowStack by StorageAds.com Blog — Self-Storage Acquisition Insights" />
         <meta property="og:description" content="Operator-level insights on self-storage acquisition, attribution, and what's actually working in storage marketing." />
         <meta property="og:url" content="https://stowstack.co/blog" />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="StowStack" />
+        <meta property="og:site_name" content="StowStack by StorageAds.com" />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            name: 'StowStack Blog',
+            name: 'StowStack by StorageAds.com Blog',
             description: 'Operator-level insights on self-storage acquisition, attribution, and what\'s actually working in storage marketing.',
             url: 'https://stowstack.co/blog',
-            publisher: { '@type': 'Organization', name: 'StowStack', url: 'https://stowstack.co' },
+            publisher: { '@type': 'Organization', name: 'StowStack by StorageAds.com', url: 'https://stowstack.co' },
           })}
         </script>
       </Helmet>
@@ -88,6 +88,7 @@ export default function BlogIndex({ onNavigate }: Props) {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">The StowStack Blog</h1>
+          <p className="text-sm text-gray-400 font-medium -mt-1 mb-2">by StorageAds.com</p>
           <p className="text-gray-500 max-w-lg mx-auto">
             Operator-level insights on acquisition, unit economics, and what's actually working in self-storage marketing.
           </p>

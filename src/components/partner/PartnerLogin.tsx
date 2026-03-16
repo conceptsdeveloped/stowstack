@@ -294,6 +294,7 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
               <CheckCircle2 size={28} className="text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">Welcome to StowStack!</h1>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">by StorageAds.com</p>
             <p className="text-sm text-slate-500 mt-2">
               Your <span className="font-medium capitalize">{credentials.plan}</span> plan for <span className="font-medium">{credentials.companyName}</span> is now active.
             </p>

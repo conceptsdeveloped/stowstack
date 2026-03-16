@@ -587,7 +587,7 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
           onClick={() => setShowAddForm(!showAddForm)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
         >
-          <Plus size={14} /> Add Tenant
+          <Plus size={14} /> Add Client Account
         </button>
         <button
           onClick={() => { setShowCsvImport(!showCsvImport); setCsvRows([]); setCsvFacilityId('') }}
@@ -610,7 +610,7 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
       {showCsvImport && (
         <div className={`rounded-xl border p-4 ${card}`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Import Tenants from CSV</h3>
+            <h3 className="font-semibold">Import Client Accounts from CSV</h3>
             <button onClick={() => { setShowCsvImport(false); setCsvRows([]) }} className={`p-1 rounded hover:bg-slate-100 ${darkMode ? 'hover:bg-slate-700' : ''}`}>
               <X size={16} />
             </button>
@@ -676,7 +676,7 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
       {/* Add tenant form */}
       {showAddForm && (
         <div className={`rounded-xl border p-4 ${card}`}>
-          <h3 className="font-semibold mb-3">Add Tenant</h3>
+          <h3 className="font-semibold mb-3">Add Client Account</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <select value={newTenant.facility_id} onChange={e => setNewTenant({ ...newTenant, facility_id: e.target.value })} className={inputCls}>
               <option value="">Select Facility</option>
@@ -756,7 +756,7 @@ export default function TenantBillingView({ adminKey, darkMode }: { adminKey: st
             onChange={toggleSelectAll}
             className="rounded"
           />
-          <h3 className="font-semibold text-sm">Tenants ({filtered.length})</h3>
+          <h3 className="font-semibold text-sm">Client Accounts ({filtered.length})</h3>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">

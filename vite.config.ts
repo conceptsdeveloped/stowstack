@@ -133,7 +133,7 @@ export default defineConfig({
       registerType: "prompt",
       includeAssets: ["favicon.svg", "og-image.png", "robots.txt"],
       manifest: {
-        name: "StowStack — Demand Engine for Self-Storage",
+        name: "StowStack by StorageAds.com — Demand Engine for Self-Storage",
         short_name: "StowStack",
         description:
           "Full-funnel acquisition system for self-storage operators",

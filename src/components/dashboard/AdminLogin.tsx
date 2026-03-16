@@ -38,6 +38,7 @@ export default function AdminLogin({ onAuth }: { onAuth: (key: string) => void }
             <Building2 size={24} className="text-white" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">StowStack Admin</h1>
+          <p className="text-xs text-slate-400 font-medium">by StorageAds.com</p>
           <p className="text-sm text-slate-500 mt-1">Enter your admin key to continue</p>
         </div>
         <form onSubmit={submit} className="space-y-3">

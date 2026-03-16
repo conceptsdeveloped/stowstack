@@ -412,7 +412,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
                 <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
                   <Building2 size={14} className="text-white" />
                 </div>
-                <h1 className="text-sm font-bold tracking-tight">StowStack</h1>
+                <div className="flex flex-col">
+                  <h1 className="text-sm font-bold tracking-tight leading-tight">StowStack</h1>
+                  <span className="text-[10px] font-medium text-slate-400 tracking-wide leading-none">by StorageAds.com</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-1.5">

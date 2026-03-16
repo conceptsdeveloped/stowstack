@@ -30,7 +30,7 @@ function LegalLayout({ title, children, onBack }: { title: string; children: Rea
 export function PrivacyPolicy({ onBack }: { onBack: () => void }) {
   return (
     <LegalLayout title="Privacy Policy" onBack={onBack}>
-      <p>StowStack ("we," "our," or "us") operates the website stowstack.co and related applications. This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit our website, use our services, or interact with our applications on third-party platforms including Meta (Facebook and Instagram).</p>
+      <p>StowStack by StorageAds.com ("we," "our," or "us") operates the website stowstack.co and related applications. This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit our website, use our services, or interact with our applications on third-party platforms including Meta (Facebook and Instagram).</p>
 
       <h2>Information We Collect</h2>
       <p><strong>Information you provide directly:</strong></p>

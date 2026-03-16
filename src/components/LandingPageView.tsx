@@ -505,7 +505,7 @@ function LandingPageFooter({ orgBranding }: { orgBranding?: OrgBranding | null }
         )
       ) : (
         <p className="text-xs text-slate-500">
-          Powered by <a href="https://stowstack.co" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400">StowStack</a>
+          Powered by <a href="https://stowstack.co" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400">StowStack</a> <span className="text-slate-600">by StorageAds.com</span>
         </p>
       )}
     </footer>

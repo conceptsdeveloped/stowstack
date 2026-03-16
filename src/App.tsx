@@ -32,6 +32,7 @@ import {
 /* ═══════════════════════════════════════════════════════ */
 
 const BRAND = 'StowStack'
+const BRAND_PARENT = 'StorageAds.com'
 
 const TEAM = [
   { name: 'Blake Burkett', role: 'CEO & Founder', avatar: 'BB', bio: 'Blake is an active self-storage operator with 7+ years in storage, U-Haul, and moving operations in Michigan. He runs his own portfolio of facilities. He got tired of paying agencies that could not tell him which ad produced which move-in, <em>so he built StowStack for his own facilities first.</em> After it worked, operators in his network started asking for it.', linkedin: 'https://linkedin.com/in/mruhaul' },
@@ -293,9 +294,12 @@ function Nav() {
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center shadow-md shadow-emerald-600/20">
             <Building2 size={16} className="text-white" />
           </div>
-          <span className="text-lg font-bold tracking-tight font-['Space_Grotesk']">
-            Stow<span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">Stack</span>
-          </span>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold tracking-tight font-['Space_Grotesk'] leading-tight">
+              Stow<span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">Stack</span>
+            </span>
+            <span className="text-[11px] font-medium text-slate-400 tracking-wide leading-none">by {BRAND_PARENT}</span>
+          </div>
         </a>
 
         <div className="hidden md:flex items-center gap-8">
@@ -1698,9 +1702,12 @@ function Footer() {
               <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
                 <Building2 size={14} className="text-white" />
               </div>
-              <span className="text-base font-bold tracking-tight font-['Space_Grotesk'] text-white">
-                Stow<span className="text-emerald-400">Stack</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-base font-bold tracking-tight font-['Space_Grotesk'] text-white leading-tight">
+                  Stow<span className="text-emerald-400">Stack</span>
+                </span>
+                <span className="text-[11px] font-medium text-slate-500 tracking-wide leading-none">by {BRAND_PARENT}</span>
+              </div>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
               Full-funnel acquisition and conversion for self-storage. Ad-specific landing pages. Embedded rental flow. Every move-in traced to the ad that produced it.
@@ -1744,7 +1751,7 @@ function Footer() {
           </div>
         </div>
         <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {BRAND}. All rights reserved.</p>
+          <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {BRAND_PARENT}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <span>Serving operators across the US & Canada</span>
             <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>

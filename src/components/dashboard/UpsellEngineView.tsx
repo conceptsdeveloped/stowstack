@@ -275,7 +275,7 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50"
         >
           <Zap size={14} className={scanning ? 'animate-pulse' : ''} />
-          {scanning ? 'Scanning...' : 'Scan for Upsells'}
+          {scanning ? 'Scanning...' : 'Scan for Opportunities'}
         </button>
         <button onClick={fetchOpportunities} className={`p-2 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-50'}`}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -341,7 +341,7 @@ export default function UpsellEngineView({ adminKey, darkMode }: { adminKey: str
         ) : filtered.length === 0 ? (
           <div className={`text-center py-12 ${muted}`}>
             <TrendingUp size={32} className="mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No opportunities found. Click "Scan for Upsells" to analyze tenants.</p>
+            <p className="text-sm">No opportunities found. Click "Scan for Opportunities" to analyze tenants.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">

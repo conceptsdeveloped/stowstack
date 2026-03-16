@@ -73,7 +73,7 @@ export default function BlogPost({ slug, onNavigate }: Props) {
   return (
     <>
       <Helmet>
-        <title>{post.title} | StowStack</title>
+        <title>{post.title} | StowStack by StorageAds.com</title>
         <meta name="description" content={post.description} />
         <link rel="canonical" href={canonicalUrl} />
         <meta name="robots" content="index, follow" />
@@ -82,7 +82,7 @@ export default function BlogPost({ slug, onNavigate }: Props) {
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="article" />
         <meta property="og:image" content={ogImage} />
-        <meta property="og:site_name" content="StowStack" />
+        <meta property="og:site_name" content="StowStack by StorageAds.com" />
         <meta property="og:article:published_time" content={post.date} />
         {post.updated && <meta property="og:article:modified_time" content={post.updated} />}
         {author && <meta property="og:article:author" content={author.name} />}
@@ -104,7 +104,7 @@ export default function BlogPost({ slug, onNavigate }: Props) {
             author: author
               ? { '@type': 'Person', name: author.name, url: author.linkedin || undefined }
               : undefined,
-            publisher: { '@type': 'Organization', name: 'StowStack', url: 'https://stowstack.co' },
+            publisher: { '@type': 'Organization', name: 'StowStack by StorageAds.com', url: 'https://stowstack.co' },
             mainEntityOfPage: canonicalUrl,
             image: ogImage,
           })}

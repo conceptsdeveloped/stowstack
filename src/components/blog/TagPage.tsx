@@ -20,8 +20,8 @@ export default function TagPage({ tag, onNavigate }: Props) {
   return (
     <>
       <Helmet>
-        <title>Posts tagged "{tag}" | StowStack Blog</title>
-        <meta name="description" content={`All StowStack blog posts tagged with "${tag}".`} />
+        <title>Posts tagged "{tag}" | StowStack by StorageAds.com</title>
+        <meta name="description" content={`All StowStack by StorageAds.com blog posts tagged with "${tag}".`} />
       </Helmet>
 
       <div className="max-w-6xl mx-auto px-4 py-12">

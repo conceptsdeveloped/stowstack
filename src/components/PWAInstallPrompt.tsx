@@ -55,7 +55,7 @@ export function PWAInstallPrompt() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-white text-sm">
-                Install StowStack
+                Install StowStack <span className="text-white/50 font-normal">by StorageAds.com</span>
               </p>
               <p className="text-xs text-white/60 mt-0.5">
                 Get instant lead alerts, offline access, and quick actions from
@@ -108,7 +108,7 @@ export function PWAInstallPrompt() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-slate-900 mb-4">
-              Install StowStack on iOS
+              Install StowStack
             </h3>
             <ol className="space-y-4 text-sm text-slate-600">
               <li className="flex gap-3">

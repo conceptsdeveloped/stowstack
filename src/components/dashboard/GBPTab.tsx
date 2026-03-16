@@ -8,7 +8,7 @@ import type { GBPConnection, GBPPost, GBPReview, GBPSyncLog, GBPQuestion, GBPIns
 
 type Section = 'posts' | 'reviews' | 'qa' | 'insights' | 'sync' | 'settings'
 
-export default function GBPTab({ facility, adminKey, darkMode }: { facility: { id: string; name: string }; adminKey: string; darkMode: boolean }) {
+export default function GBPTab({ facility, adminKey, darkMode, pmsData }: { facility: { id: string; name: string }; adminKey: string; darkMode: boolean; pmsData?: import('@/hooks/usePMSData').PMSData | null }) {
   const [section, setSection] = useState<Section>('posts')
   const [connection, setConnection] = useState<GBPConnection | null>(null)
   const [posts, setPosts] = useState<GBPPost[]>([])
@@ -503,11 +503,58 @@ export default function GBPTab({ facility, adminKey, darkMode }: { facility: { i
 
           {!showPostForm && (
             <div className="flex gap-2 flex-wrap">
-              {[
-                { label: 'Unit Availability', body: `We have units available at ${facility.name}! Climate-controlled and standard units in various sizes. Reserve yours today — first month free for new tenants.`, type: 'availability' },
-                { label: 'Monthly Special', body: `This month's special at ${facility.name}: 50% off your first month's rent! Limited time offer on select unit sizes. Call or visit us to claim your deal.`, type: 'offer' },
-                { label: 'Holiday Hours', body: `Holiday hours update for ${facility.name}: We'll have adjusted hours this holiday season. Our office team is here to help — check our profile for updated times.`, type: 'event' },
-              ].map(t => (
+              {((): { label: string; body: string; type: string }[] => {
+                const templates: { label: string; body: string; type: string }[] = []
+
+                // Only reference units with actual vacancy — NEVER advertise 100% occupied (Section 5.2)
+                const availableUnits = pmsData?.units?.filter(u => (u.total_count - u.occupied_count) > 0) || []
+                const lowestPrice = availableUnits.length ? Math.min(...availableUnits.map(u => u.web_rate || u.street_rate || 999)) : null
+                const activeSpecial = pmsData?.specials?.find(s => s.active)
+
+                // Unit Availability — operator language: specific types, real pricing, real counts
+                if (availableUnits.length > 0 && pmsData?.vacantUnits) {
+                  const topVacant = [...availableUnits].sort((a, b) => (b.total_count - b.occupied_count) - (a.total_count - a.occupied_count)).slice(0, 3)
+                  const sizeList = topVacant.map(u => u.size_label || u.unit_type).join(', ')
+                  templates.push({
+                    label: 'Unit Availability',
+                    body: `${facility.name} has ${pmsData.vacantUnits} units ready for move-in — ${sizeList}${lowestPrice ? ` starting at $${lowestPrice}/mo` : ''}. Drive-up access, month-to-month leases. Call or reserve online today.`,
+                    type: 'availability',
+                  })
+                } else {
+                  templates.push({
+                    label: 'Unit Availability',
+                    body: `${facility.name} has storage units available in multiple sizes. Climate-controlled and standard options with drive-up access. Call us for current pricing and availability.`,
+                    type: 'availability',
+                  })
+                }
+
+                // Promotion — use real PMS special with operator-grounded language, not agency "50% off" defaults
+                if (activeSpecial) {
+                  const discount = activeSpecial.discount_type === 'percent' ? `${activeSpecial.discount_value}% off` : activeSpecial.discount_type === 'months_free' ? `${activeSpecial.discount_value} month(s) free` : `$${activeSpecial.discount_value} off`
+                  const appliesTo = activeSpecial.applies_to?.length ? ` on ${activeSpecial.applies_to.slice(0, 3).join(', ')} units` : ''
+                  templates.push({
+                    label: activeSpecial.name,
+                    body: `${activeSpecial.name} at ${facility.name}: ${discount}${appliesTo}. ${activeSpecial.description || `Available now — limited availability.`} Reserve your unit today.`,
+                    type: 'offer',
+                  })
+                } else if (availableUnits.length > 0 && lowestPrice) {
+                  // No active special — use real pricing as the hook instead of fake discounts
+                  templates.push({
+                    label: 'Current Pricing',
+                    body: `Storage at ${facility.name} starts at $${lowestPrice}/mo. ${availableUnits.length} unit types available with month-to-month flexibility. No long-term contracts required. Reserve online or call us.`,
+                    type: 'update',
+                  })
+                } else {
+                  templates.push({
+                    label: 'Current Pricing',
+                    body: `${facility.name} offers competitive rates on all unit sizes. Month-to-month leases, no long-term contracts. Call for current pricing and availability.`,
+                    type: 'update',
+                  })
+                }
+
+                templates.push({ label: 'Holiday Hours', body: `Holiday hours update for ${facility.name}: We'll have adjusted hours this holiday season. Our office team is here to help — check our profile for updated times.`, type: 'event' })
+                return templates
+              })().map(t => (
                 <button key={t.label} onClick={() => { setShowPostForm(true); setPostBody(t.body); setPostType(t.type) }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg ${darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} transition-colors`}>
                   <Sparkles size={12} /> {t.label}

@@ -38,15 +38,15 @@ export default function BillingView({ adminKey: _adminKey, leads, darkMode }: { 
   }
 
   const SUB_TABS: { id: BillingSubTab; label: string; icon: typeof DollarSign }[] = [
-    { id: 'overview', label: 'Revenue Ops', icon: BarChart3 },
+    { id: 'overview', label: 'Revenue Overview', icon: BarChart3 },
     { id: 'invoices', label: 'Invoices', icon: Receipt },
     { id: 'clients', label: 'Client Accounts', icon: Building2 },
-    { id: 'reconciliation', label: 'Reconciliation', icon: Scale },
-    { id: 'pnl', label: 'P&L', icon: FileSpreadsheet },
+    { id: 'reconciliation', label: 'Spend Reconciliation', icon: Scale },
+    { id: 'pnl', label: 'Profit & Loss', icon: FileSpreadsheet },
     { id: 'dunning', label: 'Collections', icon: ShieldAlert },
     { id: 'pricing', label: 'Pricing & Tiers', icon: Layers },
     { id: 'referrals', label: 'Referral Network', icon: Share2 },
-    { id: 'projections', label: 'Projections', icon: TrendingUp },
+    { id: 'projections', label: 'Revenue Projections', icon: TrendingUp },
   ]
 
   return (

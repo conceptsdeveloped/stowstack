@@ -122,7 +122,7 @@ export default function RecoveryView({ adminKey, darkMode }: { adminKey: string;
           {[
             { label: 'Total (30d)', value: stats.total, icon: Eye, color: 'text-slate-600' },
             { label: 'Pending', value: stats.pending, icon: Clock, color: 'text-blue-600' },
-            { label: 'In Recovery', value: stats.in_recovery, icon: Mail, color: 'text-amber-600' },
+            { label: 'In Lead Recovery', value: stats.in_recovery, icon: Mail, color: 'text-amber-600' },
             { label: 'Recovered', value: stats.recovered, icon: CheckCircle2, color: 'text-emerald-600' },
             { label: 'Exhausted', value: stats.exhausted, icon: XCircle, color: 'text-slate-400' },
             { label: 'Hot Leads', value: stats.hot_leads, icon: Flame, color: 'text-red-600' },
@@ -143,7 +143,7 @@ export default function RecoveryView({ adminKey, darkMode }: { adminKey: string;
       {stats && stats.total > 0 && (
         <div className={`rounded-xl border p-4 mb-6 ${bg}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm font-semibold ${text}`}>Recovery Rate (30d)</span>
+            <span className={`text-sm font-semibold ${text}`}>Lead Recovery Rate (30d)</span>
             <span className={`text-lg font-bold ${stats.recovered > 0 ? 'text-emerald-600' : textMuted}`}>
               {stats.total > 0 ? ((stats.recovered / stats.total) * 100).toFixed(1) : 0}%
             </span>

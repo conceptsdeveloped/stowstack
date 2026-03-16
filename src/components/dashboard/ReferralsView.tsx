@@ -171,7 +171,7 @@ export default function ReferralsView({ adminKey, darkMode }: { adminKey: string
   }
 
   const getEmailShareLink = (code: string, name: string) => {
-    const subject = encodeURIComponent(`${name} thinks you should check out StowStack`)
+    const subject = encodeURIComponent(`${name} thinks you should check out StowStack by StorageAds.com`)
     const body = encodeURIComponent(
       `Hey,\n\n` +
       `I've been using StowStack for my storage facility and it's been a game-changer for filling vacant units. ` +
@@ -668,7 +668,7 @@ export default function ReferralsView({ adminKey, darkMode }: { adminKey: string
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`text-lg font-bold ${text}`}>Referral Network</h2>
+          <h2 className={`text-lg font-bold ${text}`}>Referral Program</h2>
           <p className={`text-sm ${sub}`}>Operators refer operators. Storage conferences are tight-knit — word of mouth is the channel.</p>
         </div>
         <button onClick={() => setShowNewCode(true)} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">

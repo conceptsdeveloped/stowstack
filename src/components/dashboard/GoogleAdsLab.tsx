@@ -133,16 +133,18 @@ function scoreCampaign(config: CampaignConfig, _facility: Facility): CampaignSco
 
 /* ── Component ── */
 
-export default function GoogleAdsLab({ facility, adminKey, darkMode }: {
+export default function GoogleAdsLab({ facility, adminKey, darkMode, pmsData }: {
   facility: Facility
   adminKey: string
   darkMode: boolean
+  pmsData?: import('@/hooks/usePMSData').PMSData | null
 }) {
   const [keywords, setKeywords] = useState<KeywordIdea[]>([])
   const [loading, setLoading] = useState(false)
+  const suggestedBudget = pmsData?.vacantUnits ? Math.max(20, Math.round(pmsData.vacantUnits * 2)) : 30
   const [config, setConfig] = useState<CampaignConfig>({
     name: `${facility.name} — Search`,
-    dailyBudget: 30,
+    dailyBudget: suggestedBudget,
     bidStrategy: 'maximize_clicks',
     targetCPA: null,
     geoRadius: 15,
@@ -226,6 +228,82 @@ export default function GoogleAdsLab({ facility, adminKey, darkMode }: {
         <h4 className={`text-sm font-semibold ${text}`}>Google Ads Laboratory</h4>
         <p className={`text-xs ${sub} mt-0.5`}>Build, score, and optimize Google Search campaigns for {facility.name}</p>
       </div>
+
+      {/* PMS Context Bar — occupancy-based strategy per storEDGE framework */}
+      {pmsData && pmsData.units.length > 0 && (() => {
+        const occ = pmsData.occupancyPct
+        const vacantWithRevenue = pmsData.units
+          .filter(u => (u.total_count - u.occupied_count) > 0)
+          .map(u => ({ type: u.unit_type, vacant: u.total_count - u.occupied_count, rate: u.street_rate || 0 }))
+        const monthlyRevenueGap = vacantWithRevenue.reduce((s, u) => s + u.vacant * u.rate, 0)
+        const lowestPrice = Math.min(...pmsData.units.map(u => u.web_rate || u.street_rate || 999))
+        const topVacant = vacantWithRevenue.sort((a, b) => b.vacant - a.vacant).slice(0, 3)
+
+        // Occupancy-based strategy directive (Section 5.1)
+        let strategyLabel: string, strategyColor: string, strategyDetail: string, bidRec: string
+        if (occ < 80) {
+          strategyLabel = 'Aggressive Demand Generation'
+          strategyColor = darkMode ? 'text-red-400' : 'text-red-600'
+          strategyDetail = 'Broad targeting. Strong offers. CPMI target is secondary to volume — fill units first.'
+          bidRec = 'maximize_clicks'
+        } else if (occ < 90) {
+          strategyLabel = 'Targeted by Unit Type'
+          strategyColor = darkMode ? 'text-amber-400' : 'text-amber-600'
+          strategyDetail = `Focus on underperforming types: ${topVacant.map(u => u.type).join(', ') || 'varies'}. Optimize CPMI.`
+          bidRec = 'maximize_conversions'
+        } else if (occ < 95) {
+          strategyLabel = 'Selective + Rate Optimization'
+          strategyColor = darkMode ? 'text-blue-400' : 'text-blue-600'
+          strategyDetail = 'Fill specific vacancies only. Rate increases are the primary revenue lever now.'
+          bidRec = 'target_cpa'
+        } else {
+          strategyLabel = 'Revenue Maximization Only'
+          strategyColor = darkMode ? 'text-emerald-400' : 'text-emerald-600'
+          strategyDetail = 'Minimal acquisition spend. Focus on rate increases and waitlist campaigns.'
+          bidRec = 'manual_cpc'
+        }
+
+        return (
+          <div className={`border rounded-xl p-4 space-y-3 ${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+            <div className="flex items-center justify-between">
+              <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>StorEdge PMS — Campaign Intelligence</p>
+              <span className={`text-xs font-bold ${strategyColor}`}>{strategyLabel}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+              <div>
+                <p className={`text-lg font-bold ${text}`}>{pmsData.vacantUnits}</p>
+                <p className={`text-xs ${sub}`}>Vacant Units</p>
+              </div>
+              <div>
+                <p className={`text-lg font-bold ${text}`}>{occ.toFixed(1)}%</p>
+                <p className={`text-xs ${sub}`}>Occupancy</p>
+              </div>
+              <div>
+                <p className={`text-lg font-bold ${text}`}>${lowestPrice}</p>
+                <p className={`text-xs ${sub}`}>Starting Price</p>
+              </div>
+              <div>
+                <p className={`text-lg font-bold ${darkMode ? 'text-red-400' : 'text-red-600'}`}>${monthlyRevenueGap.toLocaleString()}</p>
+                <p className={`text-xs ${sub}`}>Monthly Revenue Gap</p>
+              </div>
+              <div>
+                <p className={`text-lg font-bold ${text}`}>${suggestedBudget}/day</p>
+                <p className={`text-xs ${sub}`}>Suggested Budget</p>
+              </div>
+            </div>
+            <div className={`text-xs ${sub} border-t pt-2 ${darkMode ? 'border-blue-800' : 'border-blue-200'}`}>
+              <p><strong className={strategyColor}>Strategy:</strong> {strategyDetail}</p>
+              {topVacant.length > 0 && (
+                <p className="mt-1"><strong>Priority units:</strong> {topVacant.map(u => `${u.type} (${u.vacant} vacant × $${u.rate} = $${(u.vacant * u.rate).toLocaleString()}/mo gap)`).join(' · ')}</p>
+              )}
+              {occ >= 95 && <p className="mt-1 font-medium">At {occ.toFixed(1)}% occupancy, every $1 in ad spend should be justified by rate optimization ROI, not unit fills.</p>}
+              {bidRec !== config.bidStrategy && (
+                <p className="mt-1"><strong>Bid strategy suggestion:</strong> Based on occupancy, consider <em>{BID_STRATEGIES.find(b => b.id === bidRec)?.label}</em> instead of {BID_STRATEGIES.find(b => b.id === config.bidStrategy)?.label}.</p>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Campaign Score */}
       {score && (

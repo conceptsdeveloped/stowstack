@@ -319,7 +319,7 @@ export default function AttributionView({ adminKey, darkMode }: { adminKey: stri
                 : `${darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`
             }`}
           >
-            {t === 'leads' ? 'Consumer Leads' : t === 'campaigns' ? 'Campaign ROAS' : 'Monthly Trend'}
+            {t === 'leads' ? 'Lead Sources' : t === 'campaigns' ? 'Campaign ROI' : 'Monthly Trends'}
           </button>
         ))}
       </div>
@@ -329,7 +329,7 @@ export default function AttributionView({ adminKey, darkMode }: { adminKey: stri
         <div className={`rounded-xl border overflow-hidden ${bg}`}>
           <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
             <div className="flex items-center gap-2">
-              <span className={`text-sm font-semibold ${text}`}>Consumer Leads</span>
+              <span className={`text-sm font-semibold ${text}`}>Lead Sources</span>
               <span className={`text-xs ${textMuted}`}>({leads.length})</span>
             </div>
             <div className="flex items-center gap-2">
@@ -378,7 +378,7 @@ export default function AttributionView({ adminKey, darkMode }: { adminKey: stri
         </div>
       )}
 
-      {/* Campaign ROAS Table */}
+      {/* Campaign ROI Table */}
       {tab === 'campaigns' && (
         <div className={`rounded-xl border overflow-hidden ${bg}`}>
           <div className={`px-4 py-3 border-b ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
@@ -437,7 +437,7 @@ export default function AttributionView({ adminKey, darkMode }: { adminKey: stri
         </div>
       )}
 
-      {/* Monthly Trend Chart */}
+      {/* Monthly Trends Chart */}
       {tab === 'trend' && (
         <div className={`rounded-xl border p-4 ${bg}`}>
           <h3 className={`text-sm font-semibold mb-4 ${text}`}>Monthly ROAS Trend</h3>

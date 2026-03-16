@@ -490,7 +490,7 @@ export default function MoveOutRemarketingView({ adminKey, darkMode }: { adminKe
               )}
             </button>
           )}
-          <h3 className="font-semibold text-sm">Remarketing Sequences ({filtered.length})</h3>
+          <h3 className="font-semibold text-sm">Exit Remarketing Sequences ({filtered.length})</h3>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">

@@ -31,8 +31,8 @@ function checkAuth(req) {
    ═══════════════════════════════════════════════════════════════ */
 
 async function buildFacilityContext(facilityId) {
-  // Fetch facility + places data + onboarding data in parallel
-  const [facilities, onboardingRows] = await Promise.all([
+  // Fetch facility + places data + onboarding data + PMS data in parallel
+  const [facilities, onboardingRows, pmsUnits, pmsSnapshots, pmsSpecials] = await Promise.all([
     query(
       `SELECT f.*, pd.photos, pd.reviews
        FROM facilities f
@@ -50,6 +50,21 @@ async function buildFacilityContext(facilityId) {
        ORDER BY co.updated_at DESC LIMIT 1`,
       [facilityId]
     ),
+    query(
+      `SELECT unit_type, total_count, occupied_count, (total_count - occupied_count) AS vacant_count, street_rate, web_rate, actual_avg_rate, features
+       FROM facility_pms_units WHERE facility_id = $1 ORDER BY total_count DESC`,
+      [facilityId]
+    ).catch(() => []),
+    query(
+      `SELECT occupancy_pct, actual_revenue, gross_potential, delinquency_pct, move_ins_mtd, move_outs_mtd
+       FROM facility_pms_snapshots WHERE facility_id = $1 ORDER BY snapshot_date DESC LIMIT 1`,
+      [facilityId]
+    ).catch(() => []),
+    query(
+      `SELECT name, description, discount_type, discount_value, applies_to
+       FROM facility_pms_specials WHERE facility_id = $1 AND active = true`,
+      [facilityId]
+    ).catch(() => []),
   ])
 
   if (!facilities.length) return null
@@ -134,6 +149,80 @@ async function buildFacilityContext(facilityId) {
       if (ap.pastAdExperience) lines.push(`Past Ad Experience: ${ap.pastAdExperience}`)
       if (ap.notes) lines.push(`Operator Notes: ${ap.notes}`)
     }
+  }
+
+  // ── PMS Data (from storEDGE imports) — THE SINGLE SOURCE OF TRUTH ──
+  if (pmsUnits.length) {
+    const totalUnits = pmsUnits.reduce((s, u) => s + (u.total_count || 0), 0)
+    const totalOccupied = pmsUnits.reduce((s, u) => s + (u.occupied_count || 0), 0)
+    const totalVacant = totalUnits - totalOccupied
+    const overallOccupancy = totalUnits > 0 ? ((totalOccupied / totalUnits) * 100).toFixed(1) : null
+    const grossPotential = pmsUnits.reduce((s, u) => s + ((u.total_count || 0) * (u.street_rate || 0)), 0)
+    const actualRevenue = pmsUnits.reduce((s, u) => s + ((u.occupied_count || 0) * (u.actual_avg_rate || u.street_rate || 0)), 0)
+    const revenueLost = grossPotential - actualRevenue
+
+    lines.push('\n═══ storEDGE PMS DATA (CANONICAL SOURCE OF TRUTH) ═══')
+    lines.push('CRITICAL: This data comes directly from the operator\'s PMS. All recommendations MUST be grounded in these numbers. Never contradict PMS data.')
+
+    // Unit-level breakdown with occupancy context
+    lines.push('\nUNIT INVENTORY (by type):')
+    pmsUnits.forEach(u => {
+      const occPct = u.total_count > 0 ? ((u.occupied_count / u.total_count) * 100).toFixed(0) : '0'
+      const features = Array.isArray(u.features) && u.features.length ? ` [${u.features.join(', ')}]` : ''
+      const revenueGap = u.vacant_count * (u.street_rate || 0)
+      lines.push(`  ${u.unit_type}: ${u.occupied_count}/${u.total_count} occupied (${occPct}%), ${u.vacant_count} vacant, street $${u.street_rate || '?'}/mo${u.web_rate ? `, web $${u.web_rate}/mo` : ''}${u.actual_avg_rate ? `, avg actual $${u.actual_avg_rate}/mo` : ''}${features}${revenueGap > 0 ? ` → $${revenueGap.toLocaleString()}/mo revenue opportunity` : ''}`)
+    })
+
+    // Facility-level summary
+    lines.push(`\nFACILITY SUMMARY: ${overallOccupancy}% occupied, ${totalVacant} vacant units, $${actualRevenue.toLocaleString()}/mo actual revenue, $${grossPotential.toLocaleString()}/mo gross potential, $${revenueLost.toLocaleString()}/mo revenue gap`)
+
+    // OCCUPANCY-BASED STRATEGY DIRECTIVE (from Section 5.1)
+    const occ = parseFloat(overallOccupancy) || 0
+    lines.push('\n--- STRATEGIC DIRECTIVE (based on occupancy level) ---')
+    if (occ < 80) {
+      lines.push(`STRATEGY: AGGRESSIVE DEMAND GENERATION. At ${occ}% occupancy, this facility needs volume. Use broad targeting, strong offers, price-anchored headlines. Lead with availability and value. Budget should scale up — CPMI target is secondary to filling units.`)
+    } else if (occ < 90) {
+      lines.push(`STRATEGY: TARGETED DEMAND GENERATION. At ${occ}% occupancy, focus on underperforming unit types specifically. Don't run generic "storage available" — target the specific unit sizes with vacancy.`)
+      const underperforming = pmsUnits.filter(u => u.total_count > 0 && ((u.occupied_count / u.total_count) * 100) < 80)
+      if (underperforming.length) {
+        lines.push(`Priority unit types to fill: ${underperforming.map(u => `${u.unit_type} (${u.vacant_count} vacant)`).join(', ')}`)
+      }
+    } else if (occ < 95) {
+      lines.push(`STRATEGY: SELECTIVE + RATE OPTIMIZATION. At ${occ}% occupancy, only generate demand for specific remaining vacancies. Rate optimization becomes the primary revenue lever. Consider testing rate increases on high-occupancy unit types.`)
+      const highOcc = pmsUnits.filter(u => u.total_count > 0 && ((u.occupied_count / u.total_count) * 100) >= 93)
+      if (highOcc.length) {
+        lines.push(`Rate increase candidates (93%+ occupied): ${highOcc.map(u => `${u.unit_type} at ${((u.occupied_count / u.total_count) * 100).toFixed(0)}%`).join(', ')}`)
+      }
+    } else {
+      lines.push(`STRATEGY: REVENUE MAXIMIZATION. At ${occ}% occupancy, MINIMAL OR ZERO acquisition ad spend. Focus on rate increases, waitlist strategy, premium positioning. Do NOT spend money driving demand for units that don't exist.`)
+    }
+
+    // ANTI-PATTERNS
+    lines.push('\n--- RULES (NEVER VIOLATE) ---')
+    lines.push('- NEVER advertise a unit type that is at 100% occupancy')
+    lines.push('- NEVER use generic "Self Storage Near You" — always reference specific unit types, sizes, and pricing from the PMS data above')
+    lines.push('- NEVER present occupancy without unit-type breakdown')
+    lines.push('- All pricing in ads/landing pages MUST match current PMS rates shown above')
+    lines.push('- Every recommendation must connect to revenue impact in dollars')
+    lines.push('- Speak in operator language: revenue, move-ins, cost per move-in — NOT impressions, CTR, CPM')
+  }
+
+  if (pmsSnapshots.length) {
+    const s = pmsSnapshots[0]
+    if (s.move_ins_mtd || s.move_outs_mtd) {
+      const netMoveIns = (s.move_ins_mtd || 0) - (s.move_outs_mtd || 0)
+      lines.push(`\nMonth-to-date activity: ${s.move_ins_mtd} move-ins, ${s.move_outs_mtd} move-outs (net ${netMoveIns >= 0 ? '+' : ''}${netMoveIns})`)
+    }
+    if (s.delinquency_pct) lines.push(`Delinquency: ${s.delinquency_pct}%`)
+  }
+
+  if (pmsSpecials.length) {
+    lines.push('\nACTIVE PROMOTIONS (from PMS — use these exact offers in ad copy):')
+    pmsSpecials.forEach(sp => {
+      const discount = sp.discount_type === 'percent' ? `${sp.discount_value}% off` : sp.discount_type === 'months_free' ? `${sp.discount_value} month(s) free` : `$${sp.discount_value} off`
+      const appliesTo = sp.applies_to?.length ? ` (applies to: ${sp.applies_to.join(', ')})` : ''
+      lines.push(`  ${sp.name}: ${discount}${appliesTo}${sp.description ? ` — ${sp.description}` : ''}`)
+    })
   }
 
   return { facility: f, context: lines.join('\n'), onboarding }

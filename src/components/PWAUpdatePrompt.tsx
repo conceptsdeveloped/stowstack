@@ -12,7 +12,15 @@ export function PWAUpdatePrompt() {
         <RefreshCw size={16} className="text-emerald-400 shrink-0" />
         <p className="text-sm text-white/80">New version available</p>
         <button
-          onClick={() => updateServiceWorker(true)}
+          onClick={async () => {
+            try {
+              await updateServiceWorker(true);
+            } catch {
+              // Fallback: force reload if SW update fails
+            }
+            // Ensure page reloads even if updateServiceWorker doesn't trigger it
+            setTimeout(() => window.location.reload(), 1000);
+          }}
           className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors"
         >
           Update

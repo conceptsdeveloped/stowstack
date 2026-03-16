@@ -623,7 +623,7 @@ export default function ChurnPredictionView({ adminKey, darkMode }: { adminKey: 
             onChange={handleSelectAll}
             className="rounded border-slate-300"
           />
-          <h3 className="font-semibold text-sm">Churn Predictions ({filtered.length})</h3>
+          <h3 className="font-semibold text-sm">Churn Risks ({filtered.length})</h3>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">

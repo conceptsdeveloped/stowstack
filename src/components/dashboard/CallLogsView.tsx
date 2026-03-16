@@ -143,7 +143,7 @@ export default function CallLogsView({ adminKey, darkMode, leads }: { adminKey: 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Phone size={18} className={darkMode ? 'text-cyan-400' : 'text-cyan-600'} />
-          <h2 className="text-lg font-bold">Call Logs</h2>
+          <h2 className="text-lg font-bold">Call Tracking</h2>
         </div>
         <div className="flex items-center gap-2">
           <select

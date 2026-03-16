@@ -25,7 +25,7 @@ export default function PillarPage({ pillar, onNavigate }: Props) {
   return (
     <>
       <Helmet>
-        <title>{pillarInfo.label} | StowStack Blog</title>
+        <title>{pillarInfo.label} | StowStack by StorageAds.com</title>
         <meta name="description" content={pillarInfo.description} />
         <link rel="canonical" href={`https://stowstack.co/blog/${pillar}`} />
       </Helmet>

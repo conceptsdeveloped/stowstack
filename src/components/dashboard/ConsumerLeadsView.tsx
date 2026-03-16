@@ -238,7 +238,7 @@ export default function ConsumerLeadsView({ adminKey, darkMode }: { adminKey: st
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold">Consumer Leads</h2>
+          <h2 className="text-lg font-bold">Inbound Leads</h2>
           <p className={`text-sm mt-0.5 ${textMuted}`}>
             Track leads from landing pages through to move-in
           </p>

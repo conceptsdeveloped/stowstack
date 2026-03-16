@@ -108,7 +108,7 @@ export default function SharedAuditsView({ adminKey, darkMode }: { adminKey: str
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className={`text-sm font-semibold ${dm ? 'text-slate-300' : 'text-slate-600'}`}>
-          Shared Audit Links
+          Site Audits
         </h3>
         <button onClick={fetchAudits} disabled={loading}
           className={`flex items-center gap-1.5 text-xs font-medium ${dm ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>

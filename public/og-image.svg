@@ -14,10 +14,11 @@
   <rect x="60" y="250" width="64" height="64" rx="12" fill="url(#brand)"/>
   <path d="M80 274h24v22H80z" fill="none" stroke="#fff" stroke-width="2"/>
   <path d="M80 274l12-6 12 6" fill="none" stroke="#fff" stroke-width="2"/>
-  <text x="140" y="298" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="800" fill="#ffffff">StowStack</text>
+  <text x="140" y="290" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="800" fill="#ffffff">StowStack</text>
+  <text x="140" y="312" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="500" fill="#64748b">by StorageAds.com</text>
   <text x="62" y="370" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#94a3b8">Meta Ads for Self-Storage Operators</text>
   <text x="62" y="420" font-family="Inter, system-ui, sans-serif" font-size="18" fill="#64748b">Fill vacant units with targeted campaigns. Live in 48-72 hours.</text>
   <rect x="62" y="470" width="240" height="48" rx="10" fill="url(#brand)"/>
   <text x="110" y="500" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="600" fill="#ffffff">Get Your Free Audit</text>
-  <text x="62" y="580" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#475569">stowstack.com</text>
+  <text x="62" y="580" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#475569">StorageAds.com</text>
 </svg>

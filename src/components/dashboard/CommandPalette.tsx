@@ -30,37 +30,35 @@ export default function CommandPalette({ query, onQueryChange, leads, darkMode, 
 
   const actions = [
     // Leads
-    { id: 'pipeline', label: 'Go to Pipeline', icon: Users, group: 'Leads' },
-    { id: 'kanban', label: 'Go to Kanban Board', icon: Columns3, group: 'Leads' },
-    // Portfolio
-    { id: 'portfolio', label: 'Go to Portfolio', icon: BarChart3, group: 'Portfolio' },
-    { id: 'optimizer', label: 'Go to Optimizer', icon: Target, group: 'Portfolio' },
-    { id: 'facilities', label: 'Go to Facilities', icon: Building2, group: 'Portfolio' },
-    // Analytics
-    { id: 'insights', label: 'Go to Insights', icon: TrendingUp, group: 'Analytics' },
-    { id: 'attribution', label: 'Go to Attribution', icon: Target, group: 'Analytics' },
-    // Revenue
-    { id: 'billing', label: 'Go to Billing', icon: CreditCard, group: 'Revenue' },
-    { id: 'tenants', label: 'Go to Tenants', icon: Wallet, group: 'Revenue' },
-    { id: 'upsell', label: 'Go to Upsell Engine', icon: TrendingDown, group: 'Revenue' },
-    { id: 'churn', label: 'Go to Churn Intel', icon: ShieldAlert, group: 'Revenue' },
-    // Marketing
-    { id: 'sequences', label: 'Go to Sequences', icon: CalendarClock, group: 'Marketing' },
-    { id: 'playbooks', label: 'Go to Playbooks', icon: CalendarRange, group: 'Marketing' },
-    { id: 'remarketing', label: 'Go to Remarketing', icon: RotateCcw, group: 'Marketing' },
-    { id: 'recovery', label: 'Go to Recovery', icon: Flame, group: 'Marketing' },
-    // Ops
-    { id: 'shared-audits', label: 'Go to Audits', icon: Share2, group: 'Ops' },
-    { id: 'partners', label: 'Go to Partners', icon: Building2, group: 'Ops' },
-    { id: 'referrals', label: 'Go to Referrals', icon: Gift, group: 'Ops' },
-    { id: 'activity-log', label: 'Go to Activity Log', icon: Activity, group: 'Ops' },
-    { id: 'call-logs', label: 'Go to Call Logs', icon: Phone, group: 'Ops' },
-    // Leads (extended)
-    { id: 'consumer-leads', label: 'Go to Consumer Leads', icon: UserCheck, group: 'Leads' },
+    { id: 'pipeline', label: 'Go to Lead Pipeline', icon: Users, group: 'Leads' },
+    { id: 'kanban', label: 'Go to Lead Board', icon: Columns3, group: 'Leads' },
+    { id: 'consumer-leads', label: 'Go to Inbound Leads', icon: UserCheck, group: 'Leads' },
     { id: 'alerts', label: 'Go to Campaign Alerts', icon: Bell, group: 'Leads' },
+    // Facilities
+    { id: 'portfolio', label: 'Go to Portfolio Overview', icon: BarChart3, group: 'Facilities' },
+    { id: 'facilities', label: 'Go to Facility Manager', icon: Building2, group: 'Facilities' },
+    { id: 'optimizer', label: 'Go to Spend Optimizer', icon: Target, group: 'Facilities' },
+    { id: 'tenants', label: 'Go to Client Accounts', icon: Wallet, group: 'Facilities' },
+    // Marketing
+    { id: 'sequences', label: 'Go to Email Sequences', icon: CalendarClock, group: 'Marketing' },
+    { id: 'playbooks', label: 'Go to Campaign Playbooks', icon: CalendarRange, group: 'Marketing' },
+    { id: 'attribution', label: 'Go to Attribution', icon: Target, group: 'Marketing' },
+    { id: 'remarketing', label: 'Go to Exit Remarketing', icon: RotateCcw, group: 'Marketing' },
+    { id: 'recovery', label: 'Go to Lead Recovery', icon: Flame, group: 'Marketing' },
+    // Revenue
+    { id: 'insights', label: 'Go to Performance Insights', icon: TrendingUp, group: 'Revenue' },
+    { id: 'billing', label: 'Go to Billing & Invoices', icon: CreditCard, group: 'Revenue' },
+    { id: 'upsell', label: 'Go to Upsell Opportunities', icon: TrendingDown, group: 'Revenue' },
+    { id: 'churn', label: 'Go to Churn Prevention', icon: ShieldAlert, group: 'Revenue' },
+    // Operations
+    { id: 'activity-log', label: 'Go to Activity Log', icon: Activity, group: 'Operations' },
+    { id: 'call-logs', label: 'Go to Call Tracking', icon: Phone, group: 'Operations' },
+    { id: 'shared-audits', label: 'Go to Site Audits', icon: Share2, group: 'Operations' },
+    { id: 'partners', label: 'Go to Partners', icon: Building2, group: 'Operations' },
+    { id: 'referrals', label: 'Go to Referral Program', icon: Gift, group: 'Operations' },
     // System
     { id: 'settings', label: 'Go to Settings', icon: Settings, group: 'System' },
-    { id: 'whats-new', label: "Go to What's New", icon: Sparkles, group: 'System' },
+    { id: 'whats-new', label: 'Go to Changelog', icon: Sparkles, group: 'System' },
     // Actions
     { id: 'dark', label: darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode', icon: darkMode ? Sun : Moon, group: 'Actions' },
     { id: 'guide', label: 'Open Admin Guide', icon: BookOpen, group: 'Actions' },

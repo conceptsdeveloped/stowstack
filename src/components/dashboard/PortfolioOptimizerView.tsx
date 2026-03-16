@@ -244,7 +244,7 @@ export default function PortfolioOptimizerView({ leads, adminKey, darkMode }: { 
     return (
       <div className={`rounded-xl border p-8 text-center ${card}`}>
         <Target className={`mx-auto mb-3 ${textMuted}`} size={40} />
-        <h3 className={`text-lg font-semibold mb-2 ${text}`}>Portfolio Optimizer</h3>
+        <h3 className={`text-lg font-semibold mb-2 ${text}`}>Spend Optimizer</h3>
         <p className={textMuted}>
           The portfolio optimizer requires at least 2 signed clients with campaign data to generate spend recommendations.
           Currently tracking {signedClients.length} signed client{signedClients.length !== 1 ? 's' : ''}.

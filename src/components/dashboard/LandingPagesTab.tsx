@@ -429,7 +429,7 @@ function SectionEditor({
 
 /* ── Landing Pages Tab ── */
 
-export default function LandingPagesTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
+export default function LandingPagesTab({ facility, adminKey, darkMode, pmsData }: { facility: Facility; adminKey: string; darkMode: boolean; pmsData?: import('@/hooks/usePMSData').PMSData | null }) {
   const [pages, setPages] = useState<LandingPageRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [editingPage, setEditingPage] = useState<LandingPageRecord | null>(null)
@@ -486,14 +486,32 @@ export default function LandingPagesTab({ facility, adminKey, darkMode }: { faci
 
   function buildSectionDefaults(sectionType: string): Record<string, any> {
     const defaults: Record<string, Record<string, any>> = {
-      hero: { headline: facility.name || 'Self Storage', subheadline: facility.location ? `Convenient storage in ${facility.location}` : 'Secure, affordable self storage near you', ctaText: 'Reserve Your Unit', ctaUrl: '#cta', badgeText: facility.google_rating ? `★ ${facility.google_rating} rated on Google` : '', style: 'dark', facilityName: facility.name },
+      hero: { headline: facility.name || 'Self Storage', subheadline: (() => {
+        if (!pmsData?.units?.length) return facility.location ? `Convenient storage in ${facility.location}` : 'Secure, affordable self storage near you'
+        // Only reference units with actual vacancy — never advertise 100% occupied units
+        const available = pmsData.units.filter(u => (u.total_count - u.occupied_count) > 0)
+        if (!available.length) return `Secure self storage in ${facility.location || 'your area'} — limited availability`
+        const lowestPrice = Math.min(...available.map(u => u.web_rate || u.street_rate || 999))
+        return `${available.length} unit sizes available from $${lowestPrice}/mo in ${facility.location || 'your area'}`
+      })(), ctaText: 'Reserve Your Unit', ctaUrl: '#cta', badgeText: facility.google_rating ? `★ ${facility.google_rating} rated on Google` : '', style: 'dark', facilityName: facility.name },
       trust_bar: { items: [{ icon: 'shield', text: '24/7 Security' }, { icon: 'clock', text: 'Easy Access Hours' }, { icon: 'star', text: facility.google_rating ? `${facility.google_rating}★ Google Rating` : 'Top Rated' }] },
       features: { headline: 'Why Choose Us', items: [{ icon: 'shield', title: 'Secure Storage', desc: 'State-of-the-art security systems and 24/7 monitoring.' }, { icon: 'clock', title: 'Easy Access', desc: 'Flexible access hours that work with your schedule.' }, { icon: 'truck', title: 'Drive-Up Units', desc: 'Easy loading and unloading with drive-up access.' }] },
-      unit_types: { headline: 'Available Units', units: [{ name: 'Small', size: '5x5', price: '$49', features: ['Climate controlled'] }, { name: 'Medium', size: '10x10', price: '$89', features: ['Drive-up access'] }, { name: 'Large', size: '10x20', price: '$139', features: ['Drive-up access', 'Extra height'] }] },
+      unit_types: { headline: 'Available Units', units: pmsData?.units?.length
+        ? pmsData.units
+            .filter(u => (u.total_count - u.occupied_count) > 0) // NEVER show 100% occupied units — PMS is truth
+            .sort((a, b) => (b.total_count - b.occupied_count) - (a.total_count - a.occupied_count)) // Most vacant first
+            .slice(0, 8)
+            .map(u => ({
+              name: u.unit_type,
+              size: u.size_label || `${u.width_ft}x${u.depth_ft}`,
+              price: `$${u.web_rate || u.street_rate || 0}/mo`,
+              features: (u.features || []).map((f: string) => f === 'climate' ? 'Climate Controlled' : f === 'drive_up' ? 'Drive-Up Access' : f === 'interior' ? 'Interior' : f === 'elevator' ? 'Elevator Access' : f === 'alarmed' ? 'Individually Alarmed' : f === 'heated' ? 'Heated' : f.replace(/_/g, ' ')),
+            }))
+        : [{ name: 'Small', size: '5x5', price: '$49', features: ['Climate controlled'] }, { name: 'Medium', size: '10x10', price: '$89', features: ['Drive-up access'] }, { name: 'Large', size: '10x20', price: '$139', features: ['Drive-up access', 'Extra height'] }] },
       gallery: { headline: 'Our Facility', images: [] },
       testimonials: { headline: 'What Our Customers Say', items: [{ name: 'Happy Customer', text: 'Great facility with friendly staff. I highly recommend it!', metric: 'Long-term tenant' }] },
       faq: { headline: 'Frequently Asked Questions', items: [{ q: 'What are your access hours?', a: 'Our facility offers convenient access hours. Contact us for specific times.' }, { q: 'Do you offer climate-controlled units?', a: 'Yes! We have a variety of climate-controlled options available.' }] },
-      cta: { headline: 'Reserve Your Unit Today', subheadline: 'Limited availability. Secure your space before it is gone.', ctaText: 'Check Availability', phone: facility.contact_phone || '', email: facility.contact_email || '', style: 'gradient' },
+      cta: { headline: 'Reserve Your Unit Today', subheadline: pmsData?.vacantUnits ? `Only ${pmsData.vacantUnits} units remaining — secure your space now.` : 'Limited availability. Secure your space before it is gone.', ctaText: 'Check Availability', phone: facility.contact_phone || '', email: facility.contact_email || '', style: 'gradient' },
       location_map: { headline: 'Find Us', address: facility.google_address || facility.location || '', directions: '' },
     }
     return defaults[sectionType] || SECTION_TYPE_META[sectionType]?.defaultConfig || {}

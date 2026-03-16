@@ -608,7 +608,7 @@ export default function DemoDashboard({ onBack }: { onBack: () => void }) {
               onClick={onBack}
               className="text-sm text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
             >
-              Back to StowStack.co
+              Back to StorageAds.com
             </button>
           </div>
         </div>

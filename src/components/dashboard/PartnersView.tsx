@@ -756,7 +756,7 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className={`text-lg font-bold ${dm ? 'text-white' : ''}`}>Partner Organizations</h2>
+          <h2 className={`text-lg font-bold ${dm ? 'text-white' : ''}`}>Partners</h2>
           <p className={`text-xs mt-0.5 ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
             Management companies with white-label access
           </p>

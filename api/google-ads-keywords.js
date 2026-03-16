@@ -112,6 +112,76 @@ export default async function handler(req, res) {
       lines.push('Weight keyword suggestions toward these strategic priorities.')
     }
 
+    // PMS data enrichment — storEDGE is canonical source of truth
+    try {
+      const [pmsUnits, pmsSnap, pmsSpecials] = await Promise.all([
+        query(
+          `SELECT unit_type, size_label, street_rate, web_rate, total_count, occupied_count,
+                  (total_count - occupied_count) AS vacant_count, features
+           FROM facility_pms_units WHERE facility_id = $1 ORDER BY total_count DESC`,
+          [facilityId]
+        ),
+        query(
+          `SELECT occupancy_pct, total_units, occupied_units FROM facility_pms_snapshots
+           WHERE facility_id = $1 ORDER BY snapshot_date DESC LIMIT 1`,
+          [facilityId]
+        ),
+        query(
+          `SELECT name, applies_to, discount_type, discount_value FROM facility_pms_specials
+           WHERE facility_id = $1 AND active = true LIMIT 3`,
+          [facilityId]
+        ),
+      ])
+      if (pmsUnits.length) {
+        const totalUnits = pmsUnits.reduce((s, u) => s + (u.total_count || 0), 0)
+        const totalVacant = pmsUnits.reduce((s, u) => s + (u.vacant_count || 0), 0)
+        const occPct = pmsSnap[0]?.occupancy_pct || (totalUnits > 0 ? ((totalUnits - totalVacant) / totalUnits * 100).toFixed(1) : null)
+        const monthlyGap = pmsUnits.reduce((s, u) => s + ((u.vacant_count || 0) * (u.street_rate || 0)), 0)
+
+        lines.push('\n--- storEDGE PMS DATA (CANONICAL SOURCE OF TRUTH) ---')
+        pmsUnits.forEach(u => {
+          const features = Array.isArray(u.features) && u.features.length ? ` [${u.features.join(', ')}]` : ''
+          const vacancy = u.vacant_count > 0 ? `${u.vacant_count} vacant ($${(u.vacant_count * (u.street_rate || 0)).toLocaleString()}/mo revenue gap)` : 'FULL — do NOT target'
+          lines.push(`${u.unit_type}: $${u.street_rate || '?'}/mo${u.web_rate ? `, web $${u.web_rate}` : ''} — ${vacancy}${features}`)
+        })
+        if (occPct) lines.push(`Overall occupancy: ${occPct}%`)
+        lines.push(`Total vacant: ${totalVacant} units | Monthly revenue gap: $${monthlyGap.toLocaleString()}`)
+
+        // Occupancy-based strategy directive (Section 5.1)
+        const occ = parseFloat(occPct) || 0
+        if (occ < 80) {
+          lines.push('\nSTRATEGY: AGGRESSIVE DEMAND — Under 80% occupancy. Broad keywords, strong offer terms, volume over efficiency.')
+          lines.push('Generate keywords covering ALL available unit types. Include move-in incentive keywords.')
+        } else if (occ < 90) {
+          const priorityTypes = pmsUnits.filter(u => u.vacant_count > 0).sort((a, b) => b.vacant_count - a.vacant_count).slice(0, 3)
+          lines.push(`\nSTRATEGY: TARGETED BY UNIT TYPE — 80-90% occupancy. Focus on underperforming types.`)
+          lines.push(`Priority unit types to fill: ${priorityTypes.map(u => `${u.unit_type} (${u.vacant_count} vacant)`).join(', ')}`)
+          lines.push('Weight keywords toward these specific unit sizes/types. Optimize for CPMI.')
+        } else if (occ < 95) {
+          lines.push('\nSTRATEGY: SELECTIVE + RATE OPTIMIZATION — 90-95% occupancy. Fill specific vacancies only.')
+          lines.push('Generate precise, long-tail keywords for remaining vacant unit types. Reduce broad match terms.')
+        } else {
+          lines.push('\nSTRATEGY: REVENUE MAXIMIZATION — 95%+ occupancy. Minimal acquisition keywords.')
+          lines.push('Focus on brand defense, waitlist/coming-soon, and high-value unit keywords only.')
+        }
+
+        if (pmsSpecials.length) {
+          lines.push('\nActive promotions: ' + pmsSpecials.map(s => {
+            const disc = s.discount_type === 'percent' ? `${s.discount_value}% off` : s.discount_type === 'months_free' ? `${s.discount_value} mo free` : `$${s.discount_value} off`
+            return `${s.name} (${disc}${s.applies_to?.length ? ` on ${s.applies_to.join(', ')}` : ''})`
+          }).join('; '))
+          lines.push('Include keywords that align with these active promotions.')
+        }
+
+        // Anti-patterns (Section 9)
+        lines.push('\nRULES:')
+        lines.push('- NEVER generate generic "Self Storage Near You" — always reference specific unit types/sizes the facility has available')
+        lines.push('- NEVER target keywords for unit types at 100% occupancy')
+        lines.push('- Weight keywords toward unit types with the largest revenue gap')
+        lines.push('- Include location-specific keywords (city, neighborhood, landmarks)')
+      }
+    } catch { /* PMS data is optional enrichment */ }
+
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',

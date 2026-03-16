@@ -100,8 +100,8 @@ function emptySnapshot(facilityId: string): PMSSnapshot {
 
 /* ── Main Component ── */
 
-export default function PMSDataTab({ facility, adminKey, darkMode }: {
-  facility: Facility; adminKey: string; darkMode: boolean
+export default function PMSDataTab({ facility, adminKey, darkMode, onPMSImport }: {
+  facility: Facility; adminKey: string; darkMode: boolean; onPMSImport?: () => void
 }) {
   const [snapshot, setSnapshot] = useState<PMSSnapshot>(emptySnapshot(facility.id))
   const [units, setUnits] = useState<PMSUnit[]>([])
@@ -263,6 +263,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
         setShowPaste(false)
         setPasteText('')
         flash('success', `${data.units.length} unit types imported`)
+        onPMSImport?.()
       } catch (err: unknown) { flash('error', err instanceof Error ? err.message : 'Unknown error') }
       setSaving(null)
     })()
@@ -317,6 +318,7 @@ export default function PMSDataTab({ facility, adminKey, darkMode }: {
       }
 
       flash('success', `${report.label} imported successfully`)
+      onPMSImport?.()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setImportResults(prev => ({ ...prev, [report.type]: { success: false, msg } }))

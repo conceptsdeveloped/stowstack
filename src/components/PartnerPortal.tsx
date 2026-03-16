@@ -593,7 +593,7 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
 
       {!org.whiteLabel && (
         <div className="border-t border-slate-200 py-4 text-center">
-          <p className="text-xs text-slate-400">Powered by StowStack</p>
+          <p className="text-xs text-slate-400">Powered by StowStack <span className="text-slate-300">by StorageAds.com</span></p>
         </div>
       )}
     </div>

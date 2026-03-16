@@ -145,13 +145,16 @@ Context: ${promptContext || 'General update about the facility'}
 
 Guidelines:
 - Keep it under 300 characters (GBP character limit for posts)
-- Be engaging and action-oriented
-- Include a clear call-to-action
-- Use a friendly, professional tone
-- For offers: mention the specific deal and any urgency
-- For availability: mention unit types/sizes if known
+- Use OPERATOR language, not agency language. Write like a facility manager speaking to a neighbor, not a marketer.
+- Be specific: reference real unit types, real prices, real availability if provided in the context
+- Include a clear call-to-action (call, reserve online, visit)
+- NEVER use generic phrases like "Self Storage Near You" or "all your storage needs" — reference the specific facility and what's actually available
+- NEVER mention unit types that are listed as FULL in the context
+- For offers: reference the specific promotion from PMS data if available. Do NOT make up discounts.
+- For availability: cite specific unit sizes and pricing from the data
 - For events: include relevant dates/times
 - Don't use hashtags or emojis excessively
+- The post should be verifiable against the facility's own PMS data
 
 Return ONLY a JSON object with two fields:
 {"title": "Short title (under 60 chars)", "body": "Post body text"}`,
@@ -215,9 +218,52 @@ export default async function handler(req, res) {
       const { facilityId, postType: pType, promptContext } = req.body
       if (!facilityId) return res.status(400).json({ error: 'facilityId required' })
 
-      const facility = await query(`SELECT name FROM facilities WHERE id = $1`, [facilityId])
+      const [facility, pmsUnits, pmsSpecials, pmsSnap] = await Promise.all([
+        query(`SELECT name, location FROM facilities WHERE id = $1`, [facilityId]),
+        query(`SELECT unit_type, size_label, street_rate, web_rate, total_count, occupied_count, (total_count - occupied_count) AS vacant_count, features FROM facility_pms_units WHERE facility_id = $1 ORDER BY total_count DESC`, [facilityId]).catch(() => []),
+        query(`SELECT name, description, applies_to, discount_type, discount_value FROM facility_pms_specials WHERE facility_id = $1 AND active = true`, [facilityId]).catch(() => []),
+        query(`SELECT occupancy_pct FROM facility_pms_snapshots WHERE facility_id = $1 ORDER BY snapshot_date DESC LIMIT 1`, [facilityId]).catch(() => []),
+      ])
       const facilityName = facility[0]?.name || 'our facility'
-      const generated = await generateAIPostContent(facilityName, pType || 'update', promptContext || '')
+      const facilityLocation = facility[0]?.location || ''
+
+      // Build PMS context using the DATA → OBSERVATION → INSIGHT → RECOMMENDATION chain (Section 4.1)
+      let pmsContext = ''
+      if (pmsUnits.length) {
+        // Only reference units with actual vacancy — NEVER advertise 100% occupied types (Section 5.2)
+        const availableUnits = pmsUnits.filter(u => u.vacant_count > 0)
+        const totalVacant = availableUnits.reduce((s, u) => s + (u.vacant_count || 0), 0)
+        const occPct = pmsSnap[0]?.occupancy_pct || null
+        const lowestPrice = availableUnits.length ? Math.min(...availableUnits.map(u => u.web_rate || u.street_rate || 999)) : null
+        const monthlyGap = availableUnits.reduce((s, u) => s + (u.vacant_count * (u.street_rate || 0)), 0)
+
+        pmsContext += `\n\nstorEDGE PMS DATA (canonical source — use these real numbers):`
+        pmsContext += `\nFacility: ${facilityName}${facilityLocation ? ` in ${facilityLocation}` : ''}`
+        if (occPct) pmsContext += `\nOccupancy: ${occPct}%`
+        pmsContext += `\nVacant units: ${totalVacant} | Monthly revenue gap: $${monthlyGap.toLocaleString()}`
+        if (lowestPrice) pmsContext += `\nPricing starts at: $${lowestPrice}/mo`
+        if (availableUnits.length) {
+          pmsContext += `\nAvailable unit types: ${availableUnits.slice(0, 5).map(u => `${u.size_label || u.unit_type} ($${u.web_rate || u.street_rate}/mo, ${u.vacant_count} available)`).join('; ')}`
+        }
+        const fullTypes = pmsUnits.filter(u => u.vacant_count <= 0)
+        if (fullTypes.length) {
+          pmsContext += `\nFULL (do NOT mention): ${fullTypes.map(u => u.unit_type).join(', ')}`
+        }
+      }
+      if (pmsSpecials.length) {
+        const sp = pmsSpecials[0]
+        const discount = sp.discount_type === 'percent' ? `${sp.discount_value}% off` : sp.discount_type === 'months_free' ? `${sp.discount_value} month(s) free` : `$${sp.discount_value} off`
+        const appliesTo = sp.applies_to?.length ? ` on ${sp.applies_to.join(', ')}` : ''
+        pmsContext += `\nActive promotion: ${sp.name} — ${discount}${appliesTo}. ${sp.description || ''}`
+      }
+      if (pmsContext) {
+        pmsContext += '\n\nRULES: Use operator language, not agency-speak. Reference specific unit types, real prices, real availability.'
+        pmsContext += ' NEVER say "Self Storage Near You" — be specific to this facility.'
+        pmsContext += ' NEVER reference unit types that are at 100% occupancy.'
+        pmsContext += ' Every claim must be grounded in the PMS data above.'
+      }
+
+      const generated = await generateAIPostContent(facilityName, pType || 'update', (promptContext || '') + pmsContext)
       return res.json({ generated })
     }
 

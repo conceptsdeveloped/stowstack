@@ -206,12 +206,12 @@ function PWAInstallCard({ darkMode, cardClass }: { darkMode: boolean; cardClass:
       {isInstalled ? (
         <div className={`flex items-center gap-2 text-xs ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
           <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-          StowStack is installed on this device
+          StowStack by StorageAds.com is installed on this device
         </div>
       ) : canInstall ? (
         <div>
           <p className={`text-xs mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            Install StowStack as an app on this device for instant lead alerts, offline access, and quick actions from your home screen.
+            Install StowStack by StorageAds.com as an app on this device for instant lead alerts, offline access, and quick actions from your home screen.
           </p>
           <button onClick={install}
             className="px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
@@ -220,7 +220,7 @@ function PWAInstallCard({ darkMode, cardClass }: { darkMode: boolean; cardClass:
         </div>
       ) : (
         <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-          Visit stowstack.co in Chrome or Safari to install StowStack as a mobile app. On iOS, tap Share then "Add to Home Screen."
+          Visit stowstack.co in Chrome or Safari to install StowStack by StorageAds.com as a mobile app. On iOS, tap Share then "Add to Home Screen."
         </p>
       )}
     </div>
