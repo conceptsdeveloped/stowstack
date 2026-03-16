@@ -1,4 +1,5 @@
 import { query } from './_db.js'
+import { rateLimit, rateLimitResponse } from './_ratelimit.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -20,8 +21,6 @@ const VALID_ISSUES = [
   'low-occupancy',
   'other',
 ]
-
-// TODO: Add rate limiting — Vercel KV or Upstash Redis (3 submissions per IP per hour)
 
 // --- CORS ---
 
@@ -207,6 +206,17 @@ export default async function handler(req, res) {
   // Only POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Rate limit: 3 submissions per IP per hour
+  try {
+    const { allowed, resetAt } = await rateLimit(req, { key: 'audit-form', limit: 3, windowSeconds: 3600 })
+    if (!allowed) {
+      return rateLimitResponse(res, resetAt)
+    }
+  } catch (rlErr) {
+    console.error('Rate limit check failed:', rlErr.message)
+    // Fail-open: allow the request if rate limiting itself errors
   }
 
   try {

@@ -1,4 +1,5 @@
 import { query } from './_db.js'
+import { isAdmin } from './_auth.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -7,8 +8,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const adminKey = req.headers['x-admin-key']
-    const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
+    const isAdminUser = isAdmin(req)
 
     const orgToken = req.headers['x-org-token']
     let orgUserId = null
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       } catch { /* invalid */ }
     }
 
-    if (!isAdmin && !orgUserId) return res.status(401).json({ error: 'Unauthorized' })
+    if (!isAdminUser && !orgUserId) return res.status(401).json({ error: 'Unauthorized' })
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' })
 
     if (req.method === 'GET') {

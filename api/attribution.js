@@ -1,4 +1,5 @@
 import { query, queryOne } from './_db.js'
+import { isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -36,12 +37,11 @@ export default async function handler(req, res) {
   }
 
   // Auth — support both admin key and client access code
-  const adminKey = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
-  const isAdmin = req.headers['x-admin-key'] === adminKey
+  const isAdminUser = isAdmin(req)
 
   let facilityId = req.query.facilityId
 
-  if (!isAdmin) {
+  if (!isAdminUser) {
     // Client auth: look up facility from access code
     const { accessCode } = req.query
     if (!accessCode) {

@@ -1,5 +1,6 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
+import { isAdmin } from './_auth.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -8,8 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const adminKey = req.headers['x-admin-key']
-    const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
+    const isAdminUser = isAdmin(req)
 
     // Org user auth
     const orgToken = req.headers['x-org-token']
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       } catch { /* invalid token */ }
     }
 
-    const canManageUsers = isAdmin || (orgUser && orgUser.role === 'org_admin')
+    const canManageUsers = isAdminUser || (orgUser && orgUser.role === 'org_admin')
     if (!canManageUsers) return res.status(401).json({ error: 'Unauthorized' })
 
     const orgId = req.query?.orgId || (orgUser && orgUser.organization_id)

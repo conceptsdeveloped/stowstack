@@ -1,5 +1,6 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
+import { requireAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -60,10 +61,7 @@ export default async function handler(req, res) {
 
   // GET — admin fetch partial leads (requires admin key)
   if (req.method === 'GET') {
-    const adminKey = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
-    if (req.headers['x-admin-key'] !== adminKey) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    if (!requireAdmin(req, res)) return
 
     try {
       const { status, days, limit } = req.query || {}

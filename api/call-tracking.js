@@ -1,7 +1,6 @@
 import { query } from './_db.js'
 import twilio from 'twilio'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { requireAdmin, isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -20,7 +19,7 @@ function getCorsHeaders(origin) {
 }
 
 function checkAuth(req) {
-  return req.headers['x-admin-key'] === ADMIN_KEY
+  return isAdmin(req)
 }
 
 function getTwilioClient() {

@@ -1,6 +1,5 @@
+import { requireAdmin } from './_auth.js'
 export const config = { maxDuration: 30 }
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -18,7 +17,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key')
 
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
+  if (!requireAdmin(req, res)) return
 
   const { url } = req.query
   if (!url) return res.status(400).json({ error: 'url query param required' })

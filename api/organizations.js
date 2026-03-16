@@ -1,5 +1,6 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
+import { isAdmin } from './_auth.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -9,8 +10,7 @@ export default async function handler(req, res) {
 
   try {
     // Admin endpoints (X-Admin-Key)
-    const adminKey = req.headers['x-admin-key']
-    const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
+    const isAdminUser = isAdmin(req)
 
     // Org user auth (X-Org-Token = orgId:email base64)
     const orgToken = req.headers['x-org-token']
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     /* ── GET: list orgs (admin) or get org data (org user) ── */
     if (req.method === 'GET') {
-      if (isAdmin) {
+      if (isAdminUser) {
         const orgs = await query(
           `SELECT o.*,
             (SELECT COUNT(*) FROM facilities f WHERE f.organization_id = o.id) as facility_count,
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
       }
 
       // Create org (admin only)
-      if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' })
+      if (!isAdminUser) return res.status(401).json({ error: 'Unauthorized' })
 
       const { name, slug, contactEmail, contactPhone, plan, whiteLabel, primaryColor, accentColor, logoUrl } = req.body
       if (!name || !slug) return res.status(400).json({ error: 'Name and slug required' })
@@ -165,7 +165,7 @@ export default async function handler(req, res) {
 
     /* ── PATCH: update org ── */
     if (req.method === 'PATCH') {
-      if (!isAdmin && (!orgUser || orgUser.role !== 'org_admin')) {
+      if (!isAdminUser && (!orgUser || orgUser.role !== 'org_admin')) {
         return res.status(401).json({ error: 'Unauthorized' })
       }
 

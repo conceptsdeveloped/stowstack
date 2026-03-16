@@ -1,6 +1,5 @@
 import { query, queryOne } from './_db.js'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { requireAdmin, isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -19,7 +18,7 @@ function getCorsHeaders(origin) {
 }
 
 function checkAuth(req) {
-  return req.headers['x-admin-key'] === ADMIN_KEY
+  return isAdmin(req)
 }
 
 const ESCALATION_STAGES = ['late_notice', 'second_notice', 'pre_lien', 'lien_filed', 'auction_scheduled', 'auction_complete']

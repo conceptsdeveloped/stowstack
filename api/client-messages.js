@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -53,7 +52,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
 
   const redis = getRedis()
-  const isAdmin = req.headers['x-admin-key'] === ADMIN_KEY
+  const isAdminUser = isAdmin(req)
 
   // GET — fetch messages
   if (req.method === 'GET') {
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
     if (!code) return res.status(400).json({ error: 'Missing access code' })
 
     // Auth: admin key or client email verification
-    if (!isAdmin) {
+    if (!isAdminUser) {
       if (!redis) return res.status(200).json({ messages: [] })
       const valid = await verifyClient(redis, code, email)
       if (!valid) return res.status(401).json({ error: 'Unauthorized' })
@@ -98,7 +97,7 @@ export default async function handler(req, res) {
     }
 
     // Auth
-    if (from === 'admin' && !isAdmin) {
+    if (from === 'admin' && !isAdminUser) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
     if (from === 'client') {

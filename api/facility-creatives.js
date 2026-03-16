@@ -1,9 +1,8 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAdmin, isAdmin } from './_auth.js'
 
 export const config = { maxDuration: 60 }
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -22,7 +21,7 @@ function getCorsHeaders(origin) {
 }
 
 function checkAuth(req) {
-  return req.headers['x-admin-key'] === ADMIN_KEY
+  return isAdmin(req)
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -139,7 +138,6 @@ async function buildFacilityContext(facilityId) {
 
   return { facility: f, context: lines.join('\n'), onboarding }
 }
-
 
 /* ═══════════════════════════════════════════════════════════════
    SYSTEM PROMPTS — one per generation type
@@ -310,7 +308,6 @@ OUTPUT STRUCTURE:
 }`
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
    GENERATION LOGIC
    ═══════════════════════════════════════════════════════════════ */
@@ -388,7 +385,6 @@ Return the JSON object with the "sequence" array. Nothing else.`
   return generateWithClaude(SYSTEM_PROMPTS.email_drip, userMessage, apiKey)
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
    PERSISTENCE HELPERS
    ═══════════════════════════════════════════════════════════════ */
@@ -432,7 +428,6 @@ async function insertVariations(variations, facilityId, briefId, platform, forma
   }
   return inserted
 }
-
 
 /* ═══════════════════════════════════════════════════════════════
    HANDLER

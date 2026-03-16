@@ -4,6 +4,7 @@ import {
   Shield, Clock, Truck, ArrowRight, Building2, ExternalLink, X
 } from 'lucide-react'
 import { usePartialCapture } from '../hooks/usePartialCapture'
+import ConsentBanner from './ConsentBanner'
 
 /* ═══════════════════════════════════════════════════════ */
 /*  TYPES                                                   */
@@ -750,6 +751,7 @@ export default function LandingPageView({ slug }: { slug: string }) {
         theme={page.theme}
         facilityName={facilityName}
       />
+      <ConsentBanner />
     </div>
   )
 }

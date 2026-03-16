@@ -1,4 +1,5 @@
 import { query, queryOne } from './_db.js'
+import { isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
@@ -38,10 +39,9 @@ export default async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v))
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  const adminKey = req.headers['x-admin-key']
-  const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
+  const isAdminUser = isAdmin(req)
 
-  if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' })
+  if (!isAdminUser) return res.status(401).json({ error: 'Unauthorized' })
 
   try {
     const { action } = req.query

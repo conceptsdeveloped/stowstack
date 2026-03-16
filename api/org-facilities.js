@@ -1,4 +1,5 @@
 import { query, queryOne } from './_db.js'
+import { isAdmin } from './_auth.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -7,8 +8,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const adminKey = req.headers['x-admin-key']
-    const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
+    const isAdminUser = isAdmin(req)
 
     const orgToken = req.headers['x-org-token']
     let orgUser = null
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       } catch { /* invalid */ }
     }
 
-    if (!isAdmin && !orgUser) return res.status(401).json({ error: 'Unauthorized' })
+    if (!isAdminUser && !orgUser) return res.status(401).json({ error: 'Unauthorized' })
     const orgId = req.query?.orgId || (orgUser && orgUser.organization_id)
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' })
 
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
     /* ── POST: assign facility to org ── */
     if (req.method === 'POST') {
-      if (!isAdmin && orgUser?.role !== 'org_admin') return res.status(403).json({ error: 'Forbidden' })
+      if (!isAdminUser && orgUser?.role !== 'org_admin') return res.status(403).json({ error: 'Forbidden' })
 
       const { facilityId } = req.body
       if (!facilityId) return res.status(400).json({ error: 'Facility ID required' })
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     /* ── PATCH: remove facility from org ── */
     if (req.method === 'PATCH') {
-      if (!isAdmin && orgUser?.role !== 'org_admin') return res.status(403).json({ error: 'Forbidden' })
+      if (!isAdminUser && orgUser?.role !== 'org_admin') return res.status(403).json({ error: 'Forbidden' })
 
       const { facilityId, action } = req.body
       if (action === 'remove' && facilityId) {

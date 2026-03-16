@@ -1,6 +1,5 @@
 import { query, queryOne } from './_db.js'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { requireAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -101,7 +100,7 @@ export default async function handler(req, res) {
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v))
 
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
+  if (!requireAdmin(req, res)) return
 
   // GET /api/audit-report?id=FACILITY_ID
   if (req.method === 'GET') {

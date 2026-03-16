@@ -7,7 +7,12 @@
  * - Server-side event firing to Meta CAPI and Google Ads APIs
  * - Event deduplication between browser pixel and server API
  * - Unified interface for firing conversions across both platforms
+ *
+ * All client-side tracking is gated behind user consent (GDPR/CCPA).
+ * Server-side CAPI events still fire for first-party data collection.
  */
+
+import { hasTrackingConsent, onConsentChange } from './consent'
 
 /**
  * Event data structure for StowStack conversions.
@@ -77,7 +82,17 @@ class PixelManager {
     this.googleConversionEndpoint =
       config.googleConversionEndpoint || '/api/google-conversion'
 
-    this.initializePixels()
+    // Only initialize client-side pixels if user has granted consent
+    if (hasTrackingConsent()) {
+      this.initializePixels()
+    }
+
+    // Listen for future consent grants to initialize pixels later
+    onConsentChange((status) => {
+      if (status === 'granted') {
+        this.initializePixels()
+      }
+    })
   }
 
   /**
@@ -220,6 +235,13 @@ class PixelManager {
     eventName: string,
     customData?: Record<string, any>
   ): void {
+    if (!hasTrackingConsent()) {
+      if (this.debug) {
+        console.info('[Pixel] Meta event skipped — no tracking consent')
+      }
+      return
+    }
+
     if (!this.metaPixelId || !(window as any).fbq) {
       if (this.debug) {
         console.warn('[Pixel] Meta Pixel not available')
@@ -241,6 +263,13 @@ class PixelManager {
     eventName: string,
     customData?: Record<string, any>
   ): void {
+    if (!hasTrackingConsent()) {
+      if (this.debug) {
+        console.info('[Pixel] Google event skipped — no tracking consent')
+      }
+      return
+    }
+
     if (!(window as any).gtag) {
       if (this.debug) {
         console.warn('[Pixel] Google Ads not available')

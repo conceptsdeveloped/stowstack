@@ -1,4 +1,5 @@
 import { query, queryOne } from './_db.js'
+import { isAdmin } from './_auth.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -9,9 +10,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const adminKey = req.headers['x-admin-key']
-    const isAdmin = adminKey === (process.env.ADMIN_SECRET || 'stowstack-admin-2024')
-    if (!isAdmin) return res.status(401).json({ error: 'Unauthorized' })
+    const isAdminUser = isAdmin(req)
+    if (!isAdminUser) return res.status(401).json({ error: 'Unauthorized' })
 
     const { orgId, to, subject, templateKey, variables } = req.body
     if (!orgId || !to || !templateKey) {

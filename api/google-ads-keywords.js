@@ -1,9 +1,9 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAdmin, isAdmin } from './_auth.js'
 
 export const config = { maxDuration: 30 }
 
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 const ALLOWED_ORIGINS = [
   'https://stowstack.co', 'https://www.stowstack.co',
   'http://localhost:5173', 'http://localhost:3000',
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   const cors = getCorsHeaders(req.headers.origin || '')
   Object.entries(cors).forEach(([k, v]) => res.setHeader(k, v))
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' })
+  if (!requireAdmin(req, res)) return
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const { facilityId } = req.body || {}

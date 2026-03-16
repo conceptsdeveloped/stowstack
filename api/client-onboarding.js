@@ -1,6 +1,5 @@
 import { query, queryOne } from './_db.js'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { isAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -133,7 +132,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end()
 
-  const isAdmin = req.headers['x-admin-key'] === ADMIN_KEY
+  const isAdminUser = isAdmin(req)
 
   // GET /api/client-onboarding?code=XXXX[&email=xxx]
   if (req.method === 'GET') {
@@ -141,7 +140,7 @@ export default async function handler(req, res) {
     const code = url.searchParams.get('code')
     if (!code) return res.status(400).json({ error: 'Missing access code' })
 
-    if (!isAdmin) {
+    if (!isAdminUser) {
       const email = url.searchParams.get('email')
       const valid = await verifyClientAuth(code, email)
       if (!valid) return res.status(401).json({ error: 'Unauthorized' })
@@ -177,7 +176,7 @@ export default async function handler(req, res) {
     if (!code || !step || !data) return res.status(400).json({ error: 'Missing code, step, or data' })
     if (!VALID_STEPS.includes(step)) return res.status(400).json({ error: 'Invalid step' })
 
-    if (!isAdmin) {
+    if (!isAdminUser) {
       const valid = await verifyClientAuth(code, email)
       if (!valid) return res.status(401).json({ error: 'Unauthorized' })
     }

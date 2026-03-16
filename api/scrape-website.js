@@ -1,9 +1,8 @@
 import * as cheerio from 'cheerio'
 import { query } from './_db.js'
+import { requireAdmin, isAdmin } from './_auth.js'
 
 export const config = { maxDuration: 60 }
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -22,7 +21,7 @@ function getCorsHeaders(origin) {
 }
 
 function checkAuth(req) {
-  return req.headers['x-admin-key'] === ADMIN_KEY
+  return isAdmin(req)
 }
 
 function resolveUrl(base, relative) {

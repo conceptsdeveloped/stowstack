@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis'
-
-const ADMIN_KEY = process.env.ADMIN_SECRET || 'stowstack-admin-2024'
+import { requireAdmin } from './_auth.js'
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co',
@@ -34,9 +33,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
 
   // Admin-only endpoint
-  if (req.headers['x-admin-key'] !== ADMIN_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+  if (!requireAdmin(req, res)) return
 
   const redis = getRedis()
   if (!redis) {

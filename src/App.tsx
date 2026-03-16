@@ -8,6 +8,7 @@ import GuidePage from '@/components/GuidePage'
 import LandingPageView from '@/components/LandingPageView'
 import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
+import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
 import {
   ArrowRight, BarChart3, Target, TrendingUp, Zap, Clock,
@@ -1877,6 +1878,7 @@ export default function App() {
       <Footer />
       <MobileCTABar />
       <BackToTop />
+      <ConsentBanner />
     </div>
   )
 }
