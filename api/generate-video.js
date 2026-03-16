@@ -51,29 +51,29 @@ const VIDEO_TEMPLATES = {
     name: 'Facility Showcase',
     description: 'Slow, deliberate walkthrough of storage units',
     mode: 'image_to_video',
-    promptTemplate: () =>
-      `Slow deliberate camera glide through a storage facility hallway. Rows of unit doors recede into soft vanishing point. Clean geometry. Quiet. No people. Warm overhead lighting casting gentle shadows on concrete floor.`,
+    promptTemplate: (f) =>
+      `Slow deliberate camera glide through ${f.name} storage facility hallway in ${f.location}. Rows of unit doors recede into soft vanishing point. Clean geometry. Quiet. No people. Warm overhead lighting casting gentle shadows on concrete floor.`,
   },
   hero_shot: {
     name: 'Hero B-Roll',
     description: 'Contemplative exterior establishing shot',
     mode: 'text_to_video',
-    promptTemplate: () =>
-      `Wide still establishing shot of a storage facility exterior. Late afternoon light raking across rows of unit doors. Long shadows. Quiet suburban landscape. No people. Camera holds steady then slowly pushes forward almost imperceptibly.`,
+    promptTemplate: (f) =>
+      `Wide still establishing shot of ${f.name} storage facility exterior in ${f.location}. Late afternoon light raking across rows of unit doors. Long shadows. Quiet suburban landscape. No people. Camera holds steady then slowly pushes forward.`,
   },
   seasonal_promo: {
     name: 'Seasonal Promo',
     description: 'Satisfying transformation from chaos to order',
     mode: 'text_to_video',
-    promptTemplate: () =>
-      `A cluttered garage slowly dissolves into a perfectly organized storage unit. Objects find their place. Boxes align. Labels appear. The mess becomes order. No people. Smooth contemplative pace. Satisfying visual resolution.`,
+    promptTemplate: (f) =>
+      `A cluttered garage slowly dissolves into a perfectly organized storage unit at ${f.name}. Objects find their place. Boxes align. Labels appear. The mess becomes order. No people. Smooth contemplative pace.`,
   },
   quick_cta: {
     name: 'Quick CTA',
     description: '5-second visual punch',
     mode: 'image_to_video',
-    promptTemplate: () =>
-      `A storage unit door rolls up in one smooth motion revealing a perfectly lit interior. Clean. Simple. Camera holds. The light inside is warm and inviting against the cooler exterior. No people.`,
+    promptTemplate: (f) =>
+      `A storage unit door at ${f.name} rolls up in one smooth motion revealing a perfectly lit interior. Clean. Simple. Camera holds. The light inside is warm and inviting. No people.`,
   },
   packing_asmr: {
     name: 'Packing ASMR',
@@ -93,8 +93,8 @@ const VIDEO_TEMPLATES = {
     name: 'Custom Prompt',
     description: 'Write your own prompt — full creative control over the generated video',
     mode: 'text_to_video',
-    promptTemplate: () =>
-      `A beautifully composed scene. Warm muted tones. Deliberate camera movement. Quiet and confident.`,
+    promptTemplate: (f) =>
+      `A beautifully composed scene at ${f.name} in ${f.location}. Warm muted tones. Deliberate camera movement. Quiet and confident.`,
   },
 }
 

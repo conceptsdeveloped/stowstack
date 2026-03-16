@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Download, Sparkles, Image, AlertTriangle, Send, RefreshCw, Edit3 } from 'lucide-react'
+import { Loader2, Download, Sparkles, Image, AlertTriangle, Send, RefreshCw, Edit3, Plus, Trash2, Type } from 'lucide-react'
 import { Facility, Asset } from './types'
+import { compositeVideo, type TextLayer } from '../../utils/video-compositor'
+import { downloadBlob } from '../../utils/video-renderer'
 
 interface VideoTemplate {
   id: string
@@ -381,7 +383,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
                             download={`video-${job.templateId}-${Date.now()}.mp4`}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700"
                           >
-                            <Download size={12} /> Download
+                            <Download size={12} /> Download Raw
                           </a>
                           {onPublish && (
                             <button
@@ -398,7 +400,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
                             }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border ${darkMode ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                           >
-                            <RefreshCw size={12} /> Regenerate with Edits
+                            <RefreshCw size={12} /> Regenerate
                           </button>
                           <button
                             onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(job.videoUrl!) }}
@@ -407,6 +409,13 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
                             Copy URL
                           </button>
                         </div>
+
+                        {/* Text Overlay Compositor */}
+                        <TextOverlayEditor
+                          videoUrl={job.videoUrl}
+                          facilityName={facility.name}
+                          darkMode={darkMode}
+                        />
                       </div>
                     )}
 
@@ -466,6 +475,215 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
               </div>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Text Overlay Editor ── */
+
+const DEFAULT_LAYERS: TextLayer[] = [
+  { text: '', style: 'headline', position: 'center', enterAt: 0.05, exitAt: 0.5, animation: 'slide-up' },
+  { text: '', style: 'cta', position: 'bottom', enterAt: 0.55, exitAt: 0.95, animation: 'fade' },
+]
+
+const STYLE_OPTIONS: { id: TextLayer['style']; label: string }[] = [
+  { id: 'headline', label: 'Headline' },
+  { id: 'subhead', label: 'Subhead' },
+  { id: 'cta', label: 'CTA' },
+  { id: 'minimal', label: 'Minimal' },
+]
+
+const ANIM_OPTIONS: { id: TextLayer['animation']; label: string }[] = [
+  { id: 'slide-up', label: 'Slide Up' },
+  { id: 'fade', label: 'Fade In' },
+  { id: 'typewriter', label: 'Typewriter' },
+  { id: 'cut', label: 'Hard Cut' },
+]
+
+const POSITION_OPTIONS: { id: TextLayer['position']; label: string }[] = [
+  { id: 'top', label: 'Top' },
+  { id: 'center', label: 'Center' },
+  { id: 'bottom', label: 'Bottom' },
+]
+
+function TextOverlayEditor({ videoUrl, facilityName, darkMode }: {
+  videoUrl: string
+  facilityName: string
+  darkMode: boolean
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [layers, setLayers] = useState<TextLayer[]>(() =>
+    DEFAULT_LAYERS.map(l => ({
+      ...l,
+      text: l.style === 'headline' ? facilityName : l.style === 'cta' ? 'Reserve Your Unit' : '',
+    }))
+  )
+  const [compositing, setCompositing] = useState(false)
+  const [compositProgress, setCompositProgress] = useState(0)
+
+  const sub = darkMode ? 'text-slate-400' : 'text-slate-500'
+  const text = darkMode ? 'text-slate-100' : 'text-slate-900'
+  const inputBg = darkMode ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+
+  function updateLayer(idx: number, updates: Partial<TextLayer>) {
+    setLayers(prev => prev.map((l, i) => i === idx ? { ...l, ...updates } : l))
+  }
+
+  function addLayer() {
+    setLayers(prev => [...prev, {
+      text: '',
+      style: 'subhead',
+      position: 'center',
+      enterAt: 0.3,
+      exitAt: 0.7,
+      animation: 'fade',
+    }])
+  }
+
+  function removeLayer(idx: number) {
+    setLayers(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function exportWithText() {
+    const activeLayers = layers.filter(l => l.text.trim())
+    if (activeLayers.length === 0) return
+
+    setCompositing(true)
+    setCompositProgress(0)
+    try {
+      const blob = await compositeVideo(videoUrl, {
+        width: 1080,
+        height: 1920,
+        fps: 24,
+        textLayers: activeLayers,
+      }, (p) => setCompositProgress(p))
+
+      const safeName = facilityName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      downloadBlob(blob, `${safeName}-final-${Date.now()}.webm`)
+    } catch (err) {
+      console.error('Compositing failed:', err)
+      alert('Text overlay export failed. The source video may be blocked by CORS.')
+    } finally {
+      setCompositing(false)
+      setCompositProgress(0)
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className={`flex items-center gap-1.5 text-xs font-medium ${darkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'}`}
+      >
+        <Type size={12} /> Add text overlays to this video
+      </button>
+    )
+  }
+
+  return (
+    <div className={`border rounded-lg p-4 space-y-3 ${darkMode ? 'border-slate-600 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
+      <div className="flex items-center justify-between">
+        <h5 className={`text-xs font-semibold ${text}`}>Text Overlays</h5>
+        <button onClick={() => setExpanded(false)} className={`text-xs ${sub} hover:underline`}>Collapse</button>
+      </div>
+
+      {/* Layer list */}
+      <div className="space-y-2">
+        {layers.map((layer, idx) => (
+          <div key={idx} className={`p-3 rounded-lg border space-y-2 ${darkMode ? 'border-slate-600 bg-slate-700/50' : 'border-slate-200 bg-white'}`}>
+            <div className="flex gap-2 items-start">
+              <input
+                value={layer.text}
+                onChange={e => updateLayer(idx, { text: e.target.value })}
+                placeholder={layer.style === 'headline' ? 'Your headline...' : layer.style === 'cta' ? 'Call to action...' : 'Text...'}
+                className={`flex-1 px-2 py-1.5 border rounded text-sm ${inputBg}`}
+              />
+              <button onClick={() => removeLayer(idx)} className="p-1 text-red-500 hover:text-red-600 mt-1"><Trash2 size={12} /></button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {/* Style */}
+              {STYLE_OPTIONS.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => updateLayer(idx, { style: s.id })}
+                  className={`px-2 py-0.5 text-[10px] rounded ${layer.style === s.id ? 'bg-emerald-600 text-white' : darkMode ? 'bg-slate-600 text-slate-300' : 'bg-slate-200 text-slate-600'}`}
+                >
+                  {s.label}
+                </button>
+              ))}
+              <span className={`text-[10px] ${sub} mx-1`}>|</span>
+              {/* Position */}
+              {POSITION_OPTIONS.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => updateLayer(idx, { position: p.id })}
+                  className={`px-2 py-0.5 text-[10px] rounded ${layer.position === p.id ? 'bg-emerald-600 text-white' : darkMode ? 'bg-slate-600 text-slate-300' : 'bg-slate-200 text-slate-600'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <span className={`text-[10px] ${sub} mx-1`}>|</span>
+              {/* Animation */}
+              {ANIM_OPTIONS.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => updateLayer(idx, { animation: a.id })}
+                  className={`px-2 py-0.5 text-[10px] rounded ${layer.animation === a.id ? 'bg-emerald-600 text-white' : darkMode ? 'bg-slate-600 text-slate-300' : 'bg-slate-200 text-slate-600'}`}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            {/* Timing */}
+            <div className="flex gap-3 items-center">
+              <label className={`text-[10px] ${sub}`}>Appears:</label>
+              <input
+                type="range"
+                min={0} max={1} step={0.05}
+                value={layer.enterAt}
+                onChange={e => updateLayer(idx, { enterAt: parseFloat(e.target.value) })}
+                className="flex-1 h-1 accent-emerald-600"
+              />
+              <span className={`text-[10px] ${sub} w-8`}>{Math.round(layer.enterAt * 100)}%</span>
+              <label className={`text-[10px] ${sub}`}>Exits:</label>
+              <input
+                type="range"
+                min={0} max={1} step={0.05}
+                value={layer.exitAt}
+                onChange={e => updateLayer(idx, { exitAt: parseFloat(e.target.value) })}
+                className="flex-1 h-1 accent-emerald-600"
+              />
+              <span className={`text-[10px] ${sub} w-8`}>{Math.round(layer.exitAt * 100)}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add layer */}
+      <button
+        onClick={addLayer}
+        className={`flex items-center gap-1.5 text-xs ${sub} hover:underline`}
+      >
+        <Plus size={11} /> Add text layer
+      </button>
+
+      {/* Export */}
+      <button
+        onClick={exportWithText}
+        disabled={compositing || !layers.some(l => l.text.trim())}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40"
+      >
+        {compositing ? (
+          <><Loader2 size={14} className="animate-spin" /> Compositing {Math.round(compositProgress)}%</>
+        ) : (
+          <><Download size={14} /> Export with Text Overlays</>
+        )}
+      </button>
+      {compositing && (
+        <div className={`w-full h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
+          <div className="h-full bg-emerald-500 transition-all duration-300 rounded-full" style={{ width: `${compositProgress}%` }} />
         </div>
       )}
     </div>
