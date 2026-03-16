@@ -67,10 +67,10 @@ export default async function handler(req, res) {
     const f = facilities[0]
 
     // Gather context
-    const contextDocs = await query(
-      `SELECT type, title, content FROM facility_context WHERE facility_id = $1 AND type IN ('competitor_info', 'market_research') LIMIT 3`,
-      [facilityId]
-    )
+    const [contextDocs, marketingPlans] = await Promise.all([
+      query(`SELECT type, title, content FROM facility_context WHERE facility_id = $1 AND type IN ('competitor_info', 'market_research') LIMIT 3`, [facilityId]),
+      query(`SELECT plan_json, spend_recommendation, assigned_playbooks FROM marketing_plans WHERE facility_id = $1 AND status = 'active' ORDER BY created_at DESC LIMIT 1`, [facilityId]),
+    ])
 
     const lines = [
       `Facility: ${f.name}`,
@@ -85,6 +85,31 @@ export default async function handler(req, res) {
     if (contextDocs.length) {
       lines.push('\nCompetitor/Market Context:')
       contextDocs.forEach(d => lines.push(`[${d.type}] ${d.title}: ${(d.content || '').slice(0, 300)}`))
+    }
+
+    // Inject marketing plan context if one exists
+    const plan = marketingPlans[0]
+    if (plan?.plan_json) {
+      const p = typeof plan.plan_json === 'string' ? JSON.parse(plan.plan_json) : plan.plan_json
+      lines.push('\n--- ACTIVE MARKETING PLAN (use this to inform keyword selection) ---')
+      if (p.bottleneck_analysis) lines.push(`Bottleneck: ${p.bottleneck_analysis.slice(0, 200)}`)
+      if (p.target_audiences?.length) {
+        lines.push('Target audiences: ' + p.target_audiences.map(a => `${a.segment} (${a.messaging_angle})`).join('; '))
+      }
+      if (p.messaging_pillars?.length) {
+        lines.push('Messaging pillars: ' + p.messaging_pillars.map(m => m.pillar).join(', '))
+      }
+      if (p.channel_strategy?.length) {
+        const googleStrategy = p.channel_strategy.find(c => /google|search|ppc/i.test(c.channel))
+        if (googleStrategy) {
+          lines.push(`Google strategy: ${googleStrategy.objective}`)
+          if (googleStrategy.tactics?.length) lines.push(`Tactics: ${googleStrategy.tactics.join('; ')}`)
+        }
+      }
+      if (plan.assigned_playbooks?.length) {
+        lines.push(`Active playbooks: ${plan.assigned_playbooks.join(', ')}`)
+      }
+      lines.push('Weight keyword suggestions toward these strategic priorities.')
     }
 
     const client = new Anthropic({ apiKey })
