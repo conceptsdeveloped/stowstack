@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Building2, Loader2, Zap, TrendingUp, Gem, Check, CheckCircle2, Copy, Eye, EyeOff, ArrowLeft, KeyRound } from 'lucide-react'
-import { STORAGE_KEY } from './PartnerTypes'
 import type { AuthState } from './PartnerTypes'
 
 interface PartnerLoginProps {
@@ -168,7 +167,6 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
         setLoading(false)
         return
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
       onLogin(data)
     } catch {
       setError('Connection error. Please try again.')

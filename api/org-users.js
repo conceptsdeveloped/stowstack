@@ -1,30 +1,20 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
-import { isAdmin } from './_auth.js'
+import { requireSession, isAdminRequest } from './_session-auth.js'
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const isAdminUser = isAdmin(req)
+    const isAdminUser = await isAdminRequest(req)
+    const session = !isAdminUser ? await requireSession(req, res) : null
+    if (!isAdminUser && !session) return
 
-    // Org user auth
-    const orgToken = req.headers['x-org-token']
-    let orgUser = null
-    if (orgToken) {
-      try {
-        const decoded = Buffer.from(orgToken, 'base64').toString()
-        const [orgId, email] = decoded.split(':')
-        orgUser = await queryOne(
-          `SELECT * FROM org_users WHERE organization_id = $1 AND email = $2 AND status = 'active'`,
-          [orgId, email]
-        )
-      } catch { /* invalid token */ }
-    }
-
+    const orgUser = session?.user || null
     const canManageUsers = isAdminUser || (orgUser && orgUser.role === 'org_admin')
     if (!canManageUsers) return res.status(401).json({ error: 'Unauthorized' })
 

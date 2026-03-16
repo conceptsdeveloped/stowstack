@@ -4,6 +4,7 @@ import {
   Webhook, Send, AlertCircle, Activity, ChevronDown, ChevronRight,
   Zap,
 } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface ApiKey {
   id: string; name: string; key_prefix: string; scopes: string[]
@@ -24,7 +25,7 @@ interface UsageSummary {
 
 interface DailyUsage { date: string; requests: number; errors: number }
 
-export default function DeveloperTab({ orgToken, primaryColor }: { orgToken: string; primaryColor: string }) {
+export default function DeveloperTab({ primaryColor }: { primaryColor: string }) {
   const [tab, setTab] = useState<'keys' | 'webhooks' | 'usage' | 'docs'>('keys')
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [webhooks, setWebhooks] = useState<WebhookEntry[]>([])
@@ -38,28 +39,28 @@ export default function DeveloperTab({ orgToken, primaryColor }: { orgToken: str
   const [testResult, setTestResult] = useState<{ id: string; success?: boolean; error?: string } | null>(null)
   const [expandedWebhook, setExpandedWebhook] = useState<string | null>(null)
 
-  const headers = { 'Content-Type': 'application/json', 'X-Org-Token': orgToken }
+  const { authFetch } = useAuth()
 
   const fetchKeys = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/api-keys', { headers: { Authorization: `Bearer ${orgToken}`, ...headers } })
+      const res = await authFetch('/api/v1/api-keys')
       if (res.ok) { const data = await res.json(); setKeys(data.keys || []) }
     } catch { /* silent */ }
-  }, [orgToken])
+  }, [authFetch])
 
   const fetchWebhooks = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/webhooks', { headers: { Authorization: `Bearer ${orgToken}` } })
+      const res = await authFetch('/api/v1/webhooks')
       if (res.ok) { const data = await res.json(); setWebhooks(data.webhooks || []) }
     } catch { /* silent */ }
-  }, [orgToken])
+  }, [authFetch])
 
   const fetchUsage = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/usage?days=30', { headers: { Authorization: `Bearer ${orgToken}` } })
+      const res = await authFetch('/api/v1/usage?days=30')
       if (res.ok) { const data = await res.json(); setUsage({ summary: data.summary, daily: data.daily || [] }) }
     } catch { /* silent */ }
-  }, [orgToken])
+  }, [authFetch])
 
   useEffect(() => { fetchKeys(); fetchWebhooks(); fetchUsage() }, [fetchKeys, fetchWebhooks, fetchUsage])
 
@@ -72,8 +73,8 @@ export default function DeveloperTab({ orgToken, primaryColor }: { orgToken: str
   const testWebhook = async (id: string) => {
     setTestResult({ id })
     try {
-      const res = await fetch(`/api/v1/webhooks?id=${id}&action=test`, {
-        method: 'POST', headers: { Authorization: `Bearer ${orgToken}`, 'Content-Type': 'application/json' },
+      const res = await authFetch(`/api/v1/webhooks?id=${id}&action=test`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
       })
       const data = await res.json()
       setTestResult({ id, success: data.success, error: data.error })
@@ -84,7 +85,7 @@ export default function DeveloperTab({ orgToken, primaryColor }: { orgToken: str
   }
 
   const deleteWebhook = async (id: string) => {
-    await fetch(`/api/v1/webhooks?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${orgToken}` } })
+    await authFetch(`/api/v1/webhooks?id=${id}`, { method: 'DELETE' })
     fetchWebhooks()
   }
 
@@ -92,9 +93,9 @@ export default function DeveloperTab({ orgToken, primaryColor }: { orgToken: str
     if (!newWebhookUrl || !newWebhookEvents.length) return
     setLoading(true)
     try {
-      const res = await fetch('/api/v1/webhooks', {
+      const res = await authFetch('/api/v1/webhooks', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${orgToken}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: newWebhookUrl, events: newWebhookEvents }),
       })
       const data = await res.json()

@@ -1358,6 +1358,28 @@ CREATE TABLE IF NOT EXISTS api_usage_log (
 CREATE INDEX IF NOT EXISTS idx_api_usage_key ON api_usage_log(api_key_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_org ON api_usage_log(organization_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage_log(created_at DESC);
+
+-- ============================================================
+-- Session-based authentication
+-- ============================================================
+
+-- Sessions: opaque token auth (replaces base64 X-Org-Token)
+CREATE TABLE IF NOT EXISTS sessions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES org_users(id) ON DELETE CASCADE,
+  token_hash      TEXT NOT NULL UNIQUE,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  ip_address      TEXT,
+  user_agent      TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  last_active_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- Superadmin flag for StowStack team members
+ALTER TABLE org_users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE;
 `
 
 async function migrate() {

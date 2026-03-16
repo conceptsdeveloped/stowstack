@@ -8,16 +8,18 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import PartnerLoginComponent from './partner/PartnerLogin'
 import {
   type OrgFacility, type Organization, type AuthState,
-  STORAGE_KEY, STATUS_COLORS, PER_FACILITY_MRR, getRevShareTier,
+  STATUS_COLORS, PER_FACILITY_MRR, getRevShareTier,
 } from './partner/PartnerTypes'
 import { StatCard, FacilityRow, FacilityDetail } from './partner/FacilityCard'
 import TeamTab from './partner/TeamTab'
 import RevenueShareTab from './partner/RevenueShareTab'
 import DeveloperTab from './partner/DeveloperTab'
+import { useAuth } from '../contexts/AuthContext'
 
 /* ── Branding Tab (kept inline) ── */
 
-function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken: string; onUpdate: (org: Organization) => void }) {
+function BrandingTab({ org, onUpdate }: { org: Organization; onUpdate: (org: Organization) => void }) {
+  const { authFetch } = useAuth()
   const [name, setName] = useState(org.name)
   const [primaryColor, setPrimaryColor] = useState(org.primaryColor)
   const [accentColor, setAccentColor] = useState(org.accentColor)
@@ -28,9 +30,9 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
   const save = async () => {
     setSaving(true)
     try {
-      const res = await fetch('/api/organizations', {
+      const res = await authFetch('/api/organizations', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, primaryColor, accentColor, logoUrl: logoUrl || null }),
       })
       if (res.ok) {
@@ -101,7 +103,8 @@ function BrandingTab({ org, orgToken, onUpdate }: { org: Organization; orgToken:
 
 /* ── Settings Tab ── */
 
-function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToken: string; facilities: OrgFacility[] }) {
+function SettingsTab({ org, facilities }: { org: Organization; facilities: OrgFacility[] }) {
+  const { authFetch } = useAuth()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -115,9 +118,9 @@ function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToke
     if (newPassword !== confirmPassword) { setPwMessage({ type: 'error', text: 'Passwords do not match' }); return }
     setPwLoading(true); setPwMessage(null)
     try {
-      const res = await fetch('/api/organizations', {
+      const res = await authFetch('/api/organizations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'change_password', currentPassword, newPassword }),
       })
       const data = await res.json()
@@ -136,7 +139,7 @@ function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToke
   const pwInputCls = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400'
   const openBilling = async () => {
     try {
-      const res = await fetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken } })
+      const res = await authFetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       const data = await res.json()
       if (data.url) window.location.href = data.url
     } catch { /* silent */ }
@@ -252,6 +255,7 @@ function SettingsTab({ org, orgToken, facilities }: { org: Organization; orgToke
 type PartnerTab = 'portfolio' | 'earnings' | 'benchmarks' | 'billing' | 'team' | 'branding' | 'developer' | 'settings'
 
 function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; onLogout: () => void; onBack: () => void }) {
+  const { authFetch, updateOrg } = useAuth()
   const [activeTab, setActiveTab] = useState<PartnerTab>('portfolio')
   const [facilities, setFacilities] = useState<OrgFacility[]>([])
   const [loading, setLoading] = useState(true)
@@ -259,15 +263,14 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
   const [org, setOrg] = useState(auth.organization)
 
   const primaryColor = org.primaryColor || '#16a34a'
-  const orgToken = auth.token
 
   const fetchFacilities = useCallback(async () => {
     try {
-      const res = await fetch('/api/org-facilities', { headers: { 'X-Org-Token': orgToken } })
+      const res = await authFetch('/api/org-facilities')
       if (res.ok) { const data = await res.json(); setFacilities(data.facilities || []) }
     } catch { /* silent */ }
     setLoading(false)
-  }, [orgToken])
+  }, [authFetch])
 
   useEffect(() => { fetchFacilities() }, [fetchFacilities])
 
@@ -288,9 +291,14 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
   const monthlyData = Array.from(monthlyMap.values()).sort((a, b) => a.month.localeCompare(b.month))
   const isAdmin = auth.user.role === 'org_admin'
 
+  const handleOrgUpdate = (updatedOrg: Organization) => {
+    setOrg(updatedOrg)
+    updateOrg(updatedOrg)
+  }
+
   const openBilling = async () => {
     try {
-      const res = await fetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken } })
+      const res = await authFetch('/api/create-billing-portal', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       const data = await res.json()
       if (data.url) window.location.href = data.url
     } catch { /* silent */ }
@@ -577,10 +585,10 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           )
         })()}
 
-        {activeTab === 'team' && isAdmin && <TeamTab orgToken={orgToken} orgUser={auth.user} primaryColor={primaryColor} />}
-        {activeTab === 'branding' && isAdmin && <BrandingTab org={org} orgToken={orgToken} onUpdate={setOrg} />}
-        {activeTab === 'developer' && isAdmin && <DeveloperTab orgToken={orgToken} primaryColor={primaryColor} />}
-        {activeTab === 'settings' && isAdmin && <SettingsTab org={org} orgToken={orgToken} facilities={facilities} />}
+        {activeTab === 'team' && isAdmin && <TeamTab orgUser={auth.user} primaryColor={primaryColor} />}
+        {activeTab === 'branding' && isAdmin && <BrandingTab org={org} onUpdate={handleOrgUpdate} />}
+        {activeTab === 'developer' && isAdmin && <DeveloperTab primaryColor={primaryColor} />}
+        {activeTab === 'settings' && isAdmin && <SettingsTab org={org} facilities={facilities} />}
       </div>
 
       {!org.whiteLabel && (
@@ -594,39 +602,17 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
 
 /* ── Export ── */
 
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000
-
 export default function PartnerPortal({ onBack }: { onBack: () => void }) {
-  const [auth, setAuth] = useState<AuthState | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (!stored) return null
-      const parsed = JSON.parse(stored)
-      if (parsed._loginAt && Date.now() - parsed._loginAt > SESSION_DURATION_MS) { localStorage.removeItem(STORAGE_KEY); return null }
-      return parsed
-    } catch { return null }
-  })
+  const { auth, isLoading, login, logout } = useAuth()
 
-  const handleLogin = (data: AuthState) => {
-    const withTimestamp = { ...data, _loginAt: Date.now() }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(withTimestamp))
-    setAuth(withTimestamp)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-slate-400" />
+      </div>
+    )
   }
 
-  const handleLogout = () => { localStorage.removeItem(STORAGE_KEY); setAuth(null) }
-
-  useEffect(() => {
-    if (!auth) return
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return
-    const { _loginAt } = JSON.parse(stored)
-    if (!_loginAt) return
-    const remaining = SESSION_DURATION_MS - (Date.now() - _loginAt)
-    if (remaining <= 0) { handleLogout(); return }
-    const timer = setTimeout(handleLogout, remaining)
-    return () => clearTimeout(timer)
-  }, [auth])
-
-  if (!auth) return <PartnerLoginComponent onLogin={handleLogin} />
-  return <PartnerDashboardInner auth={auth} onLogout={handleLogout} onBack={onBack} />
+  if (!auth) return <PartnerLoginComponent onLogin={login} />
+  return <PartnerDashboardInner auth={auth} onLogout={logout} onBack={onBack} />
 }

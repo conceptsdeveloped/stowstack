@@ -11,6 +11,7 @@ import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
 import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
+import { AuthProvider } from '@/contexts/AuthContext'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt'
 import { OfflineBanner } from '@/components/OfflineBanner'
@@ -1882,10 +1883,12 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <OfflineBanner />
-      <AppRoutes />
-      <PWAInstallPrompt />
-      <PWAUpdatePrompt />
+      <AuthProvider>
+        <OfflineBanner />
+        <AppRoutes />
+        <PWAInstallPrompt />
+        <PWAUpdatePrompt />
+      </AuthProvider>
     </BrowserRouter>
   )
 }

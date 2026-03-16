@@ -1,5 +1,6 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
+import { hashPassword } from './_password.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -103,7 +104,7 @@ export default async function handler(req, res) {
       )
       if (!user) return res.status(400).json({ error: 'Invalid or expired reset link' })
 
-      const passwordHash = crypto.createHash('sha256').update(newPassword + user.id).digest('hex')
+      const passwordHash = await hashPassword(newPassword)
       await query(
         `UPDATE org_users SET password_hash = $1, reset_token = NULL, reset_token_expires_at = NULL WHERE id = $2`,
         [passwordHash, user.id]

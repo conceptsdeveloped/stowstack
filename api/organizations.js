@@ -1,33 +1,19 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
-import { isAdmin } from './_auth.js'
+import { createSession, requireSession, getSession, isAdminRequest, destroySession } from './_session-auth.js'
+import { hashPassword, verifyPassword } from './_password.js'
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    // Admin endpoints (X-Admin-Key)
-    const isAdminUser = isAdmin(req)
-
-    // Org user auth (X-Org-Token = orgId:email base64)
-    const orgToken = req.headers['x-org-token']
-    let orgUser = null
-    if (orgToken) {
-      try {
-        const decoded = Buffer.from(orgToken, 'base64').toString()
-        const [orgId, email] = decoded.split(':')
-        orgUser = await queryOne(
-          `SELECT ou.*, o.name as org_name, o.slug as org_slug, o.logo_url, o.primary_color, o.accent_color,
-                  o.white_label, o.plan, o.facility_limit, o.settings as org_settings, o.status as org_status
-           FROM org_users ou JOIN organizations o ON o.id = ou.organization_id
-           WHERE ou.organization_id = $1 AND ou.email = $2 AND ou.status = 'active'`,
-          [orgId, email]
-        )
-      } catch { /* invalid token */ }
-    }
+    const isAdminUser = await isAdminRequest(req)
+    const session = await getSession(req)
+    const orgUser = session?.user || null
 
     /* ── GET: list orgs (admin) or get org data (org user) ── */
     if (req.method === 'GET') {
@@ -53,7 +39,6 @@ export default async function handler(req, res) {
           ? await query('SELECT id, email, name, role, status, last_login_at, created_at FROM org_users WHERE organization_id = $1 ORDER BY created_at', [orgUser.organization_id])
           : []
 
-        // Get campaign data for all org facilities
         const facilityIds = facilities.map(f => f.id)
         let campaignData = []
         if (facilityIds.length > 0) {
@@ -73,11 +58,11 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    /* ── POST: create org (admin) or org user login ── */
+    /* ── POST: create org (admin) or org user login/actions ── */
     if (req.method === 'POST') {
       const { action } = req.body
 
-      // Org user login
+      // Org user login — returns session token
       if (action === 'login') {
         const { email, password, orgSlug } = req.body
         if (!email || !orgSlug) return res.status(400).json({ error: 'Email and organization required' })
@@ -92,15 +77,23 @@ export default async function handler(req, res) {
         )
         if (!user) return res.status(401).json({ error: 'Invalid credentials' })
 
-        // If user has password, verify it
+        // Verify password
         if (user.password_hash && password) {
-          const hash = crypto.createHash('sha256').update(password + user.id).digest('hex')
-          if (hash !== user.password_hash) return res.status(401).json({ error: 'Invalid credentials' })
+          const { valid, needsRehash } = await verifyPassword(password, user.password_hash, user.id)
+          if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
+
+          // Transparent migration: rehash legacy SHA-256 passwords to scrypt
+          if (needsRehash) {
+            const newHash = await hashPassword(password)
+            query('UPDATE org_users SET password_hash = $1 WHERE id = $2', [newHash, user.id]).catch(() => {})
+          }
         }
 
         await query('UPDATE org_users SET last_login_at = NOW() WHERE id = $1', [user.id])
 
-        const token = Buffer.from(`${user.org_id}:${email.toLowerCase()}`).toString('base64')
+        // Create real session token
+        const token = await createSession(user.id, req)
+
         return res.json({
           token,
           user: { id: user.id, email: user.email, name: user.name, role: user.role },
@@ -114,7 +107,7 @@ export default async function handler(req, res) {
         })
       }
 
-      // Accept invite
+      // Accept invite — hash with scrypt, create session
       if (action === 'accept_invite') {
         const { inviteToken, name, password } = req.body
         if (!inviteToken) return res.status(400).json({ error: 'Invite token required' })
@@ -127,9 +120,7 @@ export default async function handler(req, res) {
         )
         if (!user) return res.status(400).json({ error: 'Invalid or expired invite' })
 
-        const passwordHash = password
-          ? crypto.createHash('sha256').update(password + user.id).digest('hex')
-          : null
+        const passwordHash = password ? await hashPassword(password) : null
 
         await query(
           `UPDATE org_users SET status = 'active', name = COALESCE($2, name), password_hash = COALESCE($3, password_hash),
@@ -137,24 +128,35 @@ export default async function handler(req, res) {
           [user.id, name, passwordHash]
         )
 
-        const token = Buffer.from(`${user.organization_id}:${user.email}`).toString('base64')
+        const token = await createSession(user.id, req)
         return res.json({ token, user: { id: user.id, email: user.email, name: name || user.name, role: user.role } })
       }
 
-      // Change password
+      // Change password — verify with new module, hash with scrypt
       if (action === 'change_password') {
         if (!orgUser) return res.status(401).json({ error: 'Unauthorized' })
         const { currentPassword, newPassword } = req.body
         if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' })
 
-        // Verify current password if user has one set
-        if (orgUser.password_hash && currentPassword) {
-          const hash = crypto.createHash('sha256').update(currentPassword + orgUser.id).digest('hex')
-          if (hash !== orgUser.password_hash) return res.status(401).json({ error: 'Current password is incorrect' })
+        // Look up full user record for password_hash
+        const fullUser = await queryOne('SELECT id, password_hash FROM org_users WHERE id = $1', [orgUser.id])
+
+        if (fullUser.password_hash && currentPassword) {
+          const { valid } = await verifyPassword(currentPassword, fullUser.password_hash, fullUser.id)
+          if (!valid) return res.status(401).json({ error: 'Current password is incorrect' })
         }
 
-        const newHash = crypto.createHash('sha256').update(newPassword + orgUser.id).digest('hex')
+        const newHash = await hashPassword(newPassword)
         await query('UPDATE org_users SET password_hash = $1 WHERE id = $2', [newHash, orgUser.id])
+        return res.json({ success: true })
+      }
+
+      // Logout — destroy session
+      if (action === 'logout') {
+        const auth = req.headers.authorization
+        if (auth?.startsWith('Bearer ss_')) {
+          await destroySession(auth.slice(7))
+        }
         return res.json({ success: true })
       }
 
@@ -170,7 +172,6 @@ export default async function handler(req, res) {
         [name, slug, contactEmail, contactPhone, plan || 'starter', whiteLabel || false, primaryColor || '#16a34a', accentColor || '#4f46e5', logoUrl]
       )
 
-      // Auto-create admin user if contact email provided
       if (contactEmail) {
         const inviteToken = crypto.randomBytes(32).toString('hex')
         await query(

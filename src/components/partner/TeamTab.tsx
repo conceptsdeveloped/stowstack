@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, UserPlus, Trash2, Mail } from 'lucide-react'
 import type { OrgUser, AuthState } from './PartnerTypes'
+import { useAuth } from '../../contexts/AuthContext'
 
 export interface TeamTabProps {
-  orgToken: string
   orgUser: AuthState['user']
   primaryColor: string
 }
 
-export default function TeamTab({ orgToken, orgUser, primaryColor }: TeamTabProps) {
+export default function TeamTab({ orgUser, primaryColor }: TeamTabProps) {
+  const { authFetch } = useAuth()
   const [users, setUsers] = useState<OrgUser[]>([])
   const [loading, setLoading] = useState(true)
   const [showInvite, setShowInvite] = useState(false)
@@ -19,14 +20,14 @@ export default function TeamTab({ orgToken, orgUser, primaryColor }: TeamTabProp
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/org-users', { headers: { 'X-Org-Token': orgToken } })
+      const res = await authFetch('/api/org-users')
       if (res.ok) {
         const data = await res.json()
         setUsers(data.users || [])
       }
     } catch { /* silent */ }
     setLoading(false)
-  }, [orgToken])
+  }, [authFetch])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
@@ -35,9 +36,9 @@ export default function TeamTab({ orgToken, orgUser, primaryColor }: TeamTabProp
     if (!inviteName.trim() || !inviteEmail.trim()) return
     setInviting(true)
     try {
-      await fetch('/api/org-users', {
+      await authFetch('/api/org-users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: inviteEmail.trim(), name: inviteName.trim(), role: inviteRole }),
       })
       setInviteName('')
@@ -50,9 +51,9 @@ export default function TeamTab({ orgToken, orgUser, primaryColor }: TeamTabProp
 
   const removeUser = async (userId: string) => {
     if (userId === orgUser.id) return
-    await fetch('/api/org-users', {
+    await authFetch('/api/org-users', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', 'X-Org-Token': orgToken },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     })
     fetchUsers()

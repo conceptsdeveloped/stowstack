@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { queryOne } from './_db.js'
+import { requireSession } from './_session-auth.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-12-18.acacia',
@@ -7,35 +8,27 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 })
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    // Authenticate org user
-    const orgToken = req.headers['x-org-token']
-    if (!orgToken) return res.status(401).json({ error: 'Unauthorized' })
+    const session = await requireSession(req, res)
+    if (!session) return
 
-    let orgUser
-    try {
-      const decoded = Buffer.from(orgToken, 'base64').toString()
-      const [orgId, email] = decoded.split(':')
-      orgUser = await queryOne(
-        `SELECT ou.organization_id, o.stripe_customer_id
-         FROM org_users ou JOIN organizations o ON o.id = ou.organization_id
-         WHERE ou.organization_id = $1 AND ou.email = $2 AND ou.status = 'active'`,
-        [orgId, email]
-      )
-    } catch { /* invalid token */ }
+    const org = await queryOne(
+      'SELECT stripe_customer_id FROM organizations WHERE id = $1',
+      [session.user.organization_id]
+    )
 
-    if (!orgUser) return res.status(401).json({ error: 'Unauthorized' })
-    if (!orgUser.stripe_customer_id) return res.status(400).json({ error: 'No billing account found. Contact support.' })
+    if (!org?.stripe_customer_id) return res.status(400).json({ error: 'No billing account found. Contact support.' })
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: orgUser.stripe_customer_id,
+      customer: org.stripe_customer_id,
       return_url: `${req.headers.origin || 'https://stowstack.co'}/partner`,
     })
 

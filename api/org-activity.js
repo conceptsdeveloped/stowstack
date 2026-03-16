@@ -1,28 +1,21 @@
 import { query } from './_db.js'
-import { isAdmin } from './_auth.js'
+import { getSession, isAdminRequest } from './_session-auth.js'
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key, X-Org-Token')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
-    const isAdminUser = isAdmin(req)
+    const isAdminUser = await isAdminRequest(req)
+    const session = await getSession(req)
+    const orgUser = session?.user || null
 
-    const orgToken = req.headers['x-org-token']
-    let orgUserId = null
-    let orgId = req.query?.orgId
-    if (orgToken) {
-      try {
-        const decoded = Buffer.from(orgToken, 'base64').toString()
-        const parts = decoded.split(':')
-        orgId = parts[0]
-        orgUserId = parts[1]
-      } catch { /* invalid */ }
-    }
+    if (!isAdminUser && !orgUser) return res.status(401).json({ error: 'Unauthorized' })
 
-    if (!isAdminUser && !orgUserId) return res.status(401).json({ error: 'Unauthorized' })
+    const orgId = req.query?.orgId || (orgUser && orgUser.organization_id)
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' })
 
     if (req.method === 'GET') {
