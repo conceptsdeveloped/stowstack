@@ -168,7 +168,7 @@ function MiniBar({ value, color }: { value: number; color: string }) {
 /* ── Main Component ── */
 
 export default function SidebarTicker({
-  adminKey,
+  adminKey: _adminKey,
   leadCount,
   activeLeadCount,
   signedCount,
@@ -255,7 +255,7 @@ export default function SidebarTicker({
     const devScore = Math.min(9999, Math.floor(r30lines * 0.1 + r30files * 5 + streak * 50))
 
     // Delete ratio
-    const { ratio: delRatio, verdict: delVerdict } = getDeleteRatio(commits.slice(0, 30))
+    const { verdict: delVerdict } = getDeleteRatio(commits.slice(0, 30))
 
     // Days since first commit
     const firstCommit = commits[commits.length - 1]
