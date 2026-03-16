@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 /* ── Types ── */
 
@@ -189,9 +189,7 @@ export default function SidebarTicker({
   signedCount: number
 }) {
   const [commits, setCommits] = useState<CommitData[]>([])
-  const [visibleIndex, setVisibleIndex] = useState(0)
   const [sessionTime, setSessionTime] = useState(getSessionUptime())
-  const [transitioning, setTransitioning] = useState(false)
 
   // Load commits
   useEffect(() => {
@@ -585,90 +583,326 @@ export default function SidebarTicker({
       accent: 'border-red-500/20',
       rows: [
         { label: 'BUS FACTOR', value: `${busFactorScore}`, color: busFactorScore <= 1 ? 'text-red-400' : 'text-emerald-400', icon: '🚌' },
-        { label: '', value: busFactorScore <= 1 ? 'CRITICAL — solo dev mode' : busFactorScore <= 2 ? 'risky but viable' : 'healthy team', color: busFactorScore <= 1 ? 'text-red-400' : 'text-slate-500' },
-        { label: 'CONTRIBUTORS', value: authors.map(([n]) => n).join(', '), color: 'text-slate-400' },
+        { label: '', value: busFactorScore <= 1 ? 'CRITICAL — one bad day from chaos' : busFactorScore <= 2 ? 'risky but viable' : 'healthy team', color: busFactorScore <= 1 ? 'text-red-400' : 'text-slate-500' },
+        { label: 'TRUCK #', value: `${busFactorScore} (polite Canadian ver.)`, color: 'text-slate-500', icon: '🇨🇦' },
+      ],
+    })
+
+    // ── Card 23: WTFs per Minute ──
+    // Estimate from commit churn — high churn = high WTF potential
+    const avgChurn = commits.slice(0, 20).reduce((s, c) => s + (c.insertions || 0) + (c.deletions || 0), 0) / Math.max(1, Math.min(20, commits.length))
+    const wtfRate = avgChurn > 500 ? 'CRITICAL 🤬' : avgChurn > 200 ? 'ELEVATED 😤' : avgChurn > 80 ? 'MODERATE 😐' : 'ZEN 🧘'
+    result.push({
+      id: 'wtf-rate',
+      accent: 'border-orange-500/30',
+      rows: [
+        { label: 'WTFs/MIN', value: '', color: 'text-slate-500', icon: '🤨' },
+        { label: 'CODE REVIEW', value: wtfRate, color: avgChurn > 200 ? 'text-orange-400' : 'text-emerald-400' },
+        { label: '', value: 'the only true quality metric', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 24: Ballmer Peak ──
+    const ballmerOptimal = hour >= 17 && hour <= 22
+    result.push({
+      id: 'ballmer-peak',
+      accent: 'border-amber-500/20',
+      rows: [
+        { label: 'BALLMER PEAK', value: '', color: 'text-slate-500', icon: '🍺' },
+        { label: 'BAC TARGET', value: '0.129%', color: 'text-amber-400' },
+        { label: 'WINDOW', value: ballmerOptimal ? 'OPEN — superhuman coding zone' : 'CLOSED — try after 5pm', color: ballmerOptimal ? 'text-emerald-400' : 'text-slate-500' },
+        { label: '', value: 'per XKCD #323', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 25: LGTM Rate ──
+    const suspiciouslyFastCommits = commits.filter((c, i) => {
+      if (i >= commits.length - 1) return false
+      const gap = (new Date(c.date).getTime() - new Date(commits[i + 1].date).getTime()) / 60000
+      return gap > 0 && gap < 3 && (c.insertions || 0) > 200
+    }).length
+    result.push({
+      id: 'lgtm-rate',
+      accent: 'border-yellow-500/20',
+      rows: [
+        { label: 'LGTM SPEED', value: '', color: 'text-slate-500', icon: '👀' },
+        { label: 'SUSPICIOUS', value: `${suspiciouslyFastCommits} speed-merges`, color: suspiciouslyFastCommits > 3 ? 'text-yellow-400' : 'text-slate-400' },
+        { label: '', value: suspiciouslyFastCommits > 3 ? 'nobody read that code' : 'seems legit', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 26: Nerd Snipe Factor ──
+    // Estimate from category diversity — more categories = more distraction
+    const catCount = Object.keys(cats).length
+    const nerdSnipeLevel = catCount > 8 ? 'EXTREME 🎯' : catCount > 5 ? 'HIGH' : catCount > 3 ? 'MODERATE' : 'FOCUSED'
+    result.push({
+      id: 'nerd-snipe',
+      accent: 'border-indigo-500/20',
+      rows: [
+        { label: 'NERD SNIPE', value: '', color: 'text-slate-500', icon: '🎯' },
+        { label: 'DISTRACTION', value: nerdSnipeLevel, color: catCount > 5 ? 'text-indigo-400' : 'text-emerald-400' },
+        { label: 'CATEGORIES', value: `${catCount} different areas touched`, color: 'text-slate-400' },
+        { label: '', value: 'ooh shiny problem...', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 27: Yak Shave Depth ──
+    // Estimate from consecutive config/chore/refactor commits
+    let maxYakDepth = 0
+    let currentYakDepth = 0
+    for (const c of commits.slice(0, 50)) {
+      const isYak = /chore|refactor|config|fix.*ci|fix.*build|setup|deps|upgrade|bump/i.test(c.subject)
+      if (isYak) { currentYakDepth++; maxYakDepth = Math.max(maxYakDepth, currentYakDepth) }
+      else currentYakDepth = 0
+    }
+    result.push({
+      id: 'yak-shave',
+      accent: 'border-pink-500/20',
+      rows: [
+        { label: 'YAK SHAVE', value: '', color: 'text-slate-500', icon: '🐃' },
+        { label: 'MAX DEPTH', value: `${maxYakDepth} levels deep`, color: maxYakDepth >= 4 ? 'text-pink-400' : 'text-slate-400' },
+        { label: '', value: maxYakDepth >= 4 ? 'needed to deploy → fixed CI → updated config → refactored module → questioned life choices' : maxYakDepth >= 2 ? 'a classic two-yak situation' : 'remarkably focused', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 28: Half-Life of Knowledge ──
+    // Based on how many files get re-touched within 7 days
+    const rechurnCount = weekCommits.reduce((s, c) => s + (c.filesChanged || 0), 0)
+    const halfLifeDays = rechurnCount > 50 ? 2 : rechurnCount > 20 ? 5 : rechurnCount > 10 ? 14 : 30
+    result.push({
+      id: 'half-life',
+      accent: 'border-teal-500/20',
+      rows: [
+        { label: 'KNOWLEDGE ½-LIFE', value: '', color: 'text-slate-500', icon: '☢️' },
+        { label: 'DECAY RATE', value: `~${halfLifeDays} days`, color: halfLifeDays <= 5 ? 'text-teal-400' : 'text-slate-400' },
+        { label: '', value: halfLifeDays <= 5 ? 'everything you knew is already wrong' : 'codebase somewhat stable', color: 'text-slate-600' },
+        { label: '7D CHURN', value: `${rechurnCount} file touches`, color: 'text-teal-400/60' },
+      ],
+    })
+
+    // ── Card 29: Lines of Code per Pizza ──
+    const estPizzas = Math.max(1, Math.ceil(daysSinceFirst / 3))
+    const linesPerPizza = Math.round(totalInsertions / estPizzas)
+    result.push({
+      id: 'pizza-metric',
+      accent: 'border-orange-500/20',
+      rows: [
+        { label: 'LOC/PIZZA', value: '', color: 'text-slate-500', icon: '🍕' },
+        { label: 'RATIO', value: `${linesPerPizza.toLocaleString()} lines/pie`, color: 'text-orange-400' },
+        { label: 'EST. PIZZAS', value: `~${estPizzas} consumed`, color: 'text-amber-400' },
+        { label: '', value: 'the only productivity currency', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 30: TTMR (Time to Mass Resignation) ──
+    // Based on ratio of fix/chore commits to feature commits
+    const fixChoreCount = commits.filter(c => /^(fix|chore|refactor|revert)/i.test(c.subject)).length
+    const featCount = commits.filter(c => /^feat/i.test(c.subject)).length
+    const debtRatio = featCount > 0 ? fixChoreCount / featCount : 0
+    const ttmrStatus = debtRatio > 3 ? 'LINKEDIN UPDATED 💼' : debtRatio > 1.5 ? 'RESUME POLISHING 📝' : debtRatio > 0.8 ? 'MONITORING 👁️' : 'VIBES IMMACULATE ✨'
+    result.push({
+      id: 'ttmr',
+      accent: debtRatio > 2 ? 'border-red-500/30' : 'border-emerald-500/20',
+      rows: [
+        { label: 'TTMR', value: '', color: 'text-slate-500', icon: '🚪' },
+        { label: 'STATUS', value: ttmrStatus, color: debtRatio > 2 ? 'text-red-400' : 'text-emerald-400' },
+        { label: 'FIX:FEAT', value: `${fixChoreCount}:${featCount}`, color: 'text-slate-400' },
+        { label: '', value: 'time to mass resignation index', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 31: Gravitational Pull of Legacy Code ──
+    // Older files getting more commits = legacy gravity
+    const oldCommitRatio = commits.length > 20 ? commits.slice(Math.floor(commits.length * 0.7)).reduce((s, c) => s + (c.filesChanged || 0), 0) / Math.max(1, commits.slice(0, Math.floor(commits.length * 0.3)).reduce((s, c) => s + (c.filesChanged || 0), 0)) : 0
+    result.push({
+      id: 'legacy-gravity',
+      accent: 'border-purple-500/20',
+      rows: [
+        { label: 'LEGACY GRAVITY', value: '', color: 'text-slate-500', icon: '🕳️' },
+        { label: 'PULL', value: oldCommitRatio > 1 ? 'STRONG — old code wins' : 'WEAK — new code dominant', color: oldCommitRatio > 1 ? 'text-purple-400' : 'text-emerald-400' },
+        { label: '', value: 'bad code attracts bad code', color: 'text-slate-600' },
+        { label: '', value: '"just to be consistent"', color: 'text-purple-400/40' },
+      ],
+    })
+
+    // ── Card 32: JIRA Velocity vs Actual ──
+    const jiraVelocity = Math.round(commits.length * 1.8) // "planned" points
+    const actualVelocity = commits.length
+    result.push({
+      id: 'jira-velocity',
+      accent: 'border-blue-500/20',
+      rows: [
+        { label: 'JIRA vs REAL', value: '', color: 'text-slate-500', icon: '📋' },
+        { label: 'BOARD SAYS', value: `${jiraVelocity} pts`, color: 'text-blue-400' },
+        { label: 'ACTUALLY', value: `${actualVelocity} things shipped`, color: 'text-emerald-400' },
+        { label: 'GAP', value: `${Math.round(((jiraVelocity - actualVelocity) / Math.max(1, jiraVelocity)) * 100)}% fantasy`, color: 'text-amber-400' },
+      ],
+    })
+
+    // ── Card 33: Deploy Anxiety Level ──
+    const fridayCommits = commits.filter(c => new Date(c.date).getDay() === 5).length
+    const fridayRatio = commits.length > 0 ? fridayCommits / commits.length : 0
+    result.push({
+      id: 'deploy-anxiety',
+      accent: 'border-red-500/20',
+      rows: [
+        { label: 'DEPLOY ANXIETY', value: '', color: 'text-slate-500', icon: '😰' },
+        { label: 'FRIDAY DEPLOYS', value: `${fridayCommits}`, color: fridayRatio > 0.2 ? 'text-red-400' : 'text-slate-400' },
+        { label: '', value: fridayRatio > 0.2 ? 'LIVES DANGEROUSLY' : fridayRatio > 0.1 ? 'occasionally brave' : 'responsible adult', color: fridayRatio > 0.2 ? 'text-red-400' : 'text-slate-600' },
+        { label: '', value: 'never deploy on friday', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 34: Rubber Duck Sessions ──
+    const soloDebugs = commits.filter(c => /fix|bug|debug|hotfix|patch/i.test(c.subject) && !c.coAuthor).length
+    result.push({
+      id: 'rubber-duck',
+      accent: 'border-yellow-500/20',
+      rows: [
+        { label: 'RUBBER DUCK', value: '', color: 'text-slate-500', icon: '🦆' },
+        { label: 'SOLO DEBUGS', value: `${soloDebugs} sessions`, color: 'text-yellow-400' },
+        { label: '', value: soloDebugs > 10 ? 'duck is exhausted' : soloDebugs > 5 ? 'duck earning overtime' : 'duck barely employed', color: 'text-slate-600' },
+        { label: '', value: 'have you tried talking to the duck?', color: 'text-yellow-400/40' },
+      ],
+    })
+
+    // ── Card 35: TODO Debt ──
+    result.push({
+      id: 'todo-debt',
+      accent: 'border-rose-500/20',
+      rows: [
+        { label: 'TODO DEBT', value: '', color: 'text-slate-500', icon: '📌' },
+        { label: 'STATUS', value: 'probably infinite', color: 'text-rose-400' },
+        { label: '', value: `${Math.round(totalInsertions * 0.003)} est. TODOs written`, color: 'text-slate-400' },
+        { label: '', value: '0 est. TODOs resolved', color: 'text-rose-400/60' },
+      ],
+    })
+
+    // ── Card 36: Impostor Syndrome Index ──
+    result.push({
+      id: 'impostor',
+      accent: 'border-violet-500/20',
+      rows: [
+        { label: 'IMPOSTOR INDEX', value: '', color: 'text-slate-500', icon: '🎭' },
+        { label: 'SHIPPED', value: `${totalInsertions.toLocaleString()} lines`, color: 'text-emerald-400' },
+        { label: 'FEELING', value: 'still googling how to center a div', color: 'text-violet-400' },
+        { label: '', value: devScore > 5000 ? 'you literally built this' : 'we all feel this way', color: 'text-slate-600' },
+      ],
+    })
+
+    // ── Card 37: Stack Overflow Dependency ──
+    result.push({
+      id: 'stackoverflow',
+      accent: 'border-orange-500/20',
+      rows: [
+        { label: 'SO DEPENDENCY', value: '', color: 'text-slate-500', icon: '📚' },
+        { label: 'EST. TABS OPEN', value: `~${Math.min(99, Math.round(commitsToday * 4 + 12))}`, color: 'text-orange-400' },
+        { label: 'COPIED FROM', value: 'stackoverflow, probably', color: 'text-slate-500' },
+        { label: '', value: commitsToday > 5 ? 'browser RAM: critical 🔴' : 'browser holding steady', color: 'text-slate-600' },
       ],
     })
 
     return result
   }, [commits, leadCount, activeLeadCount, signedCount, sessionTime])
 
-  // Rotate cards
-  const advance = useCallback(() => {
-    if (cards.length === 0) return
-    setTransitioning(true)
-    setTimeout(() => {
-      setVisibleIndex(prev => (prev + 1) % cards.length)
-      setTransitioning(false)
-    }, 300)
-  }, [cards.length])
+  // Auto-scroll
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [isHovered, setIsHovered] = useState(false)
+  const [autoScrollPaused, setAutoScrollPaused] = useState(false)
 
+  // Auto-scroll the ticker tape
   useEffect(() => {
-    if (cards.length === 0) return
-    const interval = setInterval(advance, 5000)
+    if (cards.length === 0 || isHovered || autoScrollPaused) return
+    const el = scrollRef.current
+    if (!el) return
+    const interval = setInterval(() => {
+      if (!el) return
+      const maxScroll = el.scrollHeight - el.clientHeight
+      if (el.scrollTop >= maxScroll - 2) {
+        // Reset to top with a smooth feel
+        el.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        el.scrollBy({ top: 1, behavior: 'auto' })
+      }
+    }, 40)
     return () => clearInterval(interval)
-  }, [advance, cards.length])
+  }, [cards.length, isHovered, autoScrollPaused])
+
+  // Pause auto-scroll briefly after manual scroll
+  const handleWheel = useCallback(() => {
+    setAutoScrollPaused(true)
+    const timeout = setTimeout(() => setAutoScrollPaused(false), 8000)
+    return () => clearTimeout(timeout)
+  }, [])
 
   if (cards.length === 0) return null
-  const current = cards[visibleIndex % cards.length]
 
   return (
     <div
-      className="admin-ticker relative overflow-hidden cursor-pointer group"
-      onClick={advance}
-      title="Click to cycle stats"
+      className="admin-ticker relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Top accent border */}
-      <div className={`absolute top-0 left-2 right-2 h-px ${current.accent.replace('border-', 'bg-')} transition-colors duration-500`} />
-
-      {/* Sweep progress bar */}
-      <div className="absolute top-0 left-0 right-0 h-px">
-        <div className="h-full bg-emerald-400/20 admin-ticker-progress" style={{ animationDuration: '5s' }} />
+      {/* Header bar */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.04]">
+        <span className="text-[8px] font-mono text-slate-600 tracking-[0.2em] uppercase">DEV TICKER</span>
+        <span className="flex-1" />
+        <span className="text-[8px] font-mono text-slate-700">{cards.length} stats</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 admin-dot-pulse" />
       </div>
 
-      {/* Card content */}
-      <div className={`px-2.5 pt-2.5 pb-1 space-y-[3px] transition-all duration-300 ${transitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
-        {current.rows.map((row, i) => (
-          <div key={i}>
-            <div className="flex items-center gap-1">
-              {row.icon && <span className="text-[9px] leading-none">{row.icon}</span>}
-              {row.label && (
-                <span className="text-[8px] font-mono text-slate-600 tracking-[0.15em] uppercase shrink-0">
-                  {row.label}
-                </span>
-              )}
-              {row.value && !row.spark && (
-                <span className={`text-[10px] font-mono ${row.color} ml-auto text-right truncate leading-tight`}>
-                  {row.value}
-                </span>
-              )}
-            </div>
-            {row.spark && (
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <MiniSpark data={row.spark} color={row.color} />
-                {row.value && (
-                  <span className={`text-[10px] font-mono ${row.color} ml-auto`}>{row.value}</span>
-                )}
+      {/* Scrollable ticker tape */}
+      <div
+        ref={scrollRef}
+        onWheel={handleWheel}
+        className="overflow-y-auto admin-scrollbar"
+        style={{ maxHeight: 'calc(50vh - 120px)', minHeight: '180px' }}
+      >
+        <div className="divide-y divide-white/[0.03]">
+          {cards.map((card) => (
+            <div
+              key={card.id}
+              className="relative px-2.5 py-2 hover:bg-white/[0.02] transition-colors duration-200"
+            >
+              {/* Left accent */}
+              <div className={`absolute left-0 top-2 bottom-2 w-[2px] rounded-r ${card.accent.replace('border-', 'bg-')}`} />
+
+              <div className="space-y-[2px]">
+                {card.rows.map((row, i) => (
+                  <div key={i}>
+                    <div className="flex items-center gap-1">
+                      {row.icon && <span className="text-[9px] leading-none">{row.icon}</span>}
+                      {row.label && (
+                        <span className="text-[8px] font-mono text-slate-600 tracking-[0.15em] uppercase shrink-0">
+                          {row.label}
+                        </span>
+                      )}
+                      {row.value && !row.spark && (
+                        <span className={`text-[10px] font-mono ${row.color} ml-auto text-right truncate leading-tight`}>
+                          {row.value}
+                        </span>
+                      )}
+                    </div>
+                    {row.spark && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <MiniSpark data={row.spark} color={row.color} />
+                        {row.value && (
+                          <span className={`text-[10px] font-mono ${row.color} ml-auto`}>{row.value}</span>
+                        )}
+                      </div>
+                    )}
+                    {row.bar !== undefined && <MiniBar value={row.bar} color={row.color.replace('text-', 'bg-')} />}
+                  </div>
+                ))}
               </div>
-            )}
-            {row.bar !== undefined && <MiniBar value={row.bar} color={row.color.replace('text-', 'bg-')} />}
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Dot nav */}
-      <div className="flex items-center justify-center gap-[3px] py-1.5 opacity-40 group-hover:opacity-80 transition-opacity">
-        {cards.map((_, i) => (
-          <div
-            key={i}
-            className={`rounded-full transition-all duration-300 ${
-              i === visibleIndex % cards.length
-                ? 'bg-emerald-400 w-2 h-[3px]'
-                : 'bg-slate-700 w-[3px] h-[3px]'
-            }`}
-          />
-        ))}
-      </div>
+      {/* Fade overlays top/bottom */}
+      <div className="pointer-events-none absolute top-[26px] left-0 right-0 h-4 bg-gradient-to-b from-[#0a0d12] to-transparent z-10" />
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[#0a0d12] to-transparent z-10" />
     </div>
   )
 }
