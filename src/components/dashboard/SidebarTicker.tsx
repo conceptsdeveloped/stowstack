@@ -15,6 +15,16 @@ interface CommitData {
   area?: string
 }
 
+/* ── Author normalization ── */
+const AUTHOR_ALIASES: Record<string, string> = {
+  'Blake Burkett': 'Blake',
+  'blake burkett': 'Blake',
+  'blake': 'Blake',
+}
+function normalizeAuthor(name: string): string {
+  return AUTHOR_ALIASES[name] ?? name
+}
+
 interface TickerCard {
   id: string
   rows: TickerRow[]
@@ -208,9 +218,10 @@ export default function SidebarTicker({
     // Per-author stats
     const authorMap: Record<string, { commits: number; lines: number; lastAt: string }> = {}
     for (const c of commits) {
-      if (!authorMap[c.author]) authorMap[c.author] = { commits: 0, lines: 0, lastAt: c.date }
-      authorMap[c.author].commits++
-      authorMap[c.author].lines += (c.insertions || 0) + (c.deletions || 0)
+      const a = normalizeAuthor(c.author)
+      if (!authorMap[a]) authorMap[a] = { commits: 0, lines: 0, lastAt: c.date }
+      authorMap[a].commits++
+      authorMap[a].lines += (c.insertions || 0) + (c.deletions || 0)
     }
     const authors = Object.entries(authorMap).sort((a, b) => b[1].commits - a[1].commits)
 
@@ -276,7 +287,7 @@ export default function SidebarTicker({
       id: 'last-push',
       accent: 'border-cyan-500/40',
       rows: [
-        { label: 'LAST PUSH', value: `${latest.author}`, color: 'text-cyan-400', icon: '⚡' },
+        { label: 'LAST PUSH', value: `${normalizeAuthor(latest.author)}`, color: 'text-cyan-400', icon: '⚡' },
         { label: '', value: timeAgo(latest.date), color: 'text-cyan-400/60' },
         { label: 'MSG', value: latest.subject.length > 30 ? latest.subject.slice(0, 30) + '…' : latest.subject, color: 'text-slate-500' },
       ],
@@ -381,7 +392,7 @@ export default function SidebarTicker({
       accent: 'border-amber-500/30',
       rows: [
         { label: 'BIGGEST PUSH', value: `+${(biggestCommit.insertions || 0).toLocaleString()}`, color: 'text-amber-400', icon: '🏋️' },
-        { label: 'BY', value: biggestCommit.author, color: 'text-slate-500' },
+        { label: 'BY', value: normalizeAuthor(biggestCommit.author), color: 'text-slate-500' },
         { label: '', value: biggestCommit.subject.length > 28 ? biggestCommit.subject.slice(0, 28) + '…' : biggestCommit.subject, color: 'text-slate-600' },
       ],
     })
@@ -469,7 +480,7 @@ export default function SidebarTicker({
       const gap = (new Date(commits[i].date).getTime() - new Date(commits[i + 1].date).getTime()) / 60000
       if (gap > 0 && gap < fastestGapMins) {
         fastestGapMins = gap
-        fastestPair = commits[i].author
+        fastestPair = normalizeAuthor(commits[i].author)
       }
     }
     result.push({
