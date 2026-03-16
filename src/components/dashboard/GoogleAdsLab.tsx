@@ -383,6 +383,35 @@ export default function GoogleAdsLab({ facility, adminKey, darkMode }: {
             </button>
           </div>
 
+          {/* Cost estimate */}
+          {config.keywords.length > 0 && (() => {
+            const avgCPC = config.keywords.reduce((s, k) => s + k.estimatedCPC, 0) / config.keywords.length
+            const totalVolume = config.keywords.reduce((s, k) => s + k.estimatedVolume, 0)
+            const estimatedClicksDay = Math.min(config.dailyBudget / avgCPC, totalVolume / 30)
+            const estimatedCostDay = estimatedClicksDay * avgCPC
+            const estimatedCostMonth = estimatedCostDay * 30
+            return (
+              <div className={`grid grid-cols-4 gap-2 p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                <div className="text-center">
+                  <p className={`text-sm font-bold ${text}`}>${avgCPC.toFixed(2)}</p>
+                  <p className={`text-[9px] uppercase ${sub}`}>Avg CPC</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm font-bold ${text}`}>{Math.round(estimatedClicksDay)}</p>
+                  <p className={`text-[9px] uppercase ${sub}`}>Clicks/Day</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm font-bold ${text}`}>${Math.round(estimatedCostDay)}</p>
+                  <p className={`text-[9px] uppercase ${sub}`}>Est. Cost/Day</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm font-bold text-emerald-500`}>${estimatedCostMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                  <p className={`text-[9px] uppercase ${sub}`}>Est. Cost/Mo</p>
+                </div>
+              </div>
+            )
+          })()}
+
           {keywords.length === 0 && !loading && (
             <div className={`text-center py-8 border rounded-xl ${card}`}>
               <Search size={24} className={`mx-auto mb-2 ${sub}`} />
