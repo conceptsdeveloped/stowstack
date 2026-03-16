@@ -210,14 +210,29 @@ function loadVideo(url: string): Promise<HTMLVideoElement> {
 export async function compositeVideo(
   sourceVideoUrl: string,
   options: CompositorOptions,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  adminKey?: string
 ): Promise<Blob> {
   const { width, height, fps, textLayers } = options
 
-  onProgress?.(5)
+  onProgress?.(2)
+
+  // Proxy the video through our server to avoid CORS issues
+  let videoSrc = sourceVideoUrl
+  if (adminKey && !sourceVideoUrl.startsWith('blob:')) {
+    onProgress?.(3)
+    const proxyRes = await fetch(`/api/proxy-video?url=${encodeURIComponent(sourceVideoUrl)}`, {
+      headers: { 'X-Admin-Key': adminKey },
+    })
+    if (!proxyRes.ok) throw new Error('Failed to proxy video for compositing')
+    const blob = await proxyRes.blob()
+    videoSrc = URL.createObjectURL(blob)
+  }
+
+  onProgress?.(10)
 
   // Load the source video
-  const video = await loadVideo(sourceVideoUrl)
+  const video = await loadVideo(videoSrc)
   const videoDuration = video.duration
 
   onProgress?.(15)

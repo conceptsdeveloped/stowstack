@@ -415,6 +415,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
                           videoUrl={job.videoUrl}
                           facilityName={facility.name}
                           darkMode={darkMode}
+                          adminKey={adminKey}
                         />
                       </div>
                     )}
@@ -508,10 +509,11 @@ const POSITION_OPTIONS: { id: TextLayer['position']; label: string }[] = [
   { id: 'bottom', label: 'Bottom' },
 ]
 
-function TextOverlayEditor({ videoUrl, facilityName, darkMode }: {
+function TextOverlayEditor({ videoUrl, facilityName, darkMode, adminKey }: {
   videoUrl: string
   facilityName: string
   darkMode: boolean
+  adminKey: string
 }) {
   const [expanded, setExpanded] = useState(false)
   const [layers, setLayers] = useState<TextLayer[]>(() =>
@@ -558,7 +560,7 @@ function TextOverlayEditor({ videoUrl, facilityName, darkMode }: {
         height: 1920,
         fps: 24,
         textLayers: activeLayers,
-      }, (p) => setCompositProgress(p))
+      }, (p) => setCompositProgress(p), adminKey)
 
       const safeName = facilityName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
       downloadBlob(blob, `${safeName}-final-${Date.now()}.webm`)
