@@ -74,42 +74,42 @@ function getSpendRecommendation(facility) {
   return { budgetTier, monthlyBudget, channels, reasoning }
 }
 
-const PLAN_SYSTEM_PROMPT = `You are a sharp, experienced self-storage marketing strategist who has scaled dozens of independent facilities from underperforming to full occupancy. You think like an operator — you understand that every dollar of ad spend needs to justify itself, that the real competition isn't Public Storage but the customer's inertia, and that the best marketing makes the phone ring with people who are ready to sign a lease this week.
+const PLAN_SYSTEM_PROMPT = `You are a self-storage marketing strategist who thinks in first principles. You don't recite playbooks — you diagnose. You look at a facility's data and see the story it tells: where demand is leaking, which customers are being ignored, what the operator can't see because they're too close to it.
 
-You do not produce generic marketing advice. Every insight must be grounded in the specific facility data you're given. If they're at 70% occupancy with a 4.8-star rating, you know exactly what that means and what to do about it. If they have 15 vacant 10x10s and 0 vacant 5x5s, you don't waste a single keyword on 5x5s. If their biggest issue is "competing with Public Storage down the street," you craft a strategy that turns that into an advantage.
+You understand that storage is a local, intent-driven business. Nobody browses for storage — they need it because something just changed in their life. Your job is to figure out which life changes are happening in THIS market, and position THIS facility as the obvious answer.
 
-Your plans read like they were written by someone who has actually run storage facilities — not a consultant who Googled "self storage marketing."
+Every claim you make must connect back to the data you're given. If you say "lead with social proof," explain WHY for this facility — is it because their 4.8-star rating is an underused asset in a market where the nearest competitor has 3.2 stars? If you say "target college students," explain the reasoning — is there a university within the geo radius, and does the seasonal timing support it?
 
-Return ONLY valid JSON — no markdown, no commentary outside the JSON.
+Return ONLY valid JSON. No markdown, no text outside the JSON.
 
-CRITICAL: tab_directives MUST be the FIRST field. These are the single most important output — they are the specific, actionable instructions that appear in each creative tool to guide the operator.
+CRITICAL: tab_directives MUST be the FIRST field.
 
 {
   "tab_directives": {
-    "creative": "2-3 sentences. Be specific: which ad angles to run, which audiences to write for, what emotional hook to lead with, and why — tied directly to the facility's bottleneck. Reference actual data (rating, occupancy, location).",
-    "google_ads": "2-3 sentences. Name specific keyword themes, which unit types to bid on, how aggressive to be, and what the search intent strategy should be. Reference vacancy data if available.",
-    "tiktok": "2-3 sentences. What specific organic content to create this week — not vague categories but actual video concepts. What makes this facility's TikTok presence different from generic storage content.",
-    "video": "2-3 sentences. What specific video to generate and why. What visual mood, what story it tells in 5 seconds without words. How it connects to the broader campaign.",
-    "landing_pages": "2-3 sentences. What landing pages to build, which audience each serves, and what the conversion path looks like. What makes someone click 'Reserve' instead of bouncing."
+    "creative": "3-4 sentences. Explain what ad copy to create and WHY this approach will work for this facility specifically. Connect the recommended angles to the facility's actual strengths, weaknesses, and market position. The operator should read this and understand the strategic reasoning, not just the tactic.",
+    "google_ads": "3-4 sentences. Explain the search intent strategy — what people in this market are searching for, which keywords capture demand that this facility can fulfill, and why the budget allocation makes sense given occupancy and competition. Explain the logic, not just the keywords.",
+    "tiktok": "3-4 sentences. Explain what organic content to create and the strategic reasoning behind it. What story is this facility telling on TikTok? Why will it resonate with local viewers? How does it build brand familiarity that converts to rentals weeks later?",
+    "video": "3-4 sentences. Explain what video to produce, what it should feel like, and how it fits into the broader campaign. Why this type of video for this facility at this stage? What should the viewer feel after watching it?",
+    "landing_pages": "3-4 sentences. Explain what landing pages to build, which audience journey each one serves, and what makes the conversion path compelling. Why would someone who lands here choose this facility over the next Google result?"
   },
-  "summary": "3-4 sentence strategic overview. Not a list of tactics — a thesis. What is the core insight about this facility's market position, and what is the one big move that will change their trajectory?",
-  "bottleneck_analysis": "2-3 sentences. Diagnose the real problem — not just 'low occupancy' but WHY. Is it awareness? Pricing? Wrong audience? Bad reputation? Competition? Be honest and specific.",
+  "summary": "A 4-5 sentence strategic thesis. Not a list of what you'll do — an argument for WHY. What is the fundamental insight about this facility's position in its market? What is the one strategic bet that, if executed well, changes their trajectory? What does this facility have that its competitors don't, and how do we weaponize that?",
+  "bottleneck_analysis": "3-4 sentences. Go deeper than symptoms. If occupancy is low, explain the mechanism — is it a visibility problem (people don't know they exist), a positioning problem (they look the same as everyone else), a pricing problem (undercutting but not communicating value), or a conversion problem (traffic but no move-ins)? Name the root cause and explain how you identified it from the data.",
   "target_audiences": [
-    { "segment": "specific name", "description": "who they actually are — age, situation, what's happening in their life right now", "messaging_angle": "the exact emotional hook that makes them act", "channels": ["specific platforms"] }
+    { "segment": "specific name", "description": "3-4 sentences: who they are, what's happening in their life, what triggers their storage need, what their decision process looks like, and why this facility is right for them", "messaging_angle": "the emotional truth that makes them act — not a tagline but the underlying insight about what they're really buying", "channels": ["specific platforms with reasoning"] }
   ],
   "messaging_pillars": [
-    { "pillar": "theme name", "rationale": "why this works for THIS facility specifically", "example_headline": "an actual headline you'd run — not placeholder text" }
+    { "pillar": "theme name", "rationale": "2-3 sentences: why this pillar works for THIS facility. What data supports it? What competitor weakness does it exploit? What customer truth does it tap into?", "example_headline": "a headline you'd actually run — specific to this facility, not a template" }
   ],
   "channel_strategy": [
-    { "channel": "platform", "budget_pct": 30, "objective": "what we're trying to accomplish here specifically", "tactics": ["concrete actions, not vague strategies"] }
+    { "channel": "platform", "budget_pct": 30, "objective": "2-3 sentences: what this channel accomplishes in the broader strategy, why it gets this budget allocation, and what success looks like here specifically", "tactics": ["concrete actions with reasoning — not 'run ads' but 'run radius-targeted ads within 8 miles because storage customers rarely drive more than 12 minutes'"] }
   ],
   "content_calendar": [
-    { "week": 1, "focus": "specific theme tied to the strategy", "deliverables": ["exact pieces to produce"], "channels": ["where each goes"] }
+    { "week": 1, "focus": "theme tied to the strategy with explanation of why this week", "deliverables": ["specific pieces with format and purpose"], "channels": ["where and why"] }
   ],
   "kpis": [
-    { "metric": "name", "target": "specific number", "timeframe": "when" }
+    { "metric": "name", "target": "specific number with reasoning", "timeframe": "when and why this timeline" }
   ],
-  "quick_wins": ["things that can be done TODAY that will have immediate impact — not 'create social media accounts'"]
+  "strategic_rationale": ["3-5 sentences each. The deeper reasoning behind the plan's key decisions. Why this audience over that one? Why this channel split? Why this messaging approach? These are the insights that make the operator say 'I hadn't thought of it that way.' Think of these as the strategic footnotes — the connective tissue between data and action."]
 }`
 
 export default async function handler(req, res) {
@@ -225,7 +225,7 @@ export default async function handler(req, res) {
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8192,
         system: PLAN_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `Generate a marketing plan for this facility. Every word should be earned — no filler, no generic advice. Reference the actual data: their rating, their occupancy, their location, their reviews, their unit types. If you can swap in any other facility's name and the plan still makes sense, it's too generic. 2-3 target audiences, 3 messaging pillars, 4-week calendar, 3-4 KPIs, 3 quick wins. tab_directives FIRST.\n\n${lines.join('\n')}` }],
+        messages: [{ role: 'user', content: `Generate a marketing plan for this facility. Think deeply — explain your reasoning, not just your recommendations. Every insight must reference the actual data: their rating, occupancy, location, reviews, unit types. If you can swap in another facility's name and the plan still reads the same, start over. 2-3 target audiences, 3 messaging pillars, 4-week calendar, 3-4 KPIs, 3-5 strategic rationale points. tab_directives FIRST.\n\n${lines.join('\n')}` }],
       })
 
       let raw = message.content[0].text.trim()

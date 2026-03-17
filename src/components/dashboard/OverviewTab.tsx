@@ -33,6 +33,7 @@ interface MarketingPlan {
     content_calendar?: { week: number; focus: string; deliverables: string[]; channels: string[] }[]
     kpis?: { metric: string; target: string; timeframe: string }[]
     quick_wins?: string[]
+    strategic_rationale?: string[]
   }
   spend_recommendation: {
     budgetTier: string
@@ -478,15 +479,12 @@ export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUp
             </Section>
           )}
 
-          {/* Quick Wins */}
-          {p.quick_wins?.length ? (
-            <Section id="quick-wins" title={`Quick Wins (${p.quick_wins.length})`} icon={Zap}>
-              <div className="mt-3 space-y-1.5">
-                {p.quick_wins.map((w, i) => (
-                  <div key={i} className={`flex items-start gap-2 text-sm ${text}`}>
-                    <span className="text-emerald-500 mt-0.5">✓</span>
-                    <span>{w}</span>
-                  </div>
+          {/* Strategic Rationale */}
+          {p.strategic_rationale?.length ? (
+            <Section id="rationale" title="Strategic Rationale" icon={Zap}>
+              <div className="mt-3 space-y-3">
+                {p.strategic_rationale.map((r, i) => (
+                  <p key={i} className={`text-sm ${text} leading-relaxed`}>{r}</p>
                 ))}
               </div>
             </Section>
