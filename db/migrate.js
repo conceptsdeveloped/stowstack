@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS organizations (
   contact_email     TEXT,
   contact_phone     TEXT,
   billing_email     TEXT,
-  plan              TEXT DEFAULT 'starter',  -- starter | growth | enterprise
+  plan              TEXT DEFAULT 'launch',   -- launch | growth | portfolio
   facility_limit    INTEGER DEFAULT 10,
   white_label       BOOLEAN DEFAULT FALSE,
   status            TEXT DEFAULT 'active',   -- active | suspended | cancelled
@@ -1395,6 +1395,12 @@ CREATE TABLE IF NOT EXISTS facility_market_intel (
   updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_market_intel_facility ON facility_market_intel(facility_id);
+
+-- ============================================================
+-- Migrate legacy plan names to launch/growth/portfolio
+-- ============================================================
+UPDATE organizations SET plan = 'launch' WHERE plan = 'starter';
+UPDATE organizations SET plan = 'portfolio' WHERE plan = 'enterprise';
 `
 
 async function migrate() {

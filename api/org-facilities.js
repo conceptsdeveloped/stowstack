@@ -1,5 +1,6 @@
 import { query, queryOne } from './_db.js'
 import { requireSession, isAdminRequest } from './_session-auth.js'
+import { requireActiveSubscription } from './_require-subscription.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
@@ -50,6 +51,11 @@ export default async function handler(req, res) {
 
     /* ── POST: assign facility to org ── */
     if (req.method === 'POST') {
+      // Require active subscription for write operations
+      if (!isAdminUser) {
+        const subSession = await requireActiveSubscription(req, res)
+        if (!subSession) return
+      }
       if (!isAdminUser && orgUser?.role !== 'org_admin') return res.status(403).json({ error: 'Forbidden' })
 
       const { facilityId } = req.body

@@ -1,6 +1,7 @@
 import { query, queryOne } from './_db.js'
 import crypto from 'crypto'
 import { requireSession, isAdminRequest } from './_session-auth.js'
+import { requireActiveSubscription } from './_require-subscription.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
@@ -31,6 +32,10 @@ export default async function handler(req, res) {
 
     /* ── POST: invite user ── */
     if (req.method === 'POST') {
+      if (!isAdminUser) {
+        const subSession = await requireActiveSubscription(req, res)
+        if (!subSession) return
+      }
       const { email, name, role } = req.body
       if (!email || !name) return res.status(400).json({ error: 'Email and name required' })
 

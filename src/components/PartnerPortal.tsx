@@ -356,19 +356,37 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-amber-600" />
-              <p className="text-sm text-amber-800">Your payment is past due. Please update your payment method to avoid service interruption.</p>
+              <p className="text-sm text-amber-800"><strong>Payment past due.</strong> Update your payment method within 7 days to avoid service interruption. Read-only access remains active during this period.</p>
             </div>
             {isAdmin && org.hasStripe && (
-              <button onClick={openBilling} className="text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg transition-colors whitespace-nowrap">Update Payment</button>
+              <button onClick={openBilling} className="text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-sm">Update Payment</button>
             )}
           </div>
         </div>
       )}
       {org.subscriptionStatus === 'canceled' && (
         <div className="bg-red-50 border-b border-red-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2">
-            <AlertTriangle size={16} className="text-red-600" />
-            <p className="text-sm text-red-800">Your subscription has been canceled. Some features may be restricted.</p>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-600" />
+              <p className="text-sm text-red-800"><strong>Subscription canceled.</strong> Your campaigns and landing pages are paused. Resubscribe to restore service.</p>
+            </div>
+            {isAdmin && (
+              <a href="/partner?checkout=resubscribe" className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-sm">Resubscribe</a>
+            )}
+          </div>
+        </div>
+      )}
+      {org.subscriptionStatus === 'incomplete' && (
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-blue-600" />
+              <p className="text-sm text-blue-800"><strong>Payment incomplete.</strong> Complete your subscription setup to activate your account.</p>
+            </div>
+            {isAdmin && org.hasStripe && (
+              <button onClick={openBilling} className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-sm">Complete Setup</button>
+            )}
           </div>
         </div>
       )}

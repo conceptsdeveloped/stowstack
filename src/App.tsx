@@ -1370,8 +1370,11 @@ function PricingSection() {
                   }`}
                   asChild
                 >
-                  <a href="#cta"><Search size={14} className="mr-2" /> Get Your Free Facility Audit</a>
+                  <a href={`/partner?signup=${tier.name.toLowerCase()}`}><Zap size={14} className="mr-2" /> Subscribe Now</a>
                 </Button>
+                <a href="#cta" className="mt-2 block text-center text-xs text-muted-foreground hover:text-emerald-600 transition-colors">
+                  or get a free facility audit first
+                </a>
               </div>
             </Reveal>
           ))}

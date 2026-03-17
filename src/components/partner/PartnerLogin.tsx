@@ -61,6 +61,9 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
   const [phone, setPhone] = useState('')
   const [facilityCount, setFacilityCount] = useState('')
 
+  // Billing period
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
+
   // Checkout success state
   const [credentials, setCredentials] = useState<CheckoutCredentials | null>(null)
   const [showTempPassword, setShowTempPassword] = useState(false)
@@ -140,6 +143,14 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
       setMode('signup')
       setSignupStep('plan')
       setError('Checkout was canceled. You can try again or choose a different plan.')
+    }
+
+    // Pre-select plan from homepage CTA (?signup=launch|growth|portfolio)
+    const signupPlan = params.get('signup')
+    if (signupPlan && ['launch', 'growth', 'portfolio'].includes(signupPlan)) {
+      window.history.replaceState({}, '', window.location.pathname)
+      setMode('signup')
+      setSignupStep('info')
     }
   }, [])
 
@@ -236,11 +247,6 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
   }
 
   const startCheckout = async (planId: string) => {
-    if (planId === 'portfolio') {
-      window.location.href = 'mailto:partners@stowstack.co?subject=Portfolio Plan Inquiry'
-      return
-    }
-
     if (!companyName.trim() || !contactName.trim() || !email.trim()) {
       setError('Please fill out your company details first.')
       setSignupStep('info')
@@ -261,6 +267,7 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
           phone: phone.trim(),
           facilityCount: facilityCount.trim(),
           plan: planId,
+          billing: billingPeriod,
         }),
       })
       const data = await res.json()
@@ -485,9 +492,25 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
         ) : (
           /* ── Plan Picker ── */
           <div>
+            {/* Billing period toggle */}
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span className={`text-sm ${billingPeriod === 'monthly' ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>Monthly</span>
+              <button
+                onClick={() => setBillingPeriod(b => b === 'monthly' ? 'annual' : 'monthly')}
+                className={`relative w-11 h-6 rounded-full transition-colors ${billingPeriod === 'annual' ? 'bg-indigo-500' : 'bg-slate-200'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${billingPeriod === 'annual' ? 'translate-x-5' : ''}`} />
+              </button>
+              <span className={`text-sm ${billingPeriod === 'annual' ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>Annual</span>
+              {billingPeriod === 'annual' && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Save 2 months</span>}
+            </div>
+
             <div className="grid sm:grid-cols-3 gap-3">
               {PLANS.map(p => {
                 const Icon = p.icon
+                const monthlyPrice = p.price
+                const annualMonthly = Math.round(monthlyPrice * 10 / 12) // 10 months for price of 12
+                const displayPrice = billingPeriod === 'annual' ? annualMonthly : monthlyPrice
                 return (
                   <div
                     key={p.id}
@@ -507,16 +530,12 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
                     </div>
                     <h3 className="text-base font-bold">{p.name}</h3>
                     <div className="mt-1 mb-3">
-                      {p.price !== null ? (
-                        <>
-                          <span className="text-2xl font-bold">${p.price.toLocaleString()}</span>
-                          <span className="text-xs text-slate-500">/mo</span>
-                          {p.setupFee !== null && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">+ ${p.setupFee} one-time setup</p>
-                          )}
-                        </>
+                      <span className="text-2xl font-bold">${displayPrice.toLocaleString()}</span>
+                      <span className="text-xs text-slate-500">/mo</span>
+                      {billingPeriod === 'annual' ? (
+                        <p className="text-[10px] text-green-600 font-medium mt-0.5">Billed ${(monthlyPrice * 10).toLocaleString()}/yr (save ${(monthlyPrice * 2).toLocaleString()})</p>
                       ) : (
-                        <span className="text-sm text-slate-500">Custom pricing</span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Billed monthly</p>
                       )}
                     </div>
                     <ul className="space-y-1.5 mb-4 flex-1">
