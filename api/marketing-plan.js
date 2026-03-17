@@ -142,13 +142,14 @@ export default async function handler(req, res) {
 
     try {
       // Gather all facility data
-      const [facilities, contextDocs, placesData, scrapeData, pmsUnits, pmsSnapshot] = await Promise.all([
+      const [facilities, contextDocs, placesData, scrapeData, pmsUnits, pmsSnapshot, marketIntelRows] = await Promise.all([
         query(`SELECT * FROM facilities WHERE id = $1`, [facilityId]),
         query(`SELECT type, title, content FROM facility_context WHERE facility_id = $1 ORDER BY created_at DESC`, [facilityId]),
         query(`SELECT photos, reviews FROM places_data WHERE facility_id = $1 ORDER BY fetched_at DESC LIMIT 1`, [facilityId]),
         query(`SELECT url, metadata FROM assets WHERE facility_id = $1 AND source = 'website_scrape' LIMIT 5`, [facilityId]),
         query(`SELECT unit_type, total_count, occupied_count, (total_count - occupied_count) as vacant_count, street_rate, web_rate, features FROM facility_pms_units WHERE facility_id = $1 ORDER BY total_count DESC`, [facilityId]).catch(() => []),
         query(`SELECT occupancy_pct, total_units, occupied_units, move_ins_mtd, move_outs_mtd FROM facility_pms_snapshots WHERE facility_id = $1 ORDER BY snapshot_date DESC LIMIT 1`, [facilityId]).catch(() => []),
+        query(`SELECT competitors, demand_drivers, demographics, manual_notes FROM facility_market_intel WHERE facility_id = $1`, [facilityId]).catch(() => []),
       ])
 
       if (!facilities.length) return res.status(404).json({ error: 'Facility not found' })
@@ -202,6 +203,49 @@ export default async function handler(req, res) {
           const snap = pmsSnapshot[0]
           if (snap.occupancy_pct) lines.push(`Overall occupancy: ${snap.occupancy_pct}%`)
           if (snap.move_ins_mtd || snap.move_outs_mtd) lines.push(`This month: ${snap.move_ins_mtd || 0} move-ins, ${snap.move_outs_mtd || 0} move-outs`)
+        }
+      }
+
+      // Add market intelligence data if available
+      const mIntel = marketIntelRows?.[0]
+      if (mIntel) {
+        const competitors = typeof mIntel.competitors === 'string' ? JSON.parse(mIntel.competitors) : (mIntel.competitors || [])
+        const demandDrivers = typeof mIntel.demand_drivers === 'string' ? JSON.parse(mIntel.demand_drivers) : (mIntel.demand_drivers || [])
+        const demographics = typeof mIntel.demographics === 'string' ? JSON.parse(mIntel.demographics) : (mIntel.demographics || {})
+
+        if (competitors.length) {
+          lines.push('\n--- COMPETITIVE LANDSCAPE ---')
+          competitors.forEach(c => {
+            lines.push(`  ${c.name} — ${c.rating ? c.rating + '★' : 'no rating'}${c.reviewCount ? ` (${c.reviewCount} reviews)` : ''}, ${c.distance_miles != null ? c.distance_miles + ' miles away' : 'distance unknown'}`)
+          })
+        }
+
+        if (demandDrivers.length) {
+          lines.push('\n--- LOCAL DEMAND DRIVERS ---')
+          const grouped = {}
+          demandDrivers.forEach(d => {
+            if (!grouped[d.category]) grouped[d.category] = []
+            grouped[d.category].push(d)
+          })
+          Object.entries(grouped).forEach(([cat, items]) => {
+            lines.push(`  [${cat}]`)
+            items.forEach(d => lines.push(`    ${d.name} — ${d.distance_miles != null ? d.distance_miles + ' miles' : 'distance unknown'}`))
+          })
+        }
+
+        if (demographics.population || demographics.median_income) {
+          lines.push('\n--- MARKET DEMOGRAPHICS ---')
+          if (demographics.zip) lines.push(`  ZIP: ${demographics.zip}`)
+          if (demographics.population) lines.push(`  Population: ${demographics.population.toLocaleString()}`)
+          if (demographics.median_income) lines.push(`  Median income: $${demographics.median_income.toLocaleString()}`)
+          if (demographics.median_age) lines.push(`  Median age: ${demographics.median_age}`)
+          if (demographics.renter_pct != null) lines.push(`  Renter %: ${demographics.renter_pct}%`)
+          if (demographics.median_home_value) lines.push(`  Median home value: $${demographics.median_home_value.toLocaleString()}`)
+        }
+
+        if (mIntel.manual_notes) {
+          lines.push('\n--- OPERATOR MARKET NOTES ---')
+          lines.push(mIntel.manual_notes)
         }
       }
 

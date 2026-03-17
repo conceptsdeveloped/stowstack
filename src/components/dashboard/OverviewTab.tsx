@@ -4,6 +4,7 @@ import {
   Target, DollarSign, TrendingUp, Calendar, Zap, Plus, Edit3, Check, X
 } from 'lucide-react'
 import { Facility } from './types'
+import MarketIntelligence from './MarketIntelligence'
 
 /* ── Types ── */
 
@@ -322,6 +323,9 @@ export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUp
           )}
         </div>
       </div>
+
+      {/* Market Intelligence */}
+      <MarketIntelligence facility={facility} adminKey={adminKey} darkMode={darkMode} />
 
       {/* Business Context Documents */}
       <div className={`border rounded-xl ${card}`}>

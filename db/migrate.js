@@ -1380,6 +1380,21 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
 -- Superadmin flag for StowStack team members
 ALTER TABLE org_users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE;
+
+-- Market intelligence: cached environmental data per facility
+CREATE TABLE IF NOT EXISTS facility_market_intel (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE UNIQUE,
+  last_scanned    TIMESTAMPTZ DEFAULT NOW(),
+  competitors     JSONB DEFAULT '[]',
+  demand_drivers  JSONB DEFAULT '[]',
+  demographics    JSONB DEFAULT '{}',
+  manual_notes    TEXT,
+  operator_overrides JSONB DEFAULT '{}',
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_market_intel_facility ON facility_market_intel(facility_id);
 `
 
 async function migrate() {
