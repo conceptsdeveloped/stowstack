@@ -399,12 +399,35 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ─── Secret word toggle: type "notepad" to toggle ───
+  const secretWordRef = useRef('')
+  const secretTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // ─── Keyboard shortcut: Ctrl+Shift+B ───
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
         e.preventDefault()
         setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
+      }
+
+      // Secret word: type "notepad" anywhere (not in inputs) to toggle
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.length === 1) {
+        const target = e.target as HTMLElement
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && target.tagName !== 'SELECT' && !target.isContentEditable) {
+          secretWordRef.current += e.key.toLowerCase()
+          // Reset after 2s of no typing
+          if (secretTimerRef.current) clearTimeout(secretTimerRef.current)
+          secretTimerRef.current = setTimeout(() => { secretWordRef.current = '' }, 2000)
+          // Keep only last 7 chars (length of "notepad")
+          if (secretWordRef.current.length > 7) {
+            secretWordRef.current = secretWordRef.current.slice(-7)
+          }
+          if (secretWordRef.current === 'notepad') {
+            secretWordRef.current = ''
+            setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
+          }
+        }
       }
       // Quick shortcuts when panel is open
       if (panel.open && !e.ctrlKey && !e.metaKey && !e.altKey) {
