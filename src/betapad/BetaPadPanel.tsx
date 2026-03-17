@@ -1167,7 +1167,7 @@ export default function BetaPadPanel() {
     <div data-betapad="">
       {/* FAB button */}
       {!panel.open && (
-        <button className="bp-fab" onClick={togglePanel} title="BetaPad (Ctrl+Shift+B)">
+        <button className="bp-fab" onClick={togglePanel} title="BetaPad (&#8984;/Ctrl+Shift+B)">
           <IconBug />
           {entryCount > 0 && (
             <span style={{
@@ -1244,7 +1244,7 @@ export default function BetaPadPanel() {
           {/* Footer */}
           <div className="bp-footer">
             <span style={{ fontSize: 10, color: 'var(--bp-text-dim)' }}>
-              Ctrl+Shift+B to toggle
+              &#8984;/Ctrl+Shift+B to toggle
             </span>
             <div style={{ position: 'relative' }}>
               {showExport && <ExportMenu onClose={() => setShowExport(false)} />}

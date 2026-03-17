@@ -402,7 +402,7 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
   // ─── Keyboard shortcut: Ctrl+Shift+B ───
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
         e.preventDefault()
         setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
       }
