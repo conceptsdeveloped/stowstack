@@ -187,11 +187,17 @@ export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUp
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
         body: JSON.stringify({ facilityId: facility.id, playbooks: selectedPlaybooks }),
       })
+      if (!res.ok) {
+        const errText = await res.text()
+        alert(`Plan generation failed (${res.status}): ${errText.slice(0, 200)}`)
+        return
+      }
       const data = await res.json()
       if (data.plan) setPlan(data.plan)
-      else if (data.error) alert(data.error)
+      else if (data.error) alert(`Error: ${data.error}`)
+      else alert('No plan returned — check server logs')
     } catch (err) {
-      console.error('Plan generation failed:', err)
+      alert(`Plan generation failed: ${err instanceof Error ? err.message : 'Network error'}`)
     } finally {
       setGenerating(false)
     }

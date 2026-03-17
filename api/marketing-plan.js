@@ -2,7 +2,7 @@ import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin } from './_auth.js'
 
-export const config = { maxDuration: 60 }
+export const config = { maxDuration: 120 }
 
 const ALLOWED_ORIGINS = [
   'https://stowstack.co', 'https://www.stowstack.co',
