@@ -333,7 +333,7 @@ export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUp
 
         {addingDoc && (
           <div className={`px-5 pb-4 space-y-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-            <div className="grid grid-cols-2 gap-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
               <div>
                 <label className={`text-xs ${sub} block mb-1`}>Type</label>
                 <select value={newDocType} onChange={e => setNewDocType(e.target.value)} className={`w-full px-3 py-2 border rounded-lg text-sm ${inputBg}`}>
@@ -393,7 +393,7 @@ export default function OverviewTab({ facility, adminKey, darkMode, onFacilityUp
         </button>
         {showPlaybooks && (
           <div className={`px-5 pb-4 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-3">
               {PLAYBOOK_OPTIONS.map(pb => (
                 <button
                   key={pb.id}

@@ -318,7 +318,7 @@ export default function GoogleAdsLab({ facility, adminKey, darkMode, pmsData }: 
           </div>
 
           {/* Score breakdown */}
-          <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
             {Object.entries(score.breakdown).map(([key, val]) => (
               <div key={key} className="text-center">
                 <div className={`text-lg font-bold ${scoreColor(val)}`}>{val}</div>
@@ -469,7 +469,7 @@ export default function GoogleAdsLab({ facility, adminKey, darkMode, pmsData }: 
             const estimatedCostDay = estimatedClicksDay * avgCPC
             const estimatedCostMonth = estimatedCostDay * 30
             return (
-              <div className={`grid grid-cols-4 gap-2 p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+              <div className={`grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
                 <div className="text-center">
                   <p className={`text-sm font-bold ${text}`}>${avgCPC.toFixed(2)}</p>
                   <p className={`text-[9px] uppercase ${sub}`}>Avg CPC</p>

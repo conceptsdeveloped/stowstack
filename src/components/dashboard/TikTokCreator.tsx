@@ -275,7 +275,7 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
           <div className="space-y-3">
             <div className="flex justify-center">
               {/* 9:16 TikTok preview */}
-              <div className="w-[270px] h-[480px] bg-black rounded-2xl overflow-hidden relative shadow-2xl flex-shrink-0">
+              <div className="w-full max-w-[270px] h-[480px] bg-black rounded-2xl overflow-hidden relative shadow-2xl flex-shrink-0">
                 {/* Slide image with Ken Burns */}
                 {activeSlide && (
                   <div className="absolute inset-0" key={activeSlide.id + '-' + activeSlideIdx}>
@@ -456,7 +456,7 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
             {/* Add slide from assets */}
             <div>
               <label className={`text-xs font-medium ${sub} block mb-1.5`}>Add Image</label>
-              <div className="grid grid-cols-6 gap-1.5 max-h-24 overflow-y-auto">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-24 overflow-y-auto">
                 {assets.filter(a => !slides.some(s => s.imageUrl === a.url)).map(a => (
                   <button
                     key={a.id}

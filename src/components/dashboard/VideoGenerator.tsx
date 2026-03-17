@@ -242,7 +242,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
             {activeTemplate.mode === 'image_to_video' && (
               <div>
                 <label className={`text-xs font-medium ${sub} block mb-1.5`}>Source Image</label>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {assets.slice(0, 12).map(a => (
                     <button
                       key={a.id}

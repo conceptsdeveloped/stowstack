@@ -94,7 +94,7 @@ function MetaVariationCard({
               />
               <p className={`text-xs mt-0.5 ${editFields.description.length > 30 ? 'text-red-500' : sub}`}>{editFields.description.length}/30</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={`text-xs font-medium uppercase ${sub} block mb-1`}>CTA</label>
                 <select
@@ -315,7 +315,7 @@ function GoogleRSACard({ v, darkMode, adminKey, onUpdate }: {
             {sitelinks.length > 0 && (
               <div>
                 <p className={`text-xs font-medium uppercase tracking-wide ${sub} mb-2`}>Sitelink Extensions</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {sitelinks.map((s, i) => (
                     <div key={i} className={`px-3 py-2 rounded ${darkMode ? 'bg-slate-700/50' : 'bg-white border border-slate-100'}`}>
                       <p className={`text-sm font-medium ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>{s.title}</p>
@@ -841,7 +841,7 @@ export default function CreativeTab({ facility, adminKey, darkMode }: { facility
                 onChange={e => setRegenFeedback(e.target.value)}
                 placeholder="Direction for new variations..."
                 rows={2}
-                className={`w-64 px-3 py-2 border rounded-lg text-sm ${inputBg}`}
+                className={`w-full sm:w-64 px-3 py-2 border rounded-lg text-sm ${inputBg}`}
               />
               <div className="flex flex-col gap-1">
                 {GENERATION_OPTIONS.filter(o => o.id !== 'all').map(opt => (
