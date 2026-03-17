@@ -78,33 +78,35 @@ const PLAN_SYSTEM_PROMPT = `You are a self-storage marketing strategist. You cre
 
 Return ONLY valid JSON — no markdown, no text outside the JSON.
 
+IMPORTANT: tab_directives MUST be the FIRST field in your response. These are critical.
+
 OUTPUT STRUCTURE:
 {
-  "summary": "2-3 sentence executive summary of the strategy",
-  "bottleneck_analysis": "What's holding this facility back and why",
+  "tab_directives": {
+    "creative": "1-2 sentences: what ad copy to generate, which angles to use, referencing the bottleneck",
+    "google_ads": "1-2 sentences: what keywords to target, which unit types, how aggressive to bid",
+    "tiktok": "1-2 sentences: what organic content to create this week, which messaging themes",
+    "video": "1-2 sentences: what video to generate, what visual theme to use",
+    "landing_pages": "1-2 sentences: what landing pages to build, which audiences they target"
+  },
+  "summary": "2-3 sentence executive summary",
+  "bottleneck_analysis": "1-2 sentences on what's holding this facility back",
   "target_audiences": [
-    { "segment": "name", "description": "who they are", "messaging_angle": "what resonates", "channels": ["where to reach them"] }
+    { "segment": "name", "messaging_angle": "what resonates", "channels": ["where"] }
   ],
   "messaging_pillars": [
-    { "pillar": "theme name", "rationale": "why this works", "example_headline": "sample ad headline" }
+    { "pillar": "theme", "example_headline": "sample headline" }
   ],
   "channel_strategy": [
-    { "channel": "name", "budget_pct": 30, "objective": "what we're trying to do here", "tactics": ["specific actions"] }
+    { "channel": "name", "budget_pct": 30, "objective": "goal", "tactics": ["actions"] }
   ],
   "content_calendar": [
-    { "week": 1, "focus": "theme", "deliverables": ["what to produce"], "channels": ["where to post"] }
+    { "week": 1, "focus": "theme", "deliverables": ["items"] }
   ],
   "kpis": [
     { "metric": "name", "target": "value", "timeframe": "when" }
   ],
-  "quick_wins": ["immediate actions that can be done this week"],
-  "tab_directives": {
-    "creative": "1-2 sentence instruction: what ad copy to generate and which angles/audiences to prioritize. Reference the bottleneck.",
-    "google_ads": "1-2 sentence instruction: what keywords to target, which unit types to focus on, and how aggressive to bid. Reference the channel strategy.",
-    "tiktok": "1-2 sentence instruction: what organic content to create this week. Reference the content calendar and messaging pillars.",
-    "video": "1-2 sentence instruction: what type of video to generate and what visual theme to use. Reference the messaging pillars.",
-    "landing_pages": "1-2 sentence instruction: what landing pages to build and which audience segments they should speak to."
-  }
+  "quick_wins": ["immediate actions"]
 }`
 
 export default async function handler(req, res) {
