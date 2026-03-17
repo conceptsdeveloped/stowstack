@@ -4,6 +4,7 @@ import {
   FileText, ExternalLink, Copy, X as XIcon, Image, Palette, Link2
 } from 'lucide-react'
 import { Facility } from './types'
+import PlanContextBar from './PlanContextBar'
 import { RenderSection } from '../LandingPageView'
 
 /* ── Local Types ── */
@@ -729,6 +730,8 @@ export default function LandingPagesTab({ facility, adminKey, darkMode, pmsData 
   /* ── PAGE LIST VIEW ── */
   if (!editingPage) {
     return (
+      <div className="space-y-6">
+      <PlanContextBar facilityId={facility.id} adminKey={adminKey} darkMode={darkMode} filter="landing-pages" />
       <div className={`border rounded-xl ${card}`}>
         <div className="p-5">
           <div className="flex items-center justify-between mb-5">
@@ -820,6 +823,7 @@ export default function LandingPagesTab({ facility, adminKey, darkMode, pmsData 
             </div>
           )}
         </div>
+      </div>
       </div>
     )
   }

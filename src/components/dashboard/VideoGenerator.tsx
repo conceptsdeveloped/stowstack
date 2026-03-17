@@ -3,6 +3,7 @@ import { Loader2, Download, Sparkles, Image, AlertTriangle, Send, RefreshCw, Edi
 import { Facility, Asset } from './types'
 import { compositeVideo, type TextLayer } from '../../utils/video-compositor'
 import { downloadBlob } from '../../utils/video-renderer'
+import PlanContextBar from './PlanContextBar'
 
 interface VideoTemplate {
   id: string
@@ -178,6 +179,7 @@ export default function VideoGenerator({ facility, adminKey, darkMode, onPublish
 
   return (
     <div className="space-y-6">
+      <PlanContextBar facilityId={facility.id} adminKey={adminKey} darkMode={darkMode} filter="video" />
       {/* Header */}
       <div>
         <h4 className={`text-sm font-semibold ${text}`}>AI Video Generator</h4>

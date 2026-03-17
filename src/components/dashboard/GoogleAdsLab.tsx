@@ -4,6 +4,7 @@ import {
   AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Zap, Shield
 } from 'lucide-react'
 import { Facility } from './types'
+import PlanContextBar from './PlanContextBar'
 
 /* ── Types ── */
 
@@ -224,6 +225,7 @@ export default function GoogleAdsLab({ facility, adminKey, darkMode, pmsData }: 
 
   return (
     <div className="space-y-6">
+      <PlanContextBar facilityId={facility.id} adminKey={adminKey} darkMode={darkMode} filter="google-ads" />
       <div>
         <h4 className={`text-sm font-semibold ${text}`}>Google Ads Laboratory</h4>
         <p className={`text-xs ${sub} mt-0.5`}>Build, score, and optimize Google Search campaigns for {facility.name}</p>

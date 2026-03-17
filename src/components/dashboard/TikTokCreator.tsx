@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Loader2, Plus, Trash2, Play, Pause, ChevronLeft, ChevronRight, Image, Send, Clock, Sparkles, Download } from 'lucide-react'
 import { Facility, Asset, AdVariation } from './types'
 import { renderVideo, downloadBlob } from '../../utils/video-renderer'
+import PlanContextBar from './PlanContextBar'
 
 interface Slide {
   id: string
@@ -239,6 +240,7 @@ export default function TikTokCreator({ facility, adminKey, darkMode }: {
 
   return (
     <div className="space-y-6">
+      <PlanContextBar facilityId={facility.id} adminKey={adminKey} darkMode={darkMode} filter="tiktok" />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
