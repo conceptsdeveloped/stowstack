@@ -403,56 +403,41 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
   const secretWordRef = useRef('')
   const secretTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── Keyboard shortcut: Ctrl+Shift+B ───
+  const toggleBetaPad = () => {
+    setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
+  }
+
+  // ─── Keyboard shortcuts ───
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
+      // Method 2: Cmd/Ctrl+Shift+B
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'B' || e.key === 'b')) {
         e.preventDefault()
-        setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
+        toggleBetaPad()
+        return
       }
 
-      // Secret word: type "notepad" anywhere (not in inputs) to toggle
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.length === 1) {
+      // Method 3: Type "notepad" anywhere (not in input fields)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
         const target = e.target as HTMLElement
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && target.tagName !== 'SELECT' && !target.isContentEditable) {
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable
+        if (!isInput) {
           secretWordRef.current += e.key.toLowerCase()
-          // Reset after 2s of no typing
           if (secretTimerRef.current) clearTimeout(secretTimerRef.current)
-          secretTimerRef.current = setTimeout(() => { secretWordRef.current = '' }, 2000)
-          // Keep only last 7 chars (length of "notepad")
+          secretTimerRef.current = setTimeout(() => { secretWordRef.current = '' }, 3000)
           if (secretWordRef.current.length > 7) {
             secretWordRef.current = secretWordRef.current.slice(-7)
           }
           if (secretWordRef.current === 'notepad') {
             secretWordRef.current = ''
-            setPanel(p => ({ ...p, open: !p.open, collapsed: false }))
+            toggleBetaPad()
           }
-        }
-      }
-      // Quick shortcuts when panel is open
-      if (panel.open && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const target = e.target as HTMLElement
-        // Don't capture when typing in inputs
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return
-        // Check for betapad-scoped shortcuts
-        if (target.closest('[data-betapad]')) return
-
-        switch (e.key) {
-          case 'b': setPanel(p => ({ ...p, activeTab: 'bug' })); break
-          case 'n': setPanel(p => ({ ...p, activeTab: 'note' })); break
-          case 'f': setPanel(p => ({ ...p, activeTab: 'feature' })); break
-          case 's':
-            if (e.shiftKey) {
-              // Shift+S = screenshot
-              e.preventDefault()
-            }
-            break
         }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [panel.open])
+  }, [])
 
   // ─── Auto-detection helper ───
   function addAutoDetection(detection: AutoDetection) {
