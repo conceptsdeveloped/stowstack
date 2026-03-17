@@ -68,9 +68,9 @@ const PLAN_COLORS: Record<string, string> = {
 }
 
 const PLAN_PRICING: Record<string, number> = {
-  launch: 297,
-  growth: 597,
-  portfolio: 997,
+  launch: 499,
+  growth: 999,
+  portfolio: 1499,
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -792,9 +792,9 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
               <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Plan</label>
               <select value={plan} onChange={e => setPlan(e.target.value)}
                 className={`w-full px-3 py-2 rounded-lg border text-sm ${dm ? 'bg-slate-900 border-slate-600 text-white' : 'border-slate-200'}`}>
-                <option value="launch">Launch (10 facilities) — $297/mo</option>
-                <option value="growth">Growth (50 facilities) — $597/mo</option>
-                <option value="portfolio">Portfolio (unlimited) — $997/mo</option>
+                <option value="launch">Launch (10 facilities) — $499/mo</option>
+                <option value="growth">Growth (50 facilities) — $999/mo</option>
+                <option value="portfolio">Portfolio (unlimited) — $1,499/mo</option>
               </select>
             </div>
           </div>

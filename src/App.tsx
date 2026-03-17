@@ -118,7 +118,7 @@ const KPI_METRICS = [
 
 const PRICING_TIERS = [
   {
-    name: 'Launch', price: '$297', period: '/mo per facility', popular: false,
+    name: 'Launch', price: '$499', period: '/mo per facility', popular: false,
     badge: 'Get Started',
     desc: 'Start filling units fast. Paid ads, dedicated landing pages, real attribution — everything an operator needs on day one.',
     features: [
@@ -133,7 +133,7 @@ const PRICING_TIERS = [
     ],
   },
   {
-    name: 'Growth', price: '$597', period: '/mo per facility', popular: true,
+    name: 'Growth', price: '$999', period: '/mo per facility', popular: true,
     badge: 'Most Popular',
     desc: 'The full demand engine. Multi-channel ads, unlimited pages, A/B testing, video, revenue intelligence, and call tracking.',
     features: [
@@ -153,7 +153,7 @@ const PRICING_TIERS = [
     ],
   },
   {
-    name: 'Portfolio', price: '$997', period: '/mo per facility', popular: false,
+    name: 'Portfolio', price: '$1,499', period: '/mo per facility', popular: false,
     badge: 'Best Value',
     desc: 'Everything in Growth — plus AI-powered churn prediction, portfolio-wide optimization, and a dedicated strategist.',
     features: [
@@ -629,10 +629,10 @@ function VacancyCostCalculator() {
   const [avgRent, setAvgRent] = useState(120)
   const [months, setMonths] = useState(3)
   const lost = units * avgRent * months
-  const launchBreakeven = Math.ceil(297 / avgRent)
-  const growthBreakeven = Math.ceil(597 / avgRent)
-  const launchAnnualUpside = (units * avgRent * 12) - (297 * 12)
-  const growthAnnualUpside = (units * avgRent * 12) - (597 * 12)
+  const launchBreakeven = Math.ceil(499 / avgRent)
+  const growthBreakeven = Math.ceil(999 / avgRent)
+  const launchAnnualUpside = (units * avgRent * 12) - (499 * 12)
+  const growthAnnualUpside = (units * avgRent * 12) - (999 * 12)
 
   return (
     <section className="py-20 md:py-28 bg-gradient-to-b from-slate-50 to-white relative">
@@ -695,7 +695,7 @@ function VacancyCostCalculator() {
                 <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-bold">Launch Tier</span>
-                    <span className="text-sm font-semibold text-emerald-700">$297/mo</span>
+                    <span className="text-sm font-semibold text-emerald-700">$499/mo</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div className="bg-white/80 rounded-lg p-3 text-center">
@@ -715,7 +715,7 @@ function VacancyCostCalculator() {
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-bold">Growth Tier</span>
-                    <span className="text-sm font-semibold text-indigo-700">$597/mo</span>
+                    <span className="text-sm font-semibold text-indigo-700">$999/mo</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div className="bg-white/80 rounded-lg p-3 text-center">
@@ -1333,7 +1333,7 @@ function PricingSection() {
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-6 py-4 text-center">
               <p className="text-sm text-amber-800">
                 <strong>The math is simple:</strong> If StowStack produces 5-10 incremental move-ins per month, you are generating
-                $6,000-18,000 in annualized revenue from a $597/mo investment. That is a 10-30x return before the system even starts optimizing.
+                $6,000-18,000 in annualized revenue from a $999/mo investment. That is a 6-18x return before the system even starts optimizing.
               </p>
             </div>
           </div>
