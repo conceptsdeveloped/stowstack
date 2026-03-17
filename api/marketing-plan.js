@@ -200,9 +200,9 @@ export default async function handler(req, res) {
       const client = new Anthropic({ apiKey })
       const message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: PLAN_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `Generate a detailed, actionable marketing plan for this self-storage facility. Use all the data provided to make it specific and credible — not generic.\n\n${lines.join('\n')}` }],
+        messages: [{ role: 'user', content: `Generate a concise, actionable marketing plan for this self-storage facility. Be specific — not generic. Keep each field brief: 2-3 target audiences max, 3 messaging pillars max, 4 weeks in calendar, 3-4 KPIs, 3 quick wins. tab_directives MUST be included as the first field.\n\n${lines.join('\n')}` }],
       })
 
       let raw = message.content[0].text.trim()
