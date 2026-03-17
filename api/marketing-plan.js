@@ -97,7 +97,14 @@ OUTPUT STRUCTURE:
   "kpis": [
     { "metric": "name", "target": "value", "timeframe": "when" }
   ],
-  "quick_wins": ["immediate actions that can be done this week"]
+  "quick_wins": ["immediate actions that can be done this week"],
+  "tab_directives": {
+    "creative": "1-2 sentence instruction: what ad copy to generate and which angles/audiences to prioritize. Reference the bottleneck.",
+    "google_ads": "1-2 sentence instruction: what keywords to target, which unit types to focus on, and how aggressive to bid. Reference the channel strategy.",
+    "tiktok": "1-2 sentence instruction: what organic content to create this week. Reference the content calendar and messaging pillars.",
+    "video": "1-2 sentence instruction: what type of video to generate and what visual theme to use. Reference the messaging pillars.",
+    "landing_pages": "1-2 sentence instruction: what landing pages to build and which audience segments they should speak to."
+  }
 }`
 
 export default async function handler(req, res) {

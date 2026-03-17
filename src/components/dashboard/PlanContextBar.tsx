@@ -9,6 +9,13 @@ interface PlanData {
   channel_strategy?: { channel: string; budget_pct: number; objective: string; tactics: string[] }[]
   content_calendar?: { week: number; focus: string; deliverables: string[]; channels: string[] }[]
   quick_wins?: string[]
+  tab_directives?: {
+    creative?: string
+    google_ads?: string
+    tiktok?: string
+    video?: string
+    landing_pages?: string
+  }
 }
 
 interface SpendData {
@@ -94,6 +101,16 @@ export default function PlanContextBar({ facilityId, adminKey, darkMode, filter 
     contextHint = plan.target_audiences?.length ? `${plan.target_audiences.length} audience segments to build pages for` : ''
   }
 
+  // Get the tab-specific directive
+  const directiveMap: Record<string, string | undefined> = {
+    'creative': plan.tab_directives?.creative,
+    'google-ads': plan.tab_directives?.google_ads,
+    'tiktok': plan.tab_directives?.tiktok,
+    'video': plan.tab_directives?.video,
+    'landing-pages': plan.tab_directives?.landing_pages,
+  }
+  const directive = filter ? directiveMap[filter] : null
+
   return (
     <div className={`border rounded-xl overflow-hidden ${darkMode ? 'border-emerald-800 bg-emerald-900/10' : 'border-emerald-200 bg-emerald-50/50'}`}>
       <button
@@ -105,6 +122,14 @@ export default function PlanContextBar({ facilityId, adminKey, darkMode, filter 
         {contextHint && <span className={`text-[10px] ${sub} hidden sm:inline`}>{contextHint}</span>}
         {expanded ? <ChevronUp size={12} className={sub} /> : <ChevronDown size={12} className={sub} />}
       </button>
+
+      {/* Directive — always visible, no expand needed */}
+      {directive && (
+        <div className={`px-4 py-2 flex items-start gap-2 border-t ${darkMode ? 'border-emerald-800 bg-emerald-900/20' : 'border-emerald-200 bg-emerald-50'}`}>
+          <Sparkles size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+          <p className={`text-xs ${text} leading-relaxed`}>{directive}</p>
+        </div>
+      )}
 
       {expanded && (
         <div className={`px-4 pb-3 space-y-3 border-t ${darkMode ? 'border-emerald-800' : 'border-emerald-200'}`}>
