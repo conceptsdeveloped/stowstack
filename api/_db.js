@@ -9,8 +9,12 @@ export function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.STORAGE_POSTGRES_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false'
+        ? { rejectUnauthorized: false }
+        : { rejectUnauthorized: true },
       max: 5,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
     })
   }
   return pool

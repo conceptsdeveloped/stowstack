@@ -1,4 +1,5 @@
 // Shared admin authentication helpers
+import crypto from 'crypto'
 
 export function getAdminKey() {
   const key = process.env.ADMIN_SECRET
@@ -6,6 +7,14 @@ export function getAdminKey() {
     throw new Error('ADMIN_SECRET environment variable is not set')
   }
   return key
+}
+
+function safeCompare(a, b) {
+  if (!a || !b) return false
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
 }
 
 export function requireAdmin(req, res) {
@@ -18,7 +27,7 @@ export function requireAdmin(req, res) {
     return false
   }
 
-  if (req.headers['x-admin-key'] !== key) {
+  if (!safeCompare(req.headers['x-admin-key'], key)) {
     res.status(401).json({ error: 'Unauthorized' })
     return false
   }
@@ -28,7 +37,7 @@ export function requireAdmin(req, res) {
 
 export function isAdmin(req) {
   try {
-    return req.headers['x-admin-key'] === getAdminKey()
+    return safeCompare(req.headers['x-admin-key'], getAdminKey())
   } catch {
     return false
   }

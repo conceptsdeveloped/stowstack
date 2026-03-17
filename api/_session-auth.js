@@ -194,14 +194,23 @@ export async function requireAdmin(req, res) {
   const session = await getSession(req)
   if (session?.user?.is_superadmin) return session
 
-  // Fall back to legacy X-Admin-Key
+  // Fall back to legacy X-Admin-Key (timing-safe comparison)
   const adminKey = process.env.ADMIN_SECRET
-  if (adminKey && req.headers['x-admin-key'] === adminKey) {
+  const providedKey = req.headers['x-admin-key']
+  if (adminKey && providedKey && safeCompare(providedKey, adminKey)) {
     return { user: { id: 'admin', role: 'superadmin', is_superadmin: true }, organization: null }
   }
 
   res.status(401).json({ error: 'Unauthorized' })
   return null
+}
+
+function safeCompare(a, b) {
+  if (!a || !b) return false
+  const bufA = Buffer.from(String(a))
+  const bufB = Buffer.from(String(b))
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
 }
 
 /**
@@ -212,7 +221,8 @@ export async function isAdminRequest(req) {
   if (session?.user?.is_superadmin) return true
 
   const adminKey = process.env.ADMIN_SECRET
-  return !!(adminKey && req.headers['x-admin-key'] === adminKey)
+  const providedKey = req.headers['x-admin-key']
+  return !!(adminKey && providedKey && safeCompare(providedKey, adminKey))
 }
 
 /**

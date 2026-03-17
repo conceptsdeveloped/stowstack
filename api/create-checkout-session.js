@@ -1,7 +1,6 @@
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-12-18.acacia',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
@@ -18,11 +17,20 @@ const ANNUAL_PRICE_MAP = {
   portfolio: process.env.STRIPE_PRICE_PORTFOLIO_ANNUAL,
 }
 
+const ALLOWED_ORIGINS = [
+  'https://stowstack.co',
+  'https://www.stowstack.co',
+  'http://localhost:5173',
+  'http://localhost:3000',
+]
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  const origin = req.headers.origin || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ''
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method === 'OPTIONS') return res.status(204).end()
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -110,7 +118,7 @@ export default async function handler(req, res) {
 
     return res.json({ url: session.url })
   } catch (err) {
-    console.error('Checkout session error:', err.message, err.type, err.code)
+    console.error('Checkout session error:', err.message, err.type, err.code, err.statusCode)
     return res.status(500).json({ error: 'Failed to create checkout session' })
   }
 }

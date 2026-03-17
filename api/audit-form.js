@@ -98,6 +98,7 @@ function esc(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
 }
 
 // --- Email via Resend ---
@@ -130,7 +131,7 @@ async function sendNotificationEmail(body, apiKey) {
     body: JSON.stringify({
       from: 'StowStack <notifications@stowstack.co>',
       to: NOTIFICATION_RECIPIENTS,
-      subject: `New Audit Request: ${body.facilityName} — ${body.location}`,
+      subject: `New Audit Request: ${body.facilityName.replace(/[\r\n]/g, '')} — ${body.location.replace(/[\r\n]/g, '')}`,
       html,
     }),
   })

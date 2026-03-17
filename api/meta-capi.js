@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { rateLimit, rateLimitResponse } from './_ratelimit.js'
 
 /**
  * Meta Conversions API server-side event endpoint.
@@ -280,6 +281,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Rate limit: 30 events per IP per minute
+  try {
+    const { allowed, resetAt } = await rateLimit(req, { key: 'meta-capi', limit: 30, windowSeconds: 60 })
+    if (!allowed) return rateLimitResponse(res, resetAt)
+  } catch { /* fail-open */ }
+
   try {
     const body = req.body
 
@@ -327,7 +334,6 @@ export default async function handler(req, res) {
     console.error('Meta CAPI error:', error.message)
     return res.status(500).json({
       error: 'Failed to send event to Meta',
-      message: error.message,
     })
   }
 }

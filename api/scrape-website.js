@@ -313,6 +313,13 @@ export default async function handler(req, res) {
     if (!['http:', 'https:'].includes(targetUrl.protocol)) {
       return res.status(400).json({ error: 'URL must use http or https' })
     }
+    // SSRF protection: block private/internal IPs
+    const hostname = targetUrl.hostname
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' ||
+        hostname.startsWith('10.') || hostname.startsWith('192.168.') || hostname.startsWith('172.') ||
+        hostname === '169.254.169.254' || hostname.endsWith('.internal') || hostname.endsWith('.local')) {
+      return res.status(400).json({ error: 'URL not allowed' })
+    }
   } catch {
     return res.status(400).json({ error: 'Invalid URL' })
   }
@@ -464,7 +471,10 @@ export default async function handler(req, res) {
   }
 }
 
+const ALLOWED_FACILITY_FIELDS = ['google_address', 'google_phone', 'website', 'hours']
+
 async function hasField(facilityId, field) {
+  if (!ALLOWED_FACILITY_FIELDS.includes(field)) return false
   const rows = await query(`SELECT ${field} FROM facilities WHERE id = $1`, [facilityId])
   return rows.length > 0 && rows[0][field]
 }

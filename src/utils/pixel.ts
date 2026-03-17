@@ -198,7 +198,10 @@ class PixelManager {
    * @returns Unique event ID
    */
   private generateEventId(): string {
-    return `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : Math.random().toString(36).substring(2, 9)
+    return `evt_${Date.now()}_${randomPart}`
   }
 
   /**
