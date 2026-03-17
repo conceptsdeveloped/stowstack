@@ -139,11 +139,13 @@ export default async function handler(req, res) {
 
     try {
       // Gather all facility data
-      const [facilities, contextDocs, placesData, scrapeData] = await Promise.all([
+      const [facilities, contextDocs, placesData, scrapeData, pmsUnits, pmsSnapshot] = await Promise.all([
         query(`SELECT * FROM facilities WHERE id = $1`, [facilityId]),
         query(`SELECT type, title, content FROM facility_context WHERE facility_id = $1 ORDER BY created_at DESC`, [facilityId]),
         query(`SELECT photos, reviews FROM places_data WHERE facility_id = $1 ORDER BY fetched_at DESC LIMIT 1`, [facilityId]),
         query(`SELECT url, metadata FROM assets WHERE facility_id = $1 AND source = 'website_scrape' LIMIT 5`, [facilityId]),
+        query(`SELECT unit_type, total_count, occupied_count, (total_count - occupied_count) as vacant_count, street_rate, web_rate, features FROM facility_pms_units WHERE facility_id = $1 ORDER BY total_count DESC`, [facilityId]).catch(() => []),
+        query(`SELECT occupancy_pct, total_units, occupied_units, move_ins_mtd, move_outs_mtd FROM facility_pms_snapshots WHERE facility_id = $1 ORDER BY snapshot_date DESC LIMIT 1`, [facilityId]).catch(() => []),
       ])
 
       if (!facilities.length) return res.status(404).json({ error: 'Facility not found' })
@@ -182,6 +184,24 @@ export default async function handler(req, res) {
         reviews.slice(0, 5).forEach(r => lines.push(`${r.rating}★: "${(r.text || '').slice(0, 150)}"`))
       }
 
+      // Add PMS unit data if available
+      if (pmsUnits?.length) {
+        lines.push('\n--- UNIT INVENTORY (from PMS) ---')
+        const totalUnits = pmsUnits.reduce((s, u) => s + (u.total_count || 0), 0)
+        const totalVacant = pmsUnits.reduce((s, u) => s + (u.vacant_count || 0), 0)
+        const monthlyGap = pmsUnits.reduce((s, u) => s + ((u.vacant_count || 0) * (u.street_rate || 0)), 0)
+        lines.push(`Total: ${totalUnits} units, ${totalVacant} vacant ($${monthlyGap.toLocaleString()}/mo revenue gap)`)
+        pmsUnits.forEach(u => {
+          const features = Array.isArray(u.features) && u.features.length ? ` [${u.features.join(', ')}]` : ''
+          lines.push(`  ${u.unit_type}: ${u.total_count} total, ${u.vacant_count} vacant, $${u.street_rate || '?'}/mo${u.web_rate ? `, web $${u.web_rate}` : ''}${features}`)
+        })
+        if (pmsSnapshot?.[0]) {
+          const snap = pmsSnapshot[0]
+          if (snap.occupancy_pct) lines.push(`Overall occupancy: ${snap.occupancy_pct}%`)
+          if (snap.move_ins_mtd || snap.move_outs_mtd) lines.push(`This month: ${snap.move_ins_mtd || 0} move-ins, ${snap.move_outs_mtd || 0} move-outs`)
+        }
+      }
+
       // Add playbook context if assigned
       if (playbooks?.length) {
         lines.push(`\n--- ASSIGNED SEASONAL PLAYBOOKS ---`)
@@ -199,7 +219,7 @@ export default async function handler(req, res) {
 
       const client = new Anthropic({ apiKey })
       const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-3-5-sonnet-latest',
         max_tokens: 8192,
         system: PLAN_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `Generate a concise, actionable marketing plan for this self-storage facility. Be specific — not generic. Keep each field brief: 2-3 target audiences max, 3 messaging pillars max, 4 weeks in calendar, 3-4 KPIs, 3 quick wins. tab_directives MUST be included as the first field.\n\n${lines.join('\n')}` }],
