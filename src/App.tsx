@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import AdminDashboard from '@/components/AdminDashboard'
@@ -1864,6 +1864,11 @@ function SharedAuditRoute() {
   return <SharedAuditView slug={slug || ''} />
 }
 
+// BetaPad — lazy-loaded QA overlay (zero bundle impact when VITE_BETAPAD is not set)
+const BETAPAD_ENABLED = import.meta.env.VITE_BETAPAD === 'true'
+const BetaPadWrapper = BETAPAD_ENABLED ? lazy(() => import('./betapad/BetaPadWrapper')) : null
+const BetaPadDashboard = BETAPAD_ENABLED ? lazy(() => import('./betapad/BetaPadDashboard')) : null
+
 function AppRoutes() {
   const navigate = useNavigate()
   const goHome = () => navigate('/')
@@ -1882,13 +1887,16 @@ function AppRoutes() {
       <Route path="/lp/:slug" element={<LandingPageRoute />} />
       <Route path="/audit/:slug" element={<SharedAuditRoute />} />
       <Route path="/blog/*" element={<BlogRouter onBack={goHome} />} />
+      {BETAPAD_ENABLED && BetaPadDashboard && (
+        <Route path="/admin/betapad" element={<Suspense fallback={null}><BetaPadDashboard /></Suspense>} />
+      )}
       <Route path="*" element={<WebsiteView />} />
     </Routes>
   )
 }
 
 export default function App() {
-  return (
+  const content = (
     <BrowserRouter>
       <AuthProvider>
         <OfflineBanner />
@@ -1898,4 +1906,15 @@ export default function App() {
       </AuthProvider>
     </BrowserRouter>
   )
+
+  // Wrap in BetaPadWrapper (Provider + Panel) when enabled
+  if (BETAPAD_ENABLED && BetaPadWrapper) {
+    return (
+      <Suspense fallback={null}>
+        <BetaPadWrapper>{content}</BetaPadWrapper>
+      </Suspense>
+    )
+  }
+
+  return content
 }
