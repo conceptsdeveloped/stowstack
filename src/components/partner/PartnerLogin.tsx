@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Loader2, Zap, TrendingUp, Gem, Check, CheckCircle2, Copy, Eye, EyeOff, ArrowLeft, KeyRound } from 'lucide-react'
+import { Building2, Loader2, Zap, TrendingUp, Crown, Check, CheckCircle2, Copy, Eye, EyeOff, ArrowLeft, KeyRound } from 'lucide-react'
 import type { AuthState } from './PartnerTypes'
 
 interface PartnerLoginProps {
@@ -16,32 +16,32 @@ interface CheckoutCredentials {
 
 const PLANS = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: 'launch',
+    name: 'Launch',
     icon: Zap,
-    price: 750,
-    setupFee: 500,
+    price: 297,
+    setupFee: 0,
     color: 'emerald',
-    features: ['Up to 10 facilities', '2 landing pages each', 'Meta ads', 'Monthly reporting', 'Email support'],
+    features: ['Up to 10 facilities', '3 landing pages each', 'Meta ads', 'GBP management', 'Client portal', 'Monthly reporting', 'Email support'],
   },
   {
     id: 'growth',
     name: 'Growth',
     icon: TrendingUp,
-    price: 1500,
-    setupFee: 1000,
+    price: 597,
+    setupFee: 0,
     color: 'blue',
     popular: true,
-    features: ['Up to 50 facilities', '5 landing pages each', 'Meta + Google', 'Weekly reporting', 'Slack channel', 'Call tracking'],
+    features: ['Up to 50 facilities', 'Unlimited landing pages', 'Meta + Google', 'A/B testing', 'Video creative', 'Revenue & Occupancy Intelligence', 'Call tracking', 'Bi-weekly calls'],
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    icon: Gem,
-    price: null,
-    setupFee: null,
-    color: 'amber',
-    features: ['Unlimited facilities', 'White-label option', 'Custom integrations', 'Dedicated account manager', 'SLA guarantee'],
+    id: 'portfolio',
+    name: 'Portfolio',
+    icon: Crown,
+    price: 997,
+    setupFee: 0,
+    color: 'purple',
+    features: ['Unlimited facilities', 'Churn prediction & upsell engine', 'Google Ads Lab', 'White-label option', 'Dedicated strategist', 'Weekly calls', 'Quarterly business review'],
   },
 ]
 
@@ -236,8 +236,8 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
   }
 
   const startCheckout = async (planId: string) => {
-    if (planId === 'enterprise') {
-      window.location.href = 'mailto:partners@stowstack.co?subject=Enterprise Plan Inquiry'
+    if (planId === 'portfolio') {
+      window.location.href = 'mailto:partners@stowstack.co?subject=Portfolio Plan Inquiry'
       return
     }
 
@@ -533,7 +533,7 @@ export default function PartnerLogin({ onLogin }: PartnerLoginProps) {
                       className={`w-full py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
                         p.popular
                           ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700'
-                          : p.id === 'enterprise'
+                          : p.id === 'portfolio'
                           ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                           : 'bg-slate-900 text-white hover:bg-slate-800'
                       }`}

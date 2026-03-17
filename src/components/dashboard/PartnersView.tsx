@@ -62,15 +62,15 @@ function getRevShareTier(facilityCount: number) {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  starter: 'bg-slate-100 text-slate-600',
+  launch: 'bg-emerald-100 text-emerald-700',
   growth: 'bg-blue-100 text-blue-700',
-  enterprise: 'bg-purple-100 text-purple-700',
+  portfolio: 'bg-purple-100 text-purple-700',
 }
 
 const PLAN_PRICING: Record<string, number> = {
-  starter: 499,
-  growth: 1499,
-  enterprise: 3999,
+  launch: 297,
+  growth: 597,
+  portfolio: 997,
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -706,7 +706,7 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [contactEmail, setContactEmail] = useState('')
-  const [plan, setPlan] = useState('starter')
+  const [plan, setPlan] = useState('launch')
   const [whiteLabel, setWhiteLabel] = useState(false)
   const [primaryColor, setPrimaryColor] = useState('#16a34a')
   const [accentColor, setAccentColor] = useState('#4f46e5')
@@ -736,7 +736,7 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
       })
       if (res.ok) {
         setShowCreate(false)
-        setName(''); setSlug(''); setContactEmail(''); setPlan('starter'); setWhiteLabel(false)
+        setName(''); setSlug(''); setContactEmail(''); setPlan('launch'); setWhiteLabel(false)
         setPrimaryColor('#16a34a'); setAccentColor('#4f46e5')
         fetchOrgs()
       }
@@ -792,9 +792,9 @@ export default function PartnersView({ adminKey, darkMode }: { adminKey: string;
               <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-300' : 'text-slate-600'}`}>Plan</label>
               <select value={plan} onChange={e => setPlan(e.target.value)}
                 className={`w-full px-3 py-2 rounded-lg border text-sm ${dm ? 'bg-slate-900 border-slate-600 text-white' : 'border-slate-200'}`}>
-                <option value="starter">Starter (10 facilities) — $499/mo</option>
-                <option value="growth">Growth (50 facilities) — $1,499/mo</option>
-                <option value="enterprise">Enterprise (unlimited) — $3,999/mo</option>
+                <option value="launch">Launch (10 facilities) — $297/mo</option>
+                <option value="growth">Growth (50 facilities) — $597/mo</option>
+                <option value="portfolio">Portfolio (unlimited) — $997/mo</option>
               </select>
             </div>
           </div>

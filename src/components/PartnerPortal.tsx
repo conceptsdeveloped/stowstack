@@ -333,7 +333,7 @@ function PartnerDashboardInner({ auth, onLogout, onBack }: { auth: AuthState; on
           </div>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider hidden sm:inline ${
-              org.plan === 'enterprise' ? 'bg-amber-100 text-amber-700' : org.plan === 'growth' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+              org.plan === 'portfolio' ? 'bg-purple-100 text-purple-700' : org.plan === 'growth' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
             }`}>{org.plan}</span>
             <span className="text-xs text-slate-400 hidden sm:inline">{facilities.length} facilities</span>
             <button onClick={onLogout} className="text-sm text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1.5"><LogOut size={14} /> Sign out</button>

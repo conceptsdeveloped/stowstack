@@ -118,43 +118,54 @@ const KPI_METRICS = [
 
 const PRICING_TIERS = [
   {
-    name: 'Launch', price: '$750', period: '/mo per facility', popular: false,
-    desc: 'For operators ready to start filling units with paid ads and ad-specific landing pages.',
+    name: 'Launch', price: '$297', period: '/mo per facility', popular: false,
+    badge: 'Get Started',
+    desc: 'Start filling units fast. Paid ads, dedicated landing pages, real attribution — everything an operator needs on day one.',
     features: [
       'Meta ad campaigns (Facebook + Instagram)',
-      '2 ad-specific landing pages with embedded storEDGE rental flow',
-      'Static creative and ad copy',
-      'Per-campaign tracking and attribution',
-      'Monthly performance report with cost-per-move-in data',
-      'Campaigns live in days, not weeks',
+      '3 ad-specific landing pages with embedded storEDGE rental flow',
+      'AI-generated ad copy and static creative',
+      'Per-campaign tracking and full-funnel attribution',
+      'Client portal with real-time campaign analytics',
+      'Google Business Profile management (reviews, Q&A, posts)',
+      'Monthly performance report — cost per lead, cost per move-in',
+      'Email support',
     ],
   },
   {
-    name: 'Growth', price: '$1,500', period: '/mo per facility', popular: true,
-    desc: 'The full system. Meta + Google + retargeting + 5 landing pages + A/B testing + full attribution dashboard.',
+    name: 'Growth', price: '$597', period: '/mo per facility', popular: true,
+    badge: 'Most Popular',
+    desc: 'The full demand engine. Multi-channel ads, unlimited pages, A/B testing, video, revenue intelligence, and call tracking.',
     features: [
-      'Everything in Launch',
+      'Everything in Launch, plus:',
       'Google PPC campaigns (search + display)',
-      '5 ad-specific landing pages with embedded storEDGE rental flow',
+      'Unlimited ad-specific landing pages',
       'Retargeting campaigns for abandoned visitors',
       'A/B testing on creative and landing pages',
-      'Video creative production',
-      'Full attribution dashboard — cost per reservation, cost per move-in, ROAS by creative',
+      'Video creative production (TikTok, Reels, social)',
+      'Full attribution dashboard — reservation, move-in, ROAS by creative',
+      'Revenue Intelligence with scenario modeling',
+      'Occupancy Intelligence with gap analysis',
+      'Call tracking with dedicated numbers',
+      'Email drip sequences and automations',
+      'Seasonal campaign playbook',
       'Bi-weekly optimization calls',
     ],
   },
   {
-    name: 'Portfolio', price: 'Custom', period: '5+ facilities', popular: false,
-    desc: 'Everything in Growth, scaled across your portfolio with centralized management and volume pricing.',
+    name: 'Portfolio', price: '$997', period: '/mo per facility', popular: false,
+    badge: 'Best Value',
+    desc: 'Everything in Growth — plus AI-powered churn prediction, portfolio-wide optimization, and a dedicated strategist.',
     features: [
-      'Everything in Growth per facility',
-      'Unlimited landing pages across all facilities',
+      'Everything in Growth, plus:',
+      'Centralized multi-facility management and reporting',
       'Cross-facility budget allocation and optimization',
-      'Portfolio-level attribution and reporting',
-      'Dedicated strategist',
-      'Volume discount: 20-35% off per-facility rates',
+      'AI churn prediction and tenant upsell engine',
+      'Google Ads Lab with keyword research',
+      'Partner portal with white-label option',
+      'Dedicated strategist and Slack channel',
       'Weekly strategy calls',
-      'Quarterly business review',
+      'Quarterly business review with roadmap',
     ],
   },
 ]
@@ -173,7 +184,7 @@ const FAQS = [
   { q: 'What do you actually report on?', a: 'Which ad generated the visit. Which landing page they saw. Which offer they responded to. Whether they reserved. Whether they completed move-in. Cost per reservation. Cost per move-in. Conversion rate by campaign, ad, audience, keyword, and creative. ROAS by creative. Not clicks. Not impressions. Revenue.' },
   { q: 'Do I need to change my PMS or rental software?', a: 'No. StowStack sits on top of storEDGE. Your current systems stay the same. We embed the storEDGE rental flow into the landing pages we build — nothing changes on your end operationally. If you use a different PMS, reach out and we can discuss whether your system supports the kind of embedding we need.' },
   { q: 'What is the minimum ad spend?', a: 'We recommend at least $1,000/mo in ad spend for a single facility, paid directly to Meta and Google — separate from StowStack fees. More spend means more data, faster optimization, and more move-ins.' },
-  { q: 'Do you require long-term contracts?', a: 'No. Month-to-month on the Demand Engine. The only commitment structure is the optional 6-month bundle discount on website builds — commit to 6 months of Growth and the site build drops from $5,000 to $2,500. Operators who stay 6+ months see their cost per move-in drop significantly as A/B testing and attribution data compounds.' },
+  { q: 'Do you require long-term contracts?', a: 'No. All plans are month-to-month with zero setup fees. Cancel anytime. Operators who stay 6+ months see their cost per move-in drop significantly as A/B testing and attribution data compounds.' },
 ]
 
 const WHY_US = [
@@ -618,10 +629,10 @@ function VacancyCostCalculator() {
   const [avgRent, setAvgRent] = useState(120)
   const [months, setMonths] = useState(3)
   const lost = units * avgRent * months
-  const launchBreakeven = Math.ceil(750 / avgRent)
-  const growthBreakeven = Math.ceil(1500 / avgRent)
-  const launchAnnualUpside = (units * avgRent * 12) - (750 * 12)
-  const growthAnnualUpside = (units * avgRent * 12) - (1500 * 12)
+  const launchBreakeven = Math.ceil(297 / avgRent)
+  const growthBreakeven = Math.ceil(597 / avgRent)
+  const launchAnnualUpside = (units * avgRent * 12) - (297 * 12)
+  const growthAnnualUpside = (units * avgRent * 12) - (597 * 12)
 
   return (
     <section className="py-20 md:py-28 bg-gradient-to-b from-slate-50 to-white relative">
@@ -684,7 +695,7 @@ function VacancyCostCalculator() {
                 <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-bold">Launch Tier</span>
-                    <span className="text-sm font-semibold text-emerald-700">$750/mo</span>
+                    <span className="text-sm font-semibold text-emerald-700">$297/mo</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div className="bg-white/80 rounded-lg p-3 text-center">
@@ -704,7 +715,7 @@ function VacancyCostCalculator() {
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-bold">Growth Tier</span>
-                    <span className="text-sm font-semibold text-indigo-700">$1,500/mo</span>
+                    <span className="text-sm font-semibold text-indigo-700">$597/mo</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div className="bg-white/80 rounded-lg p-3 text-center">
@@ -1322,7 +1333,7 @@ function PricingSection() {
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-6 py-4 text-center">
               <p className="text-sm text-amber-800">
                 <strong>The math is simple:</strong> If StowStack produces 5-10 incremental move-ins per month, you are generating
-                $6,000-18,000 in annualized revenue from a $1,500/mo investment. That is a 4-12x return before the system even starts optimizing.
+                $6,000-18,000 in annualized revenue from a $597/mo investment. That is a 10-30x return before the system even starts optimizing.
               </p>
             </div>
           </div>
@@ -1366,7 +1377,7 @@ function PricingSection() {
           ))}
         </div>
         <p className="text-center text-sm text-muted-foreground mt-8">
-          Ad spend is paid directly to Meta and Google (not to us). Recommended minimum: $1,000/mo. Month-to-month. Optional 6-month bundle discount on website builds.
+          Ad spend is paid directly to Meta and Google (not to us). Recommended minimum: $1,000/mo. All plans month-to-month — no contracts.
         </p>
       </div>
     </section>

@@ -12,7 +12,7 @@ export interface ClientAccount {
   location: string
   accessCode: string
   status: 'active' | 'paused' | 'churned'
-  tier: 'starter' | 'growth' | 'scale' | 'enterprise'
+  tier: 'launch' | 'growth' | 'portfolio'
   monthlyAdBudget: number
   managementFeeRate: number
   adMarkupRate: number
@@ -153,17 +153,17 @@ export type BillingSubTab = 'overview' | 'invoices' | 'clients' | 'pricing' | 'r
 
 export const PRICING_TIERS = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: 'launch',
+    name: 'Launch',
     icon: Zap,
     color: 'emerald',
     monthlyAdMin: 1000,
     monthlyAdMax: 3000,
-    managementFee: 750,
+    managementFee: 297,
     adMarkupPct: 15,
-    features: ['1 facility', '2 landing pages', 'Meta ads only', 'Monthly reporting', 'Email support'],
-    referralCredit: 250,
-    setupFee: 500,
+    features: ['1 facility', '3 landing pages', 'Meta ads', 'GBP management', 'Client portal', 'Monthly reporting', 'Email support'],
+    referralCredit: 100,
+    setupFee: 0,
   },
   {
     id: 'growth',
@@ -172,45 +172,32 @@ export const PRICING_TIERS = [
     color: 'blue',
     monthlyAdMin: 3000,
     monthlyAdMax: 7500,
-    managementFee: 1500,
+    managementFee: 597,
     adMarkupPct: 12,
-    features: ['Up to 3 facilities', '5 landing pages each', 'Meta + Google', 'Weekly reporting', 'Slack channel', 'Call tracking'],
-    referralCredit: 500,
-    setupFee: 1000,
+    features: ['Up to 3 facilities', 'Unlimited landing pages', 'Meta + Google', 'A/B testing', 'Video creative', 'Revenue & Occupancy Intelligence', 'Call tracking', 'Email drip sequences', 'Bi-weekly calls'],
+    referralCredit: 200,
+    setupFee: 0,
   },
   {
-    id: 'scale',
-    name: 'Scale',
+    id: 'portfolio',
+    name: 'Portfolio',
     icon: Crown,
     color: 'purple',
     monthlyAdMin: 7500,
-    monthlyAdMax: 20000,
-    managementFee: 2500,
+    monthlyAdMax: 25000,
+    managementFee: 997,
     adMarkupPct: 10,
-    features: ['Up to 10 facilities', 'Unlimited landing pages', 'All channels', 'Real-time dashboard', 'Dedicated Slack', 'Call tracking', 'A/B testing', 'Priority support'],
-    referralCredit: 1000,
-    setupFee: 2000,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    icon: Gem,
-    color: 'amber',
-    monthlyAdMin: 20000,
-    monthlyAdMax: 100000,
-    managementFee: 0, // custom
-    adMarkupPct: 8,
-    features: ['Unlimited facilities', 'White-label option', 'Custom integrations', 'Dedicated account manager', 'SLA guarantee', 'Quarterly business reviews', 'Custom reporting'],
-    referralCredit: 2000,
-    setupFee: 0, // custom
+    features: ['Unlimited facilities', 'Everything in Growth', 'Churn prediction & upsell engine', 'Google Ads Lab', 'Partner portal & white-label', 'Dedicated strategist', 'Slack channel', 'Weekly calls', 'Quarterly business review'],
+    referralCredit: 350,
+    setupFee: 0,
   },
 ]
 
 export const REFERRAL_TIERS = [
-  { min: 0, max: 2, label: 'Member', rate: 250, icon: Star, color: 'slate' },
-  { min: 3, max: 5, label: 'Silver', rate: 500, icon: Trophy, color: 'blue' },
-  { min: 6, max: 10, label: 'Gold', rate: 1000, icon: Crown, color: 'amber' },
-  { min: 11, max: Infinity, label: 'Platinum', rate: 1500, icon: Gem, color: 'purple' },
+  { min: 0, max: 2, label: 'Member', rate: 100, icon: Star, color: 'slate' },
+  { min: 3, max: 5, label: 'Silver', rate: 200, icon: Trophy, color: 'blue' },
+  { min: 6, max: 10, label: 'Gold', rate: 400, icon: Crown, color: 'amber' },
+  { min: 11, max: Infinity, label: 'Platinum', rate: 600, icon: Gem, color: 'purple' },
 ]
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -227,18 +214,18 @@ export function generateMockData(leads: Lead[]) {
     location: l.location,
     accessCode: l.accessCode!,
     status: 'active' as const,
-    tier: (['starter', 'growth', 'scale', 'growth'] as const)[i % 4],
-    monthlyAdBudget: [2500, 5000, 12000, 4000][i % 4],
-    managementFeeRate: [750, 1500, 2500, 1500][i % 4],
-    adMarkupRate: [15, 12, 10, 12][i % 4],
+    tier: (['launch', 'growth', 'portfolio'] as const)[i % 3],
+    monthlyAdBudget: [2000, 5000, 15000][i % 3],
+    managementFeeRate: [297, 597, 997][i % 3],
+    adMarkupRate: [15, 12, 10][i % 3],
     signedDate: new Date(Date.now() - (90 + i * 30) * 86400000).toISOString().slice(0, 10),
     paymentTerms: 'net30' as const,
     referredBy: i > 0 ? signedClients[0]?.name || null : null,
     referralCode: `SS-${l.facilityName.replace(/\s/g, '').slice(0, 6).toUpperCase()}-${(1000 + i).toString()}`,
     creditBalance: i > 0 ? 0 : 750,
-    totalSpendManaged: [2500, 5000, 12000, 4000][i % 4] * (3 + i),
-    totalRevenue: ([750, 1500, 2500, 1500][i % 4] + [2500, 5000, 12000, 4000][i % 4] * ([15, 12, 10, 12][i % 4] / 100)) * (3 + i),
-    facilities: [1, 2, 5, 1][i % 4],
+    totalSpendManaged: [2000, 5000, 15000][i % 3] * (3 + i),
+    totalRevenue: ([297, 597, 997][i % 3] + [2000, 5000, 15000][i % 3] * ([15, 12, 10][i % 3] / 100)) * (3 + i),
+    facilities: [1, 2, 5][i % 3],
   }))
 
   // Generate demo invoices for the last 3 months

@@ -14,13 +14,13 @@ export default function PricingTiers({ clients, card, muted, subtle, c }: Pricin
   return (
     <div className="space-y-6">
       <div className={`rounded-xl border p-5 ${card}`}>
-        <h3 className="font-bold text-sm mb-1">Managed Ad Spend Pricing Model</h3>
+        <h3 className="font-bold text-sm mb-1">Pricing Tiers — Launch · Growth · Portfolio</h3>
         <p className={`text-xs mb-4 ${muted}`}>
-          Clients pay StowStack a single monthly invoice. We manage their ad accounts directly — better CPMs, consolidated reporting, developer-tier access.
-          Every tier includes management fee + ad spend markup. Higher tiers get lower markup rates as a volume incentive.
+          Clients pay StowStack a single monthly invoice per facility. Every tier includes a flat management fee + ad spend markup.
+          Higher tiers unlock more tools, more facilities, and lower markup rates as a volume incentive.
         </p>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {PRICING_TIERS.map(tier => {
             const TierIcon = tier.icon
             const colorMap: Record<string, { bg: string; border: string; text: string; badge: string }> = {
