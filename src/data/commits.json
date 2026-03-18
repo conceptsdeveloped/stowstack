@@ -1,5 +1,20 @@
 [
   {
+    "hash": "9be8fd52ac40fc53e1b5fbf64fdfd51574f08db9",
+    "short": "9be8fd5",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-17T20:54:44-04:00",
+    "subject": "Add Social Media Command Center — content calendar, AI generation, multi-platform publishing",
+    "body": "New \"Social Media\" facility tab with unified content management across\nFacebook, Instagram, and Google Business Profile. Features:\n\n- Content calendar with monthly/weekly views and storage-specific seasonal markers\n- AI batch generator: creates 5-20 posts at once using Claude with full facility context\n- Post composer for manual creation with platform-specific formatting\n- Publishing to Facebook Pages, Instagram (via Graph API), and GBP\n- Draft/scheduled/published workflow with inline editing and status tracking\n- Platform breakdown metrics and content mix overview\n\nAll new files — does not modify existing publish-ad.js, gbp-posts.js,\nplatform-connections.js, PublishTab.tsx, or GBPTab.tsx. Reads from\nexisting platform_connections and gbp_connections for OAuth tokens.",
+    "category": "feature",
+    "area": "integrations",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 12,
+    "insertions": 1966,
+    "deletions": 1
+  },
+  {
     "hash": "b6f5874d1483767826118306e8760172d5e77669",
     "short": "b6f5874",
     "author": "Blake",

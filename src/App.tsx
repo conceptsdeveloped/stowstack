@@ -11,6 +11,11 @@ import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
 import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
+import RevenueLeakSection from '@/components/website/RevenueLeakSection'
+import ThreeWayComparison from '@/components/website/ThreeWayComparison'
+import InactionTimeline from '@/components/website/InactionTimeline'
+import QuickCalculator from '@/components/website/QuickCalculator'
+import DemandEngineVisual from '@/components/website/DemandEngineVisual'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt'
@@ -1841,6 +1846,9 @@ function WebsiteView() {
         <Hero />
         <SocialProofStrip />
         <StatsBar />
+        <RevenueLeakSection />
+        <DemandEngineVisual />
+        <ThreeWayComparison />
         <LaunchTimeline />
         <ProblemSection />
         <ComparisonSection />
@@ -1852,6 +1860,8 @@ function WebsiteView() {
         <CampaignArchSection />
         <ServicesSection />
         <IdealClientSection />
+        <InactionTimeline />
+        <QuickCalculator />
         <MarketingScorecard />
         <KPIDashboard />
         <PricingSection />
