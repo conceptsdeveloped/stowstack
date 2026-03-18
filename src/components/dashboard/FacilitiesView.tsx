@@ -18,8 +18,9 @@ import PMSDataTab from './PMSDataTab'
 import RevenueIntelligence from './RevenueIntelligence'
 import OccupancyIntelligence from './OccupancyIntelligence'
 import RevenueLossCalculator from './RevenueLossCalculator'
+import SocialCommandCenter from './SocialCommandCenter'
 
-type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -98,6 +99,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
           ['utm-links', 'Campaign Links'],
           ['calls', 'Call Tracking'],
           ['gbp', 'Google Business Profile'],
+          ['social', 'Social Media'],
           ['publish', 'Ad Publisher'],
         ] as const).map(([id, label]) => (
           <button
@@ -173,6 +175,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 
       {subTab === 'gbp' && (
         <GBPTab facility={facility} adminKey={adminKey} darkMode={darkMode} pmsData={pmsData} />
+      )}
+
+      {subTab === 'social' && (
+        <SocialCommandCenter facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'publish' && (

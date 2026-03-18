@@ -1,5 +1,20 @@
 [
   {
+    "hash": "b6f5874d1483767826118306e8760172d5e77669",
+    "short": "b6f5874",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-17T20:44:17-04:00",
+    "subject": "Add Revenue Loss Calculator — Zoom closer with 6-category loss analysis",
+    "body": "New \"Revenue Gap\" facility tab that calculates annual revenue loss across\n6 categories: vacancy drag, rate gap, marketing void, competitor capture,\nchurn bleed, and discount drag. Includes animated debt clock, what-if\nrecovery slider, breakeven callout, 12-month side-by-side projections\n(inaction vs StowStack), and print support. Works with PMS data or falls\nback to audit form estimates for cold leads.",
+    "category": "feature",
+    "area": "general",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 9,
+    "insertions": 2968,
+    "deletions": 3
+  },
+  {
     "hash": "1b88afa1389b364beea604e37e1a4bac83b3c5bb",
     "short": "1b88afa",
     "author": "Blake",
