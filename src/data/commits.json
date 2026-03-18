@@ -1,7 +1,22 @@
 [
   {
-    "hash": "bbb3ca43486f949214013130a37138719b1182b8",
-    "short": "bbb3ca4",
+    "hash": "1b88afa1389b364beea604e37e1a4bac83b3c5bb",
+    "short": "1b88afa",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-17T18:13:17-04:00",
+    "subject": "Security hardening: fix 18 vulnerabilities across API and config",
+    "body": "- Fix wildcard CORS on Stripe checkout and billing portal endpoints\n- Add SSRF protection to proxy-video (domain allowlist + private IP blocking)\n- Add SSRF protection to scrape-website (private IP/hostname blocking)\n- Fix SQL injection vector in hasField() via field name allowlist\n- Replace timing-vulnerable === with crypto.timingSafeEqual for admin keys\n- Add rate limiting to consumer-lead and meta-capi endpoints\n- Add HSTS, CSP, and X-XSS-Protection security headers\n- Remove internal error message leak from meta-capi responses\n- Strengthen HTML escaping (add single-quote) in audit-form\n- Prevent email header injection via newline stripping in subjects\n- Add Stripe metadata cleanup for temp passwords in checkout-success\n- Make DB SSL verification configurable (default to strict)\n- Remove CORS origin reflection from V1 API (machine-to-machine)\n- Use crypto.randomUUID for event ID generation in pixel tracking",
+    "category": "other",
+    "area": "api",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 18,
+    "insertions": 860,
+    "deletions": 25
+  },
+  {
+    "hash": "3acd76b4f5d5a10b2cc6a61740ccc605d95f7e86",
+    "short": "3acd76b",
     "author": "Blake",
     "email": "blake@storepawpaw.com",
     "date": "2026-03-17T14:11:45-04:00",
@@ -13,6 +28,21 @@
     "filesChanged": 11,
     "insertions": 560,
     "deletions": 45
+  },
+  {
+    "hash": "8fa94e57b7933108f11be654aca6a8e87c9147d8",
+    "short": "8fa94e5",
+    "author": "angelo",
+    "email": "angelo@angelos-Mac-mini.local",
+    "date": "2026-03-17T02:13:56-04:00",
+    "subject": "Add Market Intelligence system to facility Overview",
+    "body": "New market scanning engine that gathers competitive and environmental\ndata for each facility:\n\n- Competitors: Google Places search for nearby storage facilities with\n  ratings, review counts, distance (haversine), Maps/website links\n- Demand Drivers: scans for apartments, universities, military bases,\n  real estate offices, moving companies, senior living within 5 miles\n- Demographics: Census ACS 2022 data — population, median income,\n  median age, renter %, median home value by zip code\n- Operator Notes: editable textarea for manual market context\n\nAll data cached in facility_market_intel table, automatically fed into\nmarketing plan generation. UI shows competitors as cards, demand\ndrivers grouped by category, demographics as stat cards. \"Scan Market\"\nbutton triggers the full analysis.",
+    "category": "feature",
+    "area": "general",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 5,
+    "insertions": 732,
+    "deletions": 1
   },
   {
     "hash": "011076fa4079e613605ec662eae69fbdfc55ab5e",

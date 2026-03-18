@@ -17,8 +17,9 @@ import GBPTab from './GBPTab'
 import PMSDataTab from './PMSDataTab'
 import RevenueIntelligence from './RevenueIntelligence'
 import OccupancyIntelligence from './OccupancyIntelligence'
+import RevenueLossCalculator from './RevenueLossCalculator'
 
-type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -84,6 +85,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
         {([
           ['overview', 'Facility Overview'],
           ['pms-data', 'Units & Pricing'],
+          ['revenue-loss', 'Revenue Gap'],
           ['revenue-intel', 'Revenue Analytics'],
           ['occupancy-intel', 'Occupancy Analytics'],
           ['creative', 'Ad Creative Studio'],
@@ -119,6 +121,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 
       {subTab === 'pms-data' && (
         <PMSDataTab facility={facility} adminKey={adminKey} darkMode={darkMode} onPMSImport={refetchPMS} />
+      )}
+
+      {subTab === 'revenue-loss' && (
+        <RevenueLossCalculator facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'revenue-intel' && (
