@@ -1522,6 +1522,103 @@ function FAQSection() {
   )
 }
 
+function ScheduleCallSection() {
+  const CAL_URL = 'https://cal.com/stowstack'
+
+  return (
+    <section id="schedule" className="py-20 md:py-28 border-t bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-5xl mx-auto px-5">
+        <Reveal>
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">Book a Call</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Get Your Free Facility Audit Review
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Pick a time, and we'll walk through your facility's digital presence, ad performance, and rental flow — then show you exactly where you're losing move-ins.
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal delay={100}>
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {[
+              {
+                step: '1',
+                title: 'Pick a Time',
+                desc: 'Choose a 30-minute slot that works for you. We keep it quick and focused.',
+                icon: Calendar,
+              },
+              {
+                step: '2',
+                title: 'We Build Your Audit',
+                desc: 'Before the call, we analyze your market, competitors, pricing, and online presence.',
+                icon: Search,
+              },
+              {
+                step: '3',
+                title: 'Review Together',
+                desc: 'We walk through exactly where your facility is leaking revenue — and how to fix it.',
+                icon: BarChart3,
+              },
+            ].map((item) => (
+              <div key={item.step} className="relative bg-white rounded-2xl border border-border/60 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold">
+                    {item.step}
+                  </div>
+                  <item.icon size={20} className="text-emerald-600" />
+                </div>
+                <h3 className="text-base font-semibold mb-1">{item.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal delay={200}>
+          <div className="bg-white rounded-2xl border border-border/60 shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Calendar size={20} className="text-white" />
+                <span className="text-white font-semibold">Schedule Your Free Audit Review</span>
+              </div>
+              <span className="text-emerald-100 text-sm hidden sm:block">30 min · Free · No commitment</span>
+            </div>
+            <div className="p-0">
+              <iframe
+                src={`${CAL_URL}?embed=true&theme=light`}
+                frameBorder="0"
+                style={{ width: '100%', height: '650px', border: 'none' }}
+                allow="payment"
+                loading="lazy"
+                title="Schedule a free facility audit review"
+              />
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal delay={300}>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Shield size={16} className="text-emerald-600" />
+              <span>No contracts or commitments</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-emerald-600" />
+              <span>30-minute focused review</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <span>Actionable insights you can use immediately</span>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
 function CTASection() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -1867,6 +1964,7 @@ function WebsiteView() {
         <CaseStudyTeaser />
         <TestimonialsSection />
         <FAQSection />
+        <ScheduleCallSection />
         <CTASection />
       </main>
       <Footer />
