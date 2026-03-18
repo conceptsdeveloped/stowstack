@@ -200,7 +200,7 @@ export default function AdminSidebar({
     <aside
       className={`
         admin-sidebar relative flex flex-col h-screen sticky top-0 z-40
-        transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] select-none
+        transition-all duration-300 ease-in-out select-none
         ${collapsed ? 'w-[56px]' : 'w-[240px]'}
         bg-[#0a0d12] border-r border-white/[0.06]
       `}
