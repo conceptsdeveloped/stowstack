@@ -1530,38 +1530,9 @@ function ScheduleCallSection() {
     if (calLoaded.current) return
     calLoaded.current = true
 
-    // Cal.com embed bootstrap — creates the Cal() queue function
+    // Cal() queue function is loaded from index.html <script>
     const win = window as any
-    ;(function (C: any, A: string, L: string) {
-      const p = function (a: any, ar: any) { a.q.push(ar) }
-      const d = C.document
-      C.Cal = C.Cal || function () {
-        const cal = C.Cal
-        const ar = arguments
-        if (!cal.loaded) {
-          cal.ns = {}
-          cal.q = cal.q || []
-          const s = d.createElement('script')
-          s.src = A
-          d.head.appendChild(s)
-          cal.loaded = true
-        }
-        if (ar[0] === L) {
-          const api = function () { p(api, arguments) }
-          const namespace = ar[1];
-          (api as any).q = (api as any).q || []
-          if (typeof namespace === 'string') {
-            cal.ns[namespace] = cal.ns[namespace] || api
-            p(cal.ns[namespace], ar)
-            p(cal, ['initNamespace', namespace])
-          } else {
-            p(cal, ar)
-          }
-          return
-        }
-        p(cal, ar)
-      }
-    })(win, 'https://app.cal.com/embed/embed.js', 'init')
+    if (!win.Cal) return
 
     win.Cal('init', 'stowstack', { origin: 'https://cal.com' })
     win.Cal.ns.stowstack('inline', {
