@@ -562,10 +562,8 @@ export function LeadCaptureFormSection({ config, theme, facilityId, landingPageI
 
       // Fire Lead event to pixels
       if (typeof window !== 'undefined') {
-        // @ts-expect-error fbq global
-        if (window.fbq) window.fbq('track', 'Lead', { content_name: 'lead_capture_form', content_category: 'storage' })
-        // @ts-expect-error gtag global
-        if (window.gtag) window.gtag('event', 'generate_lead', { event_category: 'engagement', event_label: 'lead_capture_form' })
+        if ((window as any).fbq) (window as any).fbq('track', 'Lead', { content_name: 'lead_capture_form', content_category: 'storage' })
+        if ((window as any).gtag) (window as any).gtag('event', 'generate_lead', { event_category: 'engagement', event_label: 'lead_capture_form' })
       }
 
       setSubmitted(true)
@@ -990,10 +988,8 @@ export default function LandingPageView({ slug }: { slug: string }) {
   // Fire page_view tracking on load
   useEffect(() => {
     if (!page) return
-    // @ts-expect-error fbq global
-    if (window.fbq) window.fbq('track', 'PageView')
-    // @ts-expect-error gtag global
-    if (window.gtag) window.gtag('event', 'page_view', { page_title: page.title, page_location: window.location.href })
+    if ((window as any).fbq) (window as any).fbq('track', 'PageView')
+    if ((window as any).gtag) (window as any).gtag('event', 'page_view', { page_title: page.title, page_location: window.location.href })
 
     // Fire server-side CAPI
     const params = new URLSearchParams(window.location.search)

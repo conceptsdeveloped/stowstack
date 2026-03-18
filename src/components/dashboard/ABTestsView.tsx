@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
-  Loader2, Plus, Play, Pause, Trophy, BarChart3, Users,
-  Target, CheckCircle2, XCircle, ChevronDown, Beaker
+  Loader2, Plus, Play, Pause, Trophy, BarChart3,
+  CheckCircle2, ChevronDown, Beaker
 } from 'lucide-react'
 
 interface ABTest {

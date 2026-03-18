@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
-  Loader2, Megaphone, Layers, Phone, Mail, MessageSquare,
-  TrendingUp, DollarSign, Target, Users, ArrowRight,
-  CheckCircle2, Clock, ExternalLink, BarChart3
+  Loader2, Megaphone, Layers,
+  TrendingUp, DollarSign, Target, Users,
+  CheckCircle2, Clock
 } from 'lucide-react'
 
 interface Lead {

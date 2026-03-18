@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ClipboardList, Phone } from 'lucide-react'
+import { Check, ClipboardList } from 'lucide-react'
 
 const SOURCES = [
   { value: 'facebook_instagram_ad', label: 'Facebook / Instagram ad' },

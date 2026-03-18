@@ -455,7 +455,7 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
             </div>
 
             <div className="space-y-1.5 mb-4">
-              {onboardingChecklist.steps.map((step, i) => (
+              {onboardingChecklist.steps.map((step) => (
                 <div key={step.id} className={`flex items-center gap-2.5 py-1.5 ${step.completed ? 'opacity-60' : ''}`}>
                   {step.completed
                     ? <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
