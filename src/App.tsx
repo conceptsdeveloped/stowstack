@@ -256,14 +256,14 @@ function AuditBanner() {
   if (dismissed) return null
   return (
     <div data-audit-banner className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600">
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 text-white text-sm">
-        <Zap size={14} className="shrink-0 animate-pulse" />
-        <span className="font-medium">Free Facility Audit — See Where You Are Losing Move-Ins</span>
-        <span className="hidden sm:inline text-white/80">No contracts. No commitment. Real answers.</span>
-        <a href="#cta" className="shrink-0 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold transition-all">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-center gap-2 sm:gap-3 text-white text-xs sm:text-sm">
+        <Zap size={14} className="shrink-0 animate-pulse hidden sm:block" />
+        <span className="font-medium truncate">Free Audit — See Where You Lose Move-Ins</span>
+        <span className="hidden lg:inline text-white/80">No contracts. No commitment. Real answers.</span>
+        <a href="#cta" className="shrink-0 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-2.5 sm:px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap">
           Book Now
         </a>
-        <button onClick={() => setDismissed(true)} className="shrink-0 text-white/60 hover:text-white cursor-pointer ml-1">
+        <button onClick={() => setDismissed(true)} className="shrink-0 text-white/60 hover:text-white cursor-pointer ml-0.5">
           <X size={14} />
         </button>
       </div>
@@ -302,10 +302,10 @@ function Nav() {
   ]
 
   return (
-    <header className={`fixed left-0 right-0 z-50 transition-all duration-300 ${hasBanner ? 'top-[42px]' : 'top-0'} ${
+    <header className={`fixed left-0 right-0 z-50 transition-all duration-300 ${hasBanner ? 'top-[36px] sm:top-[42px]' : 'top-0'} ${
       scrolled ? 'bg-white/90 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)]' : 'bg-transparent'
     }`}>
-      <nav className="max-w-6xl mx-auto flex items-center justify-between px-5 h-16">
+      <nav className="max-w-6xl mx-auto flex items-center justify-between px-5 h-14 sm:h-16">
         <a href="#" className="flex items-center gap-2 group">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center shadow-md shadow-emerald-600/20">
             <Building2 size={16} className="text-white" />
@@ -345,7 +345,7 @@ function Nav() {
           </Button>
         </div>
 
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 -mr-2">
+        <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 -mr-2 relative z-[70]">
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </nav>
