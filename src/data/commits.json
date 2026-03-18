@@ -1,5 +1,20 @@
 [
   {
+    "hash": "c32dd9e67e38c97aecae8136efda026f4af7968e",
+    "short": "c32dd9e",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-17T21:32:47-04:00",
+    "subject": "Add demand engine website sections — revenue leaks, 3-way comparison, inaction timeline, calculator",
+    "body": "5 new website sections inserted into the front page to reposition\nStowStack as a demand engine:\n\n- RevenueLeakSection: \"6 Ways Your Facility Bleeds Revenue\" with dollar\n  estimates per leak ($2K no visibility, $800 homepage, $600 off-brand\n  flow, $1.2K no attribution, $1.5K underpricing, $900 no follow-up)\n- DemandEngineVisual: interactive 6-component system diagram with\n  click-to-expand detail panels (Intelligence → Ads → Pages → Conversion\n  → Attribution → Optimization)\n- ThreeWayComparison: 10-row comparison table — DIY vs Agency vs Demand\n  Engine with color-coded columns\n- InactionTimeline: 6-month visual showing escalating losses from\n  inaction ($450/mo → $5,850 cumulative) vs $43K projected recovery\n- QuickCalculator: inline ROI estimator with unit count and occupancy\n  sliders showing monthly loss and projected StowStack recovery\n\nAll existing sections preserved — new sections inserted at strategic\npositions in the page flow.",
+    "category": "feature",
+    "area": "website",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 7,
+    "insertions": 768,
+    "deletions": 0
+  },
+  {
     "hash": "9be8fd52ac40fc53e1b5fbf64fdfd51574f08db9",
     "short": "9be8fd5",
     "author": "Blake",

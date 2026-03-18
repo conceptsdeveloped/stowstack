@@ -19,8 +19,9 @@ import RevenueIntelligence from './RevenueIntelligence'
 import OccupancyIntelligence from './OccupancyIntelligence'
 import RevenueLossCalculator from './RevenueLossCalculator'
 import SocialCommandCenter from './SocialCommandCenter'
+import LeadNurtureEngine from './LeadNurtureEngine'
 
-type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'nurture' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -100,6 +101,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
           ['calls', 'Call Tracking'],
           ['gbp', 'Google Business Profile'],
           ['social', 'Social Media'],
+          ['nurture', 'Lead Nurture'],
           ['publish', 'Ad Publisher'],
         ] as const).map(([id, label]) => (
           <button
@@ -179,6 +181,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 
       {subTab === 'social' && (
         <SocialCommandCenter facility={facility} adminKey={adminKey} darkMode={darkMode} />
+      )}
+
+      {subTab === 'nurture' && (
+        <LeadNurtureEngine facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'publish' && (
