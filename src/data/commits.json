@@ -1,5 +1,20 @@
 [
   {
+    "hash": "5038b3b8874bf12d207fce915a63da96177e345e",
+    "short": "5038b3b",
+    "author": "Blake",
+    "email": "blake@storepawpaw.com",
+    "date": "2026-03-17T21:53:31-04:00",
+    "subject": "Add Lead Nurture Engine — multi-channel SMS + email sequences with Twilio",
+    "body": "New \"Lead Nurture\" facility tab with automated follow-up sequences:\n\n- 4 pre-built sequence templates: landing page abandon (5 steps),\n  reservation abandon (3 steps), post-move-in lifecycle (5 steps),\n  win-back campaign (3 steps)\n- SMS via Twilio REST API with TCPA send window enforcement (9am-9pm)\n  and automatic STOP opt-out appending\n- Email via Resend with merge tag resolution ({first_name}, {unit_size},\n  {facility_name}, {reserve_link}, etc.)\n- Enrollment management: pause, resume, skip step, mark converted,\n  unsubscribe\n- Cron processor (process-nurture.js) for automated step advancement\n- Full message log with delivery status tracking\n- Metrics dashboard: active enrollments, conversions, SMS/email counts,\n  delivery rate\n\nAll new files — does not modify drip-sequences.js, process-drips.js,\nprocess-recovery.js, SequencesView.tsx, or any existing code.",
+    "category": "feature",
+    "area": "email",
+    "coAuthor": "Claude Opus 4.6 (1M context)",
+    "filesChanged": 8,
+    "insertions": 1290,
+    "deletions": 1
+  },
+  {
     "hash": "c32dd9e67e38c97aecae8136efda026f4af7968e",
     "short": "c32dd9e",
     "author": "Blake",

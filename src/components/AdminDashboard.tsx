@@ -25,6 +25,7 @@ import SharedAuditsView from './dashboard/SharedAuditsView'
 import RecoveryView from './dashboard/RecoveryView'
 import PartnersView from './dashboard/PartnersView'
 import PortfolioOptimizerView from './dashboard/PortfolioOptimizerView'
+import OnboardingChecklistView from './dashboard/OnboardingChecklistView'
 import AdminGuide from './AdminGuide'
 import WhatsNew from './WhatsNew'
 import SeasonalPlaybookTab from './dashboard/SeasonalPlaybookTab'
@@ -38,6 +39,8 @@ import AdminSidebar from './dashboard/AdminSidebar'
 import ActivityLogView from './dashboard/ActivityLogView'
 import CallLogsView from './dashboard/CallLogsView'
 import CampaignAlertsView from './dashboard/CampaignAlertsView'
+import ABTestsView from './dashboard/ABTestsView'
+import CampaignOrchestratorView from './dashboard/CampaignOrchestratorView'
 import ConsumerLeadsView from './dashboard/ConsumerLeadsView'
 
 /* ── Admin Auth Gate ── */
@@ -505,6 +508,8 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
               if (action === 'tenants') setActiveTab('tenants')
               if (action === 'churn') setActiveTab('churn')
               if (action === 'upsell') setActiveTab('upsell')
+              if (action === 'ab-tests') setActiveTab('ab-tests')
+              if (action === 'campaigns') setActiveTab('campaigns')
               if (action === 'remarketing') setActiveTab('remarketing')
               if (action === 'whats-new') setActiveTab('whats-new')
               if (action === 'activity-log') setActiveTab('activity-log')
@@ -539,6 +544,11 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
             <HelpTooltip text="Recommends which facilities to push ad spend toward based on vacancy, margin efficiency, local demand, and campaign momentum." guideSection="portfolio" onOpenGuide={openGuideToSection} darkMode={darkMode} />
           </div>
           <PortfolioOptimizerView leads={leads} adminKey={adminKey} darkMode={darkMode} />
+
+          <div className="flex items-center gap-2 mb-4 mt-8">
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${darkMode ? 'text-green-400' : 'text-slate-900'}`}>Client Onboarding</h2>
+          </div>
+          <OnboardingChecklistView leads={leads} adminKey={adminKey} />
         </>)}
 
         {activeTab === 'insights' && (<>
@@ -590,6 +600,14 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'attribution' && (
           <AttributionView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'ab-tests' && (
+          <ABTestsView leads={leads} adminKey={adminKey} />
+        )}
+
+        {activeTab === 'campaigns' && (
+          <CampaignOrchestratorView leads={leads} adminKey={adminKey} />
         )}
 
         {activeTab === 'partners' && (

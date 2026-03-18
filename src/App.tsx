@@ -9,9 +9,9 @@ import GuidePage from '@/components/GuidePage'
 import LandingPageView from '@/components/LandingPageView'
 import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
+import WalkInForm from '@/components/WalkInForm'
 import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
-import RevenueLeakSection from '@/components/website/RevenueLeakSection'
 import ThreeWayComparison from '@/components/website/ThreeWayComparison'
 import InactionTimeline from '@/components/website/InactionTimeline'
 import QuickCalculator from '@/components/website/QuickCalculator'
@@ -1846,7 +1846,6 @@ function WebsiteView() {
         <Hero />
         <SocialProofStrip />
         <StatsBar />
-        <RevenueLeakSection />
         <DemandEngineVisual />
         <ThreeWayComparison />
         <LaunchTimeline />
@@ -1888,6 +1887,11 @@ function SharedAuditRoute() {
   return <SharedAuditView slug={slug || ''} />
 }
 
+function WalkInRoute() {
+  const { code } = useParams()
+  return <WalkInForm accessCode={code || ''} />
+}
+
 // BetaPad — lazy-loaded QA overlay (always on)
 const BetaPadWrapper = lazy(() => import('./betapad/BetaPadWrapper'))
 const BetaPadDashboard = lazy(() => import('./betapad/BetaPadDashboard'))
@@ -1908,6 +1912,7 @@ function AppRoutes() {
       <Route path="/demo" element={<DemoDashboard onBack={goHome} />} />
       <Route path="/guide" element={<GuidePage onBack={goHome} />} />
       <Route path="/lp/:slug" element={<LandingPageRoute />} />
+      <Route path="/walkin/:code" element={<WalkInRoute />} />
       <Route path="/audit/:slug" element={<SharedAuditRoute />} />
       <Route path="/blog/*" element={<BlogRouter onBack={goHome} />} />
       <Route path="/admin/betapad" element={<Suspense fallback={null}><BetaPadDashboard /></Suspense>} />

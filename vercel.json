@@ -13,7 +13,7 @@
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://graph.facebook.com https://www.google-analytics.com https://api.resend.com https://*.posthog.com https://*.novu.co; font-src 'self' data:; frame-src https://js.stripe.com https://www.youtube.com https://player.vimeo.com; frame-ancestors 'self'" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://graph.facebook.com https://www.google-analytics.com https://api.resend.com https://*.posthog.com https://*.novu.co; font-src 'self' data:; frame-src https://js.stripe.com https://www.youtube.com https://player.vimeo.com https://www.storedge.com https://*.storedge.com; frame-ancestors 'self'" }
       ]
     }
   ],
@@ -37,6 +37,22 @@
     {
       "path": "/api/cron/cleanup-sessions",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/send-client-reports",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/check-campaign-alerts",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/sync-audiences",
+      "schedule": "0 2 * * 0"
+    },
+    {
+      "path": "/api/cron/aggregate-page-stats",
+      "schedule": "0 4 * * *"
     }
   ]
 }

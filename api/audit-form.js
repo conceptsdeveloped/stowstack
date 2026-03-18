@@ -144,23 +144,38 @@ async function sendNotificationEmail(body, apiKey) {
 
 async function sendAutoReply(body, apiKey) {
   const firstName = esc(body.name.trim().split(' ')[0])
+  const QUESTIONNAIRE_URL = 'https://shorturl.at/EWu5y'
+  const SCHEDULING_URL = 'https://cal.com/stowstack'
+  const STARBUCKS_URL = 'https://starbucks.cashstar.com/recipient-experience/redemption/CCgeQPsM0VsChJeJeZayIDwFK/dbb51cbb4fc44392a7b2bff0a2158bb0/?continue=true'
   const html = `
     <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #1a1a1a;">
       <p>Hey ${firstName},</p>
-      <p>Just got your audit request for <strong>${esc(body.facilityName)}</strong>. Really appreciate you reaching out. We are already pulling up your market and taking a look at things on our end.</p>
-      <p>Before we can finish the full audit, we need you to fill out a quick diagnostic form. It covers everything we look at when we review a facility: occupancy, unit mix, leads, marketing, pricing, operations, and competition.</p>
-      <p>A few things about the form:</p>
-      <ul style="padding-left: 20px; margin: 12px 0;">
-        <li style="margin-bottom: 6px;"><strong>Takes about 10 minutes.</strong> It is thorough but not complicated.</li>
-        <li style="margin-bottom: 6px;"><strong>You do not need to pull any reports.</strong> Everything is based on what you already know about your facility.</li>
-        <li style="margin-bottom: 6px;"><strong>The questions are actually useful.</strong> A lot of operators tell us that just filling it out helps them see where things are slipping.</li>
-      </ul>
-      <p style="margin: 24px 0;">
-        <a href="https://shorturl.at/EWu5y" style="display: inline-block; padding: 14px 28px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Fill Out the Diagnostic Form</a>
-      </p>
-      <p>Once we get your answers back, we will put together a full audit with category scores, specific findings, and a prioritized action plan for <strong>${esc(body.facilityName)}</strong>. No cost, no strings.</p>
-      <p>After the audit is done, I would love to hop on a quick call to walk you through the results and talk about what is actually going to move the needle for you. <strong>What does your schedule look like this week or next for a 20 minute call?</strong></p>
-      <p>Looking forward to it.</p>
+      <p>Just got your audit request for <strong>${esc(body.facilityName)}</strong>. Really appreciate you reaching out — we are already pulling up your market and taking a look at things on our end.</p>
+      <p>We need two things from you to get your audit built and reviewed:</p>
+
+      <div style="background: #f8faf8; border-left: 4px solid #16a34a; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0 0 4px; font-weight: 700; color: #16a34a; font-size: 14px;">STEP 1</p>
+        <p style="margin: 0 0 8px; font-weight: 600;">Fill out the facility questionnaire (5 min)</p>
+        <p style="margin: 0 0 12px; color: #4a4a4a; font-size: 14px;">This covers unit mix, occupancy, leads, marketing, pricing, operations, and competition. You do not need to pull any reports — everything is based on what you already know. A lot of operators tell us just filling it out helps them see where things are slipping.</p>
+        <a href="${QUESTIONNAIRE_URL}" style="display: inline-block; padding: 12px 24px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">Fill Out the Questionnaire &rarr;</a>
+      </div>
+
+      <div style="background: #f5f7ff; border-left: 4px solid #4f46e5; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0 0 4px; font-weight: 700; color: #4f46e5; font-size: 14px;">STEP 2</p>
+        <p style="margin: 0 0 8px; font-weight: 600;">Schedule your audit review call (20 min)</p>
+        <p style="margin: 0 0 12px; color: #4a4a4a; font-size: 14px;">Once you have submitted the questionnaire, pick a time and we will walk through your full audit live — category scores, specific findings, and a prioritized action plan for <strong>${esc(body.facilityName)}</strong>. No cost, no strings.</p>
+        <a href="${SCHEDULING_URL}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">Pick a Time &rarr;</a>
+      </div>
+
+      <div style="background: #fdf8f1; border-left: 4px solid #d97706; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0 0 4px; font-size: 22px;">&#9749;</p>
+        <p style="margin: 0 0 8px; font-weight: 600;">Coffee is on us</p>
+        <p style="margin: 0 0 12px; color: #4a4a4a; font-size: 14px;">Come caffeinated for the call — here is a $5 Starbucks gift card on us.</p>
+        <a href="${STARBUCKS_URL}" style="display: inline-block; padding: 12px 24px; background: #d97706; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">Get Your Coffee &rarr;</a>
+      </div>
+
+      <p>I have CC'd <strong>Anna</strong> on this email. If you have any questions about the questionnaire, need help pulling facility data, or want to coordinate scheduling before the call — just hit reply all and she will take care of it.</p>
+      <p>Looking forward to digging into your numbers.</p>
       <p style="margin-top: 24px;">
         Blake Burkett<br/>
         StowStack<br/>
@@ -168,7 +183,7 @@ async function sendAutoReply(body, apiKey) {
         <a href="mailto:blake@storepawpaw.com" style="color: #16a34a; text-decoration: none;">blake@storepawpaw.com</a>
       </p>
       <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
-      <p style="font-size: 12px; color: #999;">This is a noreply email. Hit reply all if you have any questions. Anna is CC'd on this thread and can help with scheduling, additional reports, or anything else you need.</p>
+      <p style="font-size: 12px; color: #999;">This is a noreply address. Hit reply all if you have any questions — Anna and Blake are both on the thread.</p>
     </div>`
 
   const res = await fetch('https://api.resend.com/emails', {

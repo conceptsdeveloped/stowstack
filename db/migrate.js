@@ -1397,6 +1397,155 @@ CREATE TABLE IF NOT EXISTS facility_market_intel (
 CREATE INDEX IF NOT EXISTS idx_market_intel_facility ON facility_market_intel(facility_id);
 
 -- ============================================================
+-- Walk-in attribution tracking (Client 1 Sprint)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS walkin_attributions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  source        TEXT NOT NULL,
+  saw_online_ad BOOLEAN,
+  tenant_name   TEXT,
+  unit_rented   TEXT,
+  logged_by     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_walkin_attributions_facility ON walkin_attributions(facility_id);
+CREATE INDEX IF NOT EXISTS idx_walkin_attributions_created ON walkin_attributions(created_at DESC);
+
+-- Campaign spend tracking (for attribution dashboard)
+CREATE TABLE IF NOT EXISTS campaign_spend (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  utm_campaign  TEXT NOT NULL,
+  platform      TEXT DEFAULT 'meta',
+  month         TEXT NOT NULL,
+  spend         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  impressions   INTEGER DEFAULT 0,
+  clicks        INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(facility_id, utm_campaign, month)
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_spend_facility ON campaign_spend(facility_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_spend_month ON campaign_spend(month);
+
+-- ============================================================
+-- Client reports (automated weekly/monthly)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS client_reports (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id       UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  report_type     TEXT NOT NULL DEFAULT 'monthly',
+  period_start    DATE NOT NULL,
+  period_end      DATE NOT NULL,
+  report_html     TEXT NOT NULL,
+  report_data     JSONB NOT NULL,
+  sent_at         TIMESTAMPTZ,
+  opened_at       TIMESTAMPTZ,
+  status          TEXT DEFAULT 'generated',
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_id, report_type, period_start)
+);
+CREATE INDEX IF NOT EXISTS idx_client_reports_client ON client_reports(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_reports_sent ON client_reports(sent_at DESC);
+
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS report_frequency TEXT DEFAULT 'monthly';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS report_enabled BOOLEAN DEFAULT TRUE;
+
+-- ============================================================
+-- Alert history (persistent campaign alerts)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS alert_history (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id       UUID REFERENCES clients(id) ON DELETE CASCADE,
+  facility_id     UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  alert_type      TEXT NOT NULL,
+  severity        TEXT NOT NULL,
+  title           TEXT NOT NULL,
+  detail          TEXT NOT NULL,
+  metric          NUMERIC,
+  threshold       NUMERIC,
+  acknowledged    BOOLEAN DEFAULT FALSE,
+  acknowledged_by TEXT,
+  acknowledged_at TIMESTAMPTZ,
+  notified_admin  BOOLEAN DEFAULT FALSE,
+  notified_client BOOLEAN DEFAULT FALSE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_alert_history_client ON alert_history(client_id);
+CREATE INDEX IF NOT EXISTS idx_alert_history_severity ON alert_history(severity);
+CREATE INDEX IF NOT EXISTS idx_alert_history_created ON alert_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alert_history_unacked ON alert_history(acknowledged) WHERE acknowledged = false;
+
+-- ============================================================
+-- Audience syncs (Meta Custom Audiences)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS audience_syncs (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id       UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  connection_id     UUID REFERENCES platform_connections(id) ON DELETE SET NULL,
+  audience_type     TEXT NOT NULL,
+  audience_name     TEXT NOT NULL,
+  meta_audience_id  TEXT,
+  source_type       TEXT NOT NULL,
+  record_count      INTEGER DEFAULT 0,
+  match_rate        NUMERIC(5,2),
+  status            TEXT DEFAULT 'pending',
+  error_message     TEXT,
+  last_synced_at    TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audience_syncs_facility ON audience_syncs(facility_id);
+CREATE INDEX IF NOT EXISTS idx_audience_syncs_status ON audience_syncs(status);
+
+-- ============================================================
+-- Landing page interaction tracking
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS page_interactions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  landing_page_id UUID NOT NULL REFERENCES landing_pages(id) ON DELETE CASCADE,
+  facility_id     UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  session_id      TEXT NOT NULL,
+  event_type      TEXT NOT NULL,
+  element_id      TEXT,
+  element_text    TEXT,
+  section_index   INTEGER,
+  x_pct           NUMERIC(5,2),
+  y_pct           NUMERIC(5,2),
+  scroll_depth    INTEGER,
+  viewport_width  INTEGER,
+  viewport_height INTEGER,
+  time_on_page    INTEGER DEFAULT 0,
+  utm_source      TEXT,
+  utm_campaign    TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_page_interactions_lp ON page_interactions(landing_page_id);
+CREATE INDEX IF NOT EXISTS idx_page_interactions_created ON page_interactions(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS page_interaction_stats (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  landing_page_id UUID NOT NULL REFERENCES landing_pages(id) ON DELETE CASCADE,
+  period_date     DATE NOT NULL,
+  total_sessions  INTEGER DEFAULT 0,
+  avg_scroll_depth INTEGER DEFAULT 0,
+  avg_time_on_page INTEGER DEFAULT 0,
+  click_zones     JSONB DEFAULT '[]',
+  section_views   JSONB DEFAULT '{}',
+  cta_clicks      JSONB DEFAULT '{}',
+  bounce_rate     NUMERIC(5,2) DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(landing_page_id, period_date)
+);
+CREATE INDEX IF NOT EXISTS idx_page_stats_lp ON page_interaction_stats(landing_page_id);
+
+-- ============================================================
 -- Migrate legacy plan names to launch/growth/portfolio
 -- ============================================================
 UPDATE organizations SET plan = 'launch' WHERE plan = 'starter';

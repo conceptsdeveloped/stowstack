@@ -24,6 +24,7 @@ function checkAuth(req) {
 const VALID_SECTION_TYPES = [
   'hero', 'trust_bar', 'features', 'unit_types', 'gallery',
   'testimonials', 'faq', 'cta', 'location_map',
+  'storedge_embed', 'lead_capture',
 ]
 
 const VALID_STATUSES = ['draft', 'published', 'archived']

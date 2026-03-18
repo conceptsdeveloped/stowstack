@@ -3,7 +3,8 @@ import {
   Building2, TrendingUp, DollarSign, Users, BarChart3,
   Phone, Mail, ArrowLeft, Loader2, LogOut,
   Target, Eye, MousePointerClick, CheckCircle2, ClipboardList,
-  MessageSquare, ArrowUpRight, ArrowDownRight, Send
+  MessageSquare, ArrowUpRight, ArrowDownRight, Send,
+  Download, Info, Calendar, PieChart
 } from 'lucide-react'
 import OnboardingWizard from './OnboardingWizard'
 import { usePMSData } from '@/hooks/usePMSData'
@@ -223,6 +224,18 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
     totals: { spend: number; leads: number; move_ins: number; revenue: number; cpl: number; cost_per_move_in: number; roas: number }
     campaigns: { campaign: string; spend: number; leads: number; move_ins: number; cpl: number; roas: number }[]
   } | null>(null)
+  const [walkinData, setWalkinData] = useState<{
+    summary: { source: string; count: number; ad_influenced: number }[]
+    total: number
+  } | null>(null)
+  const [dateRange, setDateRange] = useState('this-month')
+  const [activityFeed, setActivityFeed] = useState<{ id: string; type: string; label: string; detail: string; leadName: string | null; createdAt: string }[]>([])
+  const [alertsList, setAlertsList] = useState<{ id: string; severity: string; title: string; detail: string; createdAt: string }[]>([])
+  const [onboardingChecklist, setOnboardingChecklist] = useState<{
+    steps: { id: string; label: string; description: string; completed: boolean; completedAt: string | null }[]
+    completionPct: number
+    nextAction: { step: string; label: string; instruction: string } | null
+  } | null>(null)
 
   const fetchMessages = async () => {
     try {
@@ -265,6 +278,59 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
       }
     }
     fetchAttribution()
+    // Fetch walk-in attribution data
+    const fetchWalkinData = async () => {
+      try {
+        const res = await fetch(`/api/walkin-attribution?accessCode=${encodeURIComponent(client.accessCode)}`)
+        if (res.ok) {
+          const data = await res.json()
+          const total = data.summary?.reduce((s: number, r: { count: number }) => s + r.count, 0) || 0
+          setWalkinData({ summary: data.summary || [], total })
+        }
+      } catch (err) {
+        console.warn('[ClientPortal] Failed to fetch walk-in data:', err)
+      }
+    }
+    fetchWalkinData()
+    // Fetch onboarding checklist
+    const fetchChecklist = async () => {
+      try {
+        const res = await fetch(`/api/onboarding-checklist?accessCode=${encodeURIComponent(client.accessCode)}&email=${encodeURIComponent(client.email)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setOnboardingChecklist({
+            steps: data.steps || [],
+            completionPct: data.completionPct || 0,
+            nextAction: data.nextAction || null,
+          })
+        }
+      } catch (err) {
+        console.warn('[ClientPortal] Failed to fetch onboarding checklist:', err)
+      }
+    }
+    fetchChecklist()
+    // Fetch activity feed
+    const fetchActivity = async () => {
+      try {
+        const res = await fetch(`/api/client-activity?accessCode=${encodeURIComponent(client.accessCode)}&email=${encodeURIComponent(client.email)}&limit=15`)
+        if (res.ok) {
+          const data = await res.json()
+          setActivityFeed(data.data || [])
+        }
+      } catch { /* silent */ }
+    }
+    fetchActivity()
+    // Fetch alerts
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch(`/api/alert-history?accessCode=${encodeURIComponent(client.accessCode)}&email=${encodeURIComponent(client.email)}&acknowledged=false&limit=5`)
+        if (res.ok) {
+          const data = await res.json()
+          setAlertsList(data.data || [])
+        }
+      } catch { /* silent */ }
+    }
+    fetchAlerts()
     // Poll messages every 30s
     const interval = setInterval(fetchMessages, 30000)
     return () => clearInterval(interval)
@@ -374,6 +440,43 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
           />
         )}
 
+        {/* Onboarding Checklist (Client View) */}
+        {onboardingChecklist && onboardingChecklist.completionPct < 100 && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <ClipboardList size={14} className="text-emerald-600" /> Campaign Setup Progress
+              </h3>
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                onboardingChecklist.completionPct === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {onboardingChecklist.completionPct}%
+              </span>
+            </div>
+
+            <div className="space-y-1.5 mb-4">
+              {onboardingChecklist.steps.map((step, i) => (
+                <div key={step.id} className={`flex items-center gap-2.5 py-1.5 ${step.completed ? 'opacity-60' : ''}`}>
+                  {step.completed
+                    ? <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                    : <div className="w-4 h-4 rounded-full border-2 border-slate-300 shrink-0" />
+                  }
+                  <span className={`text-sm ${step.completed ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {onboardingChecklist.nextAction && (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-xs font-semibold text-amber-800 mb-1">Next step: {onboardingChecklist.nextAction.label}</p>
+                <p className="text-xs text-amber-700">{onboardingChecklist.nextAction.instruction}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Campaign Goal Progress */}
         {hasCampaigns && client.monthlyGoal && client.monthlyGoal > 0 && (
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
@@ -472,6 +575,139 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
               </div>
             </div>
             <p className="text-[11px] text-slate-400">Tracked end-to-end: ad click → landing page → lead → move-in. Revenue annualized for ROAS calculation.</p>
+          </div>
+        )}
+
+        {/* ═══ Full Attribution Dashboard ═══ */}
+        {hasCampaigns && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <PieChart size={14} className="text-emerald-600" /> Attribution Overview
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Where your move-ins come from — tracked, reported, and estimated.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={dateRange}
+                  onChange={e => setDateRange(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="this-month">This month</option>
+                  <option value="last-month">Last month</option>
+                  <option value="last-90">Last 90 days</option>
+                </select>
+                <button
+                  onClick={() => {
+                    const rows = [
+                      ['Source', 'Count', 'Ad Influenced'].join(','),
+                      ...(walkinData?.summary || []).map(s =>
+                        [s.source.replace(/_/g, ' '), s.count, s.ad_influenced].join(',')
+                      ),
+                    ]
+                    if (liveAttribution?.campaigns) {
+                      rows.push('', ['Campaign', 'Spend', 'Leads', 'Move-Ins', 'CPL', 'ROAS'].join(','))
+                      liveAttribution.campaigns.forEach(c => {
+                        rows.push([c.campaign, c.spend, c.leads, c.move_ins, c.cpl.toFixed(2), c.roas.toFixed(1)].join(','))
+                      })
+                    }
+                    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `attribution-${new Date().toISOString().slice(0, 10)}.csv`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  className="text-xs text-slate-500 hover:text-emerald-600 flex items-center gap-1 px-2 py-1.5 border border-slate-200 rounded-lg transition-colors"
+                >
+                  <Download size={12} /> CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Overview KPIs */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Ad Spend</div>
+                <div className="text-lg font-bold text-slate-900">${(liveAttribution?.totals?.spend || totals?.spend || 0).toLocaleString()}</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-emerald-50">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Attributed Move-Ins</div>
+                <div className="text-lg font-bold text-emerald-600">
+                  {(liveAttribution?.totals?.move_ins || totals?.moveIns || 0) + (walkinData?.summary?.reduce((s, r) => s + r.ad_influenced, 0) || 0)}
+                </div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Cost / Move-In</div>
+                <div className="text-lg font-bold text-slate-900">
+                  ${(() => {
+                    const spend = liveAttribution?.totals?.spend || totals?.spend || 0
+                    const moveIns = (liveAttribution?.totals?.move_ins || totals?.moveIns || 0) + (walkinData?.summary?.reduce((s, r) => s + r.ad_influenced, 0) || 0)
+                    return moveIns > 0 ? (spend / moveIns).toFixed(0) : '—'
+                  })()}
+                </div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Est. Revenue</div>
+                <div className="text-lg font-bold text-slate-900">
+                  ${(() => {
+                    const moveIns = (liveAttribution?.totals?.move_ins || totals?.moveIns || 0)
+                    return (moveIns * 110 * 12).toLocaleString()
+                  })()}
+                </div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-slate-50">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">ROI</div>
+                <div className={`text-lg font-bold ${(liveAttribution?.totals?.roas || latestRoas) >= 3 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {(liveAttribution?.totals?.roas || latestRoas || 0).toFixed(1)}x
+                </div>
+              </div>
+            </div>
+
+            {/* Attribution Source Breakdown */}
+            <div className="mb-5">
+              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">Attribution Sources</h4>
+              <div className="space-y-2">
+                {(() => {
+                  const digitalMoveIns = liveAttribution?.totals?.move_ins || totals?.moveIns || 0
+                  const phoneLeads = 0 // Will come from call tracking data
+                  const walkinAdInfluenced = walkinData?.summary?.reduce((s, r) => s + r.ad_influenced, 0) || 0
+                  const walkinOther = (walkinData?.total || 0) - walkinAdInfluenced
+                  const total = digitalMoveIns + phoneLeads + walkinAdInfluenced + walkinOther || 1
+
+                  const sources = [
+                    { label: 'Digital (tracked)', count: digitalMoveIns, pct: Math.round((digitalMoveIns / total) * 100), color: '#10b981' },
+                    { label: 'Walk-in (ad-influenced)', count: walkinAdInfluenced, pct: Math.round((walkinAdInfluenced / total) * 100), color: '#3b82f6' },
+                    { label: 'Walk-in (other)', count: walkinOther, pct: Math.round((walkinOther / total) * 100), color: '#94a3b8' },
+                  ].filter(s => s.count > 0)
+
+                  return sources.map(s => (
+                    <div key={s.label} className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ background: s.color }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-700">{s.label}</span>
+                          <span className="font-medium text-slate-900">{s.count} ({s.pct}%)</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </div>
+
+            {/* Honest attribution messaging */}
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+              <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-blue-700 leading-relaxed">
+                StowStack tracks the digital path from ad click to reservation automatically. Phone leads are tracked via dedicated campaign numbers. Walk-in attribution is reported by your facility team. Some move-ins may be influenced by ads but complete offline without a trackable path — we report these separately so you see the complete picture.
+              </p>
+            </div>
           </div>
         )}
 
@@ -770,6 +1006,70 @@ function ClientDashboard({ client, onLogout, onBack }: { client: ClientData; onL
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Alerts */}
+        {alertsList.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Calendar size={14} className="text-amber-500" /> Campaign Alerts
+            </h3>
+            <div className="space-y-2">
+              {alertsList.map(alert => (
+                <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg border ${
+                  alert.severity === 'critical' ? 'bg-red-50 border-red-200' :
+                  alert.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
+                  'bg-blue-50 border-blue-200'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                    alert.severity === 'critical' ? 'bg-red-500' :
+                    alert.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                  }`} />
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{alert.title}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{alert.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Activity Feed */}
+        {activityFeed.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+              <Eye size={14} className="text-emerald-600" /> Recent Activity
+            </h3>
+            <div className="space-y-3">
+              {activityFeed.map(activity => (
+                <div key={activity.id} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                    {activity.type === 'call_received' ? <Phone size={14} className="text-blue-500" /> :
+                     activity.type === 'lead_captured' || activity.type === 'lead_created' ? <Users size={14} className="text-emerald-500" /> :
+                     activity.type === 'walkin_logged' ? <Building2 size={14} className="text-amber-500" /> :
+                     activity.type === 'report_sent' ? <Mail size={14} className="text-indigo-500" /> :
+                     <Target size={14} className="text-slate-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-900">{activity.label}</p>
+                    {activity.detail && <p className="text-xs text-slate-500 mt-0.5 truncate">{activity.detail}</p>}
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0 mt-1">
+                    {(() => {
+                      const diff = Date.now() - new Date(activity.createdAt).getTime()
+                      const mins = Math.floor(diff / 60000)
+                      if (mins < 60) return `${mins}m ago`
+                      const hrs = Math.floor(mins / 60)
+                      if (hrs < 24) return `${hrs}h ago`
+                      const days = Math.floor(hrs / 24)
+                      return `${days}d ago`
+                    })()}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

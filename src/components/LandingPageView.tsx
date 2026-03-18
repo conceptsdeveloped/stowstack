@@ -4,6 +4,7 @@ import {
   Shield, Clock, Truck, ArrowRight, Building2, ExternalLink, X
 } from 'lucide-react'
 import { usePartialCapture } from '../hooks/usePartialCapture'
+import { initPageTracker, destroyPageTracker } from '../utils/page-tracker'
 import ConsentBanner from './ConsentBanner'
 
 /* ═══════════════════════════════════════════════════════ */
@@ -434,6 +435,259 @@ export function LocationMapSection({ config, theme }: { config: SectionConfig; t
 }
 
 /* ═══════════════════════════════════════════════════════ */
+/*  STOREDGE EMBED SECTION                                   */
+/* ═══════════════════════════════════════════════════════ */
+
+export function StorEdgeEmbedSection({ config, theme, widgetUrl }: { config: SectionConfig; theme?: ThemeConfig; widgetUrl?: string }) {
+  const [iframeLoaded, setIframeLoaded] = useState(false)
+
+  // Build storEDGE URL with UTM passthrough
+  const buildWidgetUrl = () => {
+    const base = widgetUrl || config.widgetUrl
+    if (!base) return null
+    try {
+      const url = new URL(base)
+      const params = new URLSearchParams(window.location.search)
+      const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+      utmKeys.forEach(key => {
+        const val = params.get(key)
+        if (val) url.searchParams.set(key, val)
+      })
+      return url.toString()
+    } catch {
+      return base
+    }
+  }
+
+  const finalUrl = buildWidgetUrl()
+
+  return (
+    <section id="reserve" className="py-16 md:py-24 bg-white">
+      <div className="max-w-4xl mx-auto px-5">
+        {config.headline && (
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">{config.headline}</h2>
+            {config.subheadline && <p className="text-lg text-slate-500 mt-3 max-w-2xl mx-auto">{config.subheadline}</p>}
+          </div>
+        )}
+
+        {finalUrl ? (
+          <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
+            {!iframeLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Loading available units...</p>
+                </div>
+              </div>
+            )}
+            <iframe
+              src={finalUrl}
+              title="Reserve your unit"
+              className="w-full border-0"
+              style={{ minHeight: 800 }}
+              allow="payment"
+              loading="lazy"
+              onLoad={() => setIframeLoaded(true)}
+            />
+          </div>
+        ) : (
+          <div className="text-center p-12 rounded-2xl bg-slate-50 border border-slate-200">
+            <Phone size={32} className={`mx-auto mb-4 ${theme?.primaryColor ? '' : 'text-emerald-600'}`} style={theme?.primaryColor ? { color: theme.primaryColor } : undefined} />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">Call to Reserve Your Unit</h3>
+            <p className="text-slate-500 mb-4">Speak with our team to find the right unit for you.</p>
+            {config.phone && (
+              <a
+                href={`tel:${config.phone.replace(/[^+\d]/g, '')}`}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg font-semibold text-white ${theme?.primaryColor ? '' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                style={theme?.primaryColor ? { background: theme.primaryColor } : undefined}
+              >
+                <Phone size={18} /> {config.phone}
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  LEAD CAPTURE FORM SECTION                               */
+/* ═══════════════════════════════════════════════════════ */
+
+export function LeadCaptureFormSection({ config, theme, facilityId, landingPageId }: { config: SectionConfig; theme?: ThemeConfig; facilityId?: string; landingPageId?: string }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', unitSize: '', timeline: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  const pc = theme?.primaryColor || '#16a34a'
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
+      setError('Please fill in name, email, and phone.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+
+    try {
+      // Save to partial_leads with full UTM data
+      const sessionId = sessionStorage.getItem('stowstack_session_id') || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+      const params = new URLSearchParams(window.location.search)
+
+      const res = await fetch('/api/lead-capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          unitSize: form.unitSize,
+          timeline: form.timeline,
+          facilityId,
+          landingPageId,
+          sessionId,
+          utmSource: params.get('utm_source') || undefined,
+          utmMedium: params.get('utm_medium') || undefined,
+          utmCampaign: params.get('utm_campaign') || undefined,
+          utmContent: params.get('utm_content') || undefined,
+          referrer: document.referrer || undefined,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to submit')
+
+      // Fire Lead event to pixels
+      if (typeof window !== 'undefined') {
+        // @ts-expect-error fbq global
+        if (window.fbq) window.fbq('track', 'Lead', { content_name: 'lead_capture_form', content_category: 'storage' })
+        // @ts-expect-error gtag global
+        if (window.gtag) window.gtag('event', 'generate_lead', { event_category: 'engagement', event_label: 'lead_capture_form' })
+      }
+
+      setSubmitted(true)
+    } catch {
+      setError('Something went wrong. Please try again or call us.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <section id="lead-form" className="py-16 md:py-24 bg-slate-50">
+        <div className="max-w-lg mx-auto px-5 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: `${pc}20` }}>
+            <Check size={32} style={{ color: pc }} />
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 mb-2">Got it — we'll be in touch.</h3>
+          <p className="text-slate-500">Check your email for next steps. If you need a unit today, scroll down to reserve online or call us directly.</p>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section id="lead-form" className="py-16 md:py-24 bg-slate-50">
+      <div className="max-w-lg mx-auto px-5">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{config.headline || 'Check Availability'}</h2>
+          {config.subheadline && <p className="text-slate-500 mt-2">{config.subheadline}</p>}
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+              placeholder="Your full name"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+              placeholder="(555) 123-4567"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Unit size needed</label>
+            <select
+              value={form.unitSize}
+              onChange={e => setForm({ ...form, unitSize: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white"
+              style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+            >
+              <option value="">Select a size...</option>
+              <option value="5x5">5x5 (Closet)</option>
+              <option value="5x10">5x10 (Half Garage)</option>
+              <option value="10x10">10x10 (Full Garage)</option>
+              <option value="10x15">10x15 (Large)</option>
+              <option value="10x20">10x20 (Extra Large)</option>
+              <option value="10x30">10x30 (Oversized)</option>
+              <option value="other">Other / Not Sure</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Move-in timeline</label>
+            <select
+              value={form.timeline}
+              onChange={e => setForm({ ...form, timeline: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white"
+              style={{ ['--tw-ring-color' as string]: `${pc}40` }}
+            >
+              <option value="">When do you need it?</option>
+              <option value="this-week">This week</option>
+              <option value="within-2-weeks">Within 2 weeks</option>
+              <option value="within-a-month">Within a month</option>
+              <option value="just-exploring">Just exploring</option>
+            </select>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-3.5 rounded-xl text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: pc }}
+          >
+            {submitting ? 'Sending...' : config.ctaText || 'Check Availability'}
+          </button>
+
+          <p className="text-xs text-slate-400 text-center">No spam. Your info is only used to help you find the right unit.</p>
+        </form>
+      </div>
+    </section>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════ */
 /*  SECTION ROUTER                                          */
 /* ═══════════════════════════════════════════════════════ */
 
@@ -442,7 +696,7 @@ interface ThemeConfig {
   accentColor?: string
 }
 
-export function RenderSection({ section, theme, widgetUrl, trackingPhone }: { section: Section; theme?: ThemeConfig; widgetUrl?: string; trackingPhone?: string | null }) {
+export function RenderSection({ section, theme, widgetUrl, trackingPhone, facilityId, landingPageId }: { section: Section; theme?: ThemeConfig; widgetUrl?: string; trackingPhone?: string | null; facilityId?: string; landingPageId?: string }) {
   const { section_type, config } = section
   // If a tracking phone is provisioned for this landing page, swap it into phone fields
   const effectiveConfig = trackingPhone && config.phone ? { ...config, phone: trackingPhone } : config
@@ -456,6 +710,8 @@ export function RenderSection({ section, theme, widgetUrl, trackingPhone }: { se
     case 'faq': return <FAQSection config={config} />
     case 'cta': return <CTASection config={effectiveConfig} theme={theme} widgetUrl={widgetUrl} />
     case 'location_map': return <LocationMapSection config={config} theme={theme} />
+    case 'storedge_embed': return <StorEdgeEmbedSection config={config} theme={theme} widgetUrl={widgetUrl} />
+    case 'lead_capture': return <LeadCaptureFormSection config={config} theme={theme} facilityId={facilityId} landingPageId={landingPageId} />
     default: return null
   }
 }
@@ -731,6 +987,38 @@ export default function LandingPageView({ slug }: { slug: string }) {
   const heroSection = page.sections.find(s => s.section_type === 'hero')
   const facilityName = heroSection?.config?.facilityName
 
+  // Fire page_view tracking on load
+  useEffect(() => {
+    if (!page) return
+    // @ts-expect-error fbq global
+    if (window.fbq) window.fbq('track', 'PageView')
+    // @ts-expect-error gtag global
+    if (window.gtag) window.gtag('event', 'page_view', { page_title: page.title, page_location: window.location.href })
+
+    // Fire server-side CAPI
+    const params = new URLSearchParams(window.location.search)
+    fetch('/api/meta-capi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventName: 'PageView',
+        sourceUrl: window.location.href,
+        fbclid: params.get('fbclid') || undefined,
+        userAgent: navigator.userAgent,
+      }),
+      keepalive: true,
+    }).catch(() => {})
+
+    // Init page interaction tracker
+    initPageTracker(page.id, page.facility_id)
+    return () => { destroyPageTracker() }
+  }, [page])
+
+  // Get the phone number for mobile sticky bar
+  const ctaSection = page?.sections.find(s => s.section_type === 'cta')
+  const heroPhone = page?.sections.find(s => s.section_type === 'hero')?.config?.phone
+  const displayPhone = trackingPhone || ctaSection?.config?.phone || heroPhone
+
   return (
     <div className="min-h-screen bg-white">
       <LandingPageNav facilityName={facilityName} theme={page.theme} orgBranding={orgBranding} />
@@ -738,11 +1026,32 @@ export default function LandingPageView({ slug }: { slug: string }) {
         {page.sections
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(section => (
-            <RenderSection key={section.id} section={section} theme={page.theme} widgetUrl={page.storedge_widget_url} trackingPhone={trackingPhone} />
+            <RenderSection key={section.id} section={section} theme={page.theme} widgetUrl={page.storedge_widget_url} trackingPhone={trackingPhone} facilityId={page.facility_id} landingPageId={page.id} />
           ))
         }
       </main>
       <LandingPageFooter orgBranding={orgBranding} />
+
+      {/* Mobile sticky phone bar */}
+      {displayPhone && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <a
+              href={`tel:${displayPhone.replace(/[^+\d]/g, '')}`}
+              className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white"
+              style={{ background: page.theme?.primaryColor || '#16a34a' }}
+            >
+              <Phone size={16} /> Call Now
+            </a>
+            <a
+              href="#reserve"
+              className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-slate-200 text-slate-700"
+            >
+              Reserve Online
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Exit Intent Popup — captures email before bounce */}
       <ExitIntentPopup
