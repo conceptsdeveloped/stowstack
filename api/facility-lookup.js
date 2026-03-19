@@ -59,6 +59,26 @@ function buildPhotoUrl(photoReference, apiKey, maxWidth = 1200) {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${apiKey}`
 }
 
+// Resolve a Google Places photo URL to its final CDN URL
+// The Places Photo API returns a 302 redirect to a googleusercontent.com URL
+// We follow the redirect server-side so the frontend gets a direct image URL
+// (no API key exposed, no CORS issues, no referrer restrictions)
+async function resolvePhotoUrl(photoReference, apiKey, maxWidth = 1200) {
+  const apiUrl = buildPhotoUrl(photoReference, apiKey, maxWidth)
+  try {
+    const res = await fetch(apiUrl, { redirect: 'manual' })
+    const location = res.headers.get('location')
+    if (location) return location
+    // If no redirect, try following it
+    if (res.ok) return apiUrl
+    // Follow redirect chain manually
+    const res2 = await fetch(apiUrl, { redirect: 'follow' })
+    return res2.url || apiUrl
+  } catch {
+    return apiUrl // fallback to API URL
+  }
+}
+
 export default async function handler(req, res) {
   const cors = getCorsHeaders(req)
   Object.entries(cors).forEach(([key, value]) => res.setHeader(key, value))
@@ -97,14 +117,19 @@ export default async function handler(req, res) {
     // Step 2: Get full details
     const place = await getPlaceDetails(placeId, apiKey)
 
-    // Step 3: Build photo URLs (up to 10 photos)
-    const photos = (place.photos || []).slice(0, 10).map((photo, i) => ({
-      index: i,
-      url: buildPhotoUrl(photo.photo_reference, apiKey),
-      width: photo.width,
-      height: photo.height,
-      attribution: photo.html_attributions?.[0] || null,
-    }))
+    // Step 3: Resolve photo URLs (up to 10 photos)
+    // We resolve the Google Places redirect server-side so the frontend
+    // gets direct CDN URLs — no API key exposure, no CORS/referrer issues
+    const rawPhotos = (place.photos || []).slice(0, 10)
+    const photos = await Promise.all(
+      rawPhotos.map(async (photo, i) => ({
+        index: i,
+        url: await resolvePhotoUrl(photo.photo_reference, apiKey),
+        width: photo.width,
+        height: photo.height,
+        attribution: photo.html_attributions?.[0] || null,
+      }))
+    )
 
     // Step 4: Extract top reviews (up to 5, English only if available)
     const reviews = (place.reviews || [])
@@ -135,8 +160,9 @@ export default async function handler(req, res) {
 
     // Persist Places data and update facility record if we have a facilityId
     if (facilityId) {
-      await Promise.all([
-        query(
+      try {
+        // Update facility record
+        await query(
           `UPDATE facilities SET
             place_id = $1, google_address = $2, google_phone = $3,
             website = $4, google_rating = $5, review_count = $6,
@@ -153,13 +179,38 @@ export default async function handler(req, res) {
             JSON.stringify(place.opening_hours?.weekday_text || null),
             facilityId,
           ]
-        ),
-        query(
+        )
+
+        // Replace old places_data (delete + insert to handle re-lookups)
+        await query(`DELETE FROM places_data WHERE facility_id = $1`, [facilityId])
+        await query(
           `INSERT INTO places_data (facility_id, photos, reviews)
            VALUES ($1, $2, $3)`,
           [facilityId, JSON.stringify(photos), JSON.stringify(reviews)]
-        ),
-      ]).catch((err) => console.error('DB save for places data failed:', err.message))
+        )
+
+        // Replace old google_places assets and insert fresh ones
+        // so the Media Library always has current photos
+        if (photos.length > 0) {
+          await query(
+            `DELETE FROM assets WHERE facility_id = $1 AND source = 'google_places'`,
+            [facilityId]
+          )
+          const values = []
+          const params = []
+          let idx = 1
+          for (const photo of photos) {
+            values.push(`($${idx++}, 'photo', 'google_places', $${idx++}, $${idx++})`)
+            params.push(facilityId, photo.url, JSON.stringify({ width: photo.width, height: photo.height, attribution: photo.attribution }))
+          }
+          await query(
+            `INSERT INTO assets (facility_id, type, source, url, metadata) VALUES ${values.join(', ')}`,
+            params
+          )
+        }
+      } catch (err) {
+        console.error('DB save for places data failed:', err.message)
+      }
     }
 
     return res.status(200).json(result)

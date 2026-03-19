@@ -13,6 +13,81 @@ import {
   createSession,
 } from './utils'
 
+// ─── Server sync helpers ───
+
+const ADMIN_STORAGE_KEY = 'stowstack_admin_key'
+
+function getAdminKey(): string | null {
+  try { return localStorage.getItem(ADMIN_STORAGE_KEY) } catch { return null }
+}
+
+// Track entries that failed to sync so we can retry
+const pendingSyncQueue: { sessionId: string; entry: BetaPadEntry }[] = []
+let syncRetryTimer: ReturnType<typeof setTimeout> | null = null
+
+function syncEntryToServer(sessionId: string, entry: BetaPadEntry) {
+  const adminKey = getAdminKey()
+  if (!adminKey) {
+    // Queue for later if admin key isn't set yet
+    pendingSyncQueue.push({ sessionId, entry })
+    return
+  }
+
+  fetch('/api/betapad-notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({
+      sessionId,
+      entryType: entry.entry_type,
+      entryData: entry,
+    }),
+  })
+    .then(res => {
+      if (!res.ok) {
+        console.warn(`[BetaPad] Server sync failed (${res.status}) — note saved to localStorage only`)
+        pendingSyncQueue.push({ sessionId, entry })
+        scheduleRetry()
+      }
+    })
+    .catch(() => {
+      console.warn('[BetaPad] Server sync failed (network) — note saved to localStorage only')
+      pendingSyncQueue.push({ sessionId, entry })
+      scheduleRetry()
+    })
+}
+
+function flushPendingSync() {
+  const adminKey = getAdminKey()
+  if (!adminKey || pendingSyncQueue.length === 0) return
+  const batch = pendingSyncQueue.splice(0, pendingSyncQueue.length)
+  for (const item of batch) {
+    syncEntryToServer(item.sessionId, item.entry)
+  }
+}
+
+function scheduleRetry() {
+  if (syncRetryTimer) return
+  syncRetryTimer = setTimeout(() => {
+    syncRetryTimer = null
+    flushPendingSync()
+  }, 30000) // retry after 30s
+}
+
+async function loadNotesFromServer(): Promise<BetaPadEntry[]> {
+  const adminKey = getAdminKey()
+  if (!adminKey) return []
+  try {
+    const res = await fetch('/api/betapad-notes?limit=500', {
+      headers: { 'X-Admin-Key': adminKey },
+    })
+    if (!res.ok) return []
+    const { notes } = await res.json()
+    return (notes || []).map((n: { entry_data: BetaPadEntry }) => n.entry_data)
+  } catch {
+    return []
+  }
+}
+
 // ─── Context shape ───
 
 interface BetaPadContextValue {
@@ -319,6 +394,42 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval)
   }, [sessionId, updateStore])
 
+  // ─── Flush any pending syncs periodically (in case admin key was set after notes were created) ───
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (getAdminKey() && pendingSyncQueue.length > 0) {
+        flushPendingSync()
+      }
+    }, 15000) // check every 15s
+    return () => clearInterval(interval)
+  }, [])
+
+  // ─── Load persisted notes from server ───
+  const serverLoadedRef = useRef(false)
+  useEffect(() => {
+    if (serverLoadedRef.current) return
+    serverLoadedRef.current = true
+    loadNotesFromServer().then(entries => {
+      if (entries.length === 0) return
+      updateStore(s => {
+        const ns = ensureSession(s)
+        const sess = ns.sessions[sessionId]
+        // Merge server entries, skip duplicates by entry_id
+        const existingIds = new Set(sess.entries.map(e => e.entry_id))
+        const newEntries = entries.filter(e => !existingIds.has(e.entry_id))
+        if (newEntries.length === 0) return ns
+        return {
+          ...ns,
+          sessions: {
+            ...ns.sessions,
+            [sessionId]: { ...sess, entries: [...newEntries, ...sess.entries] },
+          },
+        }
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
+
   // ─── Rage click detection ───
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -487,6 +598,7 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
         },
       }
     })
+    syncEntryToServer(sessionId, entry)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, updateStore])
 
@@ -520,6 +632,7 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
         },
       }
     })
+    syncEntryToServer(sessionId, entry)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, updateStore])
 
@@ -553,6 +666,7 @@ export function BetaPadProvider({ children }: { children: ReactNode }) {
         },
       }
     })
+    syncEntryToServer(sessionId, entry)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, updateStore])
 

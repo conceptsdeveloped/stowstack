@@ -1546,6 +1546,19 @@ CREATE TABLE IF NOT EXISTS page_interaction_stats (
 CREATE INDEX IF NOT EXISTS idx_page_stats_lp ON page_interaction_stats(landing_page_id);
 
 -- ============================================================
+-- BetaPad notes (Cmd+Shift+B debug tool persistence)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS betapad_notes (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    TEXT NOT NULL,
+  entry_type    TEXT NOT NULL,
+  entry_data    JSONB NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_betapad_notes_session ON betapad_notes(session_id);
+CREATE INDEX IF NOT EXISTS idx_betapad_notes_created ON betapad_notes(created_at DESC);
+
+-- ============================================================
 -- Migrate legacy plan names to launch/growth/portfolio
 -- ============================================================
 UPDATE organizations SET plan = 'launch' WHERE plan = 'starter';
