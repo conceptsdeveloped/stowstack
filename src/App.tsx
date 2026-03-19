@@ -9,6 +9,7 @@ import GuidePage from '@/components/GuidePage'
 import LandingPageView from '@/components/LandingPageView'
 import BlogRouter from '@/components/blog/BlogRouter'
 import SharedAuditView from '@/components/SharedAuditView'
+import AuditTool from '@/components/AuditTool'
 import WalkInForm from '@/components/WalkInForm'
 import ConsentBanner from '@/components/ConsentBanner'
 import PartnerPortal from '@/components/PartnerPortal'
@@ -2030,6 +2031,7 @@ function AppRoutes() {
       <Route path="/audit/:slug" element={<SharedAuditRoute />} />
       <Route path="/blog/*" element={<BlogRouter onBack={goHome} />} />
       <Route path="/admin/betapad" element={<Suspense fallback={null}><BetaPadDashboard /></Suspense>} />
+      <Route path="/audit-tool" element={<AuditTool />} />
       <Route path="*" element={<WebsiteView />} />
     </Routes>
   )

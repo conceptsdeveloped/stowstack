@@ -1,0 +1,42 @@
+{
+  "statusTypes": {
+    "green": { "label": "Vacant / Available", "color": "#4caf50", "priority": 1 },
+    "yellow": { "label": "Pending / Delinquent / Reserved", "color": "#ff9800", "priority": 2 },
+    "gray": { "label": "Maintenance / Unrentable", "color": "#9e9e9e", "priority": 3 },
+    "red": { "label": "Auction / Locked Out", "color": "#e53935", "priority": 4 },
+    "company_owned": { "label": "Company Owned / Facility Use", "color": "#1e88e5", "priority": 5 }
+  },
+  "issueTypes": [
+    { "id": "wrong_combo", "label": "Wrong Combo", "shortLabel": "Combo", "category": "access" },
+    { "id": "non_davinci_lock", "label": "Non-DaVinci Lock", "shortLabel": "Lock Type", "category": "access" },
+    { "id": "no_lock_unsecured", "label": "No Lock / Unsecured", "shortLabel": "No Lock", "category": "access" },
+    { "id": "company_owned", "label": "Company Owned / Facility Use", "shortLabel": "Co. Owned", "category": "status" },
+    { "id": "needs_auctioned", "label": "Needs Auctioned", "shortLabel": "Auction", "category": "action" },
+    { "id": "needs_cleaned", "label": "Needs Cleaned", "shortLabel": "Clean", "category": "action" },
+    { "id": "needs_repair", "label": "Needs Repair", "shortLabel": "Repair", "category": "condition" },
+    { "id": "leak", "label": "Leak", "shortLabel": "Leak", "category": "condition" },
+    { "id": "door_latch", "label": "Door / Latch Issue", "shortLabel": "Door", "category": "condition" },
+    { "id": "pest_rodent", "label": "Pest / Rodent Signs", "shortLabel": "Pest", "category": "condition" },
+    { "id": "debris_trash", "label": "Debris / Trash Inside", "shortLabel": "Debris", "category": "condition" },
+    { "id": "missing_unit_number", "label": "Missing / Illegible Unit Number", "shortLabel": "No #", "category": "condition" },
+    { "id": "light_out", "label": "Light Out / Electrical Issue", "shortLabel": "Light", "category": "condition" },
+    { "id": "belongings_present", "label": "Belongings Present (No Agreement)", "shortLabel": "Belongings", "category": "escalation" },
+    { "id": "unauthorized_occupant", "label": "Unauthorized Occupant", "shortLabel": "Unauth.", "category": "escalation" },
+    { "id": "other", "label": "Other (See Notes)", "shortLabel": "Other", "category": "other" }
+  ],
+  "issueCategories": {
+    "access": { "label": "Access", "order": 1 },
+    "status": { "label": "Status", "order": 2 },
+    "action": { "label": "Action Needed", "order": 3 },
+    "condition": { "label": "Condition", "order": 4 },
+    "escalation": { "label": "Escalation", "order": 5 },
+    "other": { "label": "Other", "order": 6 }
+  },
+  "physicalStatusOptions": [
+    { "id": "no_issues", "label": "No Issues Found", "icon": "check", "color": "#4caf50" },
+    { "id": "rent_ready", "label": "Rent-Ready", "icon": "check", "color": "#4caf50" },
+    { "id": "needs_work", "label": "Needs Work Before Renting", "icon": "alert", "color": "#ff9800" },
+    { "id": "company_use", "label": "Company Owned — Keep As-Is", "icon": "building", "color": "#1e88e5" },
+    { "id": "escalate", "label": "Requires Follow-Up Notice", "icon": "alert-triangle", "color": "#e53935" }
+  ]
+}

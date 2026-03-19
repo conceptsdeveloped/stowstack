@@ -1,0 +1,93 @@
+{
+  "facility": {
+    "id": "midway",
+    "name": "Midway Self Storage",
+    "address": "24560 Cole Avenue, Mattawan, MI",
+    "phone": "(269) 532-5322 ext. 1",
+    "confidentiality": "INTERNAL USE ONLY — CONFIDENTIAL FACILITY AUDIT — DO NOT DISTRIBUTE"
+  },
+  "buildings": [
+    {
+      "id": "A",
+      "name": "Building A",
+      "units": [
+        { "id": "A2", "status": "red" },
+        { "id": "A5", "status": "yellow" },
+        { "id": "A6", "status": "gray" },
+        { "id": "A9", "status": "red" },
+        { "id": "A15", "status": "red" },
+        { "id": "A18", "status": "gray" },
+        { "id": "A21", "status": "gray" },
+        { "id": "A24", "status": "green" }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Building B",
+      "units": [
+        { "id": "B38", "status": "green" },
+        { "id": "B41", "status": "red" },
+        { "id": "B44", "status": "red" },
+        { "id": "B46", "status": "gray" },
+        { "id": "B47", "status": "red" }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Building C",
+      "units": [
+        { "id": "C66", "status": "green" },
+        { "id": "C70", "status": "red" },
+        { "id": "C71", "status": "green" },
+        { "id": "C91", "status": "green" }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Building D",
+      "units": [
+        { "id": "D88", "status": "gray" },
+        { "id": "D90", "status": "green" },
+        { "id": "D93", "status": "green" }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Building E",
+      "units": [
+        { "id": "E98", "status": "gray" },
+        { "id": "E99", "status": "yellow" },
+        { "id": "E105", "status": "green" },
+        { "id": "E110", "status": "yellow" },
+        { "id": "E111", "status": "yellow" }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Building F",
+      "units": [
+        { "id": "F124", "status": "gray" },
+        { "id": "F129", "status": "gray" }
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Building G",
+      "units": [
+        { "id": "G149", "status": "green" },
+        { "id": "G164", "status": "green" },
+        { "id": "G165", "status": "green" },
+        { "id": "G167", "status": "green" },
+        { "id": "G169", "status": "green" },
+        { "id": "G170", "status": "green" },
+        { "id": "G171", "status": "green" },
+        { "id": "G172", "status": "green" },
+        { "id": "G173", "status": "red" },
+        { "id": "G174", "status": "green" },
+        { "id": "G176", "status": "green" },
+        { "id": "G192", "status": "red" },
+        { "id": "G194", "status": "green" }
+      ]
+    }
+  ]
+}

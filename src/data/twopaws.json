@@ -1,0 +1,96 @@
+{
+  "facility": {
+    "id": "twopaws",
+    "name": "Two Paws Self Storage & U-Haul",
+    "address": "280 County Road 665, Paw Paw, MI 49079",
+    "phone": "(269) 532-5322",
+    "confidentiality": "INTERNAL USE ONLY — CONFIDENTIAL FACILITY AUDIT — DO NOT DISTRIBUTE"
+  },
+  "buildings": [
+    {
+      "id": "A",
+      "name": "Building A",
+      "units": [
+        { "id": "A1", "status": "gray" },
+        { "id": "A2", "status": "red" },
+        { "id": "A7", "status": "red" },
+        { "id": "A14", "status": "yellow" },
+        { "id": "A20", "status": "gray" }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Building B",
+      "units": [
+        { "id": "B22", "status": "yellow" },
+        { "id": "B29", "status": "gray" },
+        { "id": "B33", "status": "green" },
+        { "id": "B35", "status": "green" },
+        { "id": "B38", "status": "yellow" },
+        { "id": "B40", "status": "green" },
+        { "id": "B44", "status": "gray" }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Building C",
+      "units": [
+        { "id": "C47", "status": "green" },
+        { "id": "C48", "status": "gray" },
+        { "id": "C52", "status": "yellow" },
+        { "id": "C53", "status": "green" },
+        { "id": "C62", "status": "yellow" },
+        { "id": "C66", "status": "yellow" },
+        { "id": "C68", "status": "yellow" },
+        { "id": "C69", "status": "yellow" }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Building D",
+      "units": [
+        { "id": "D73", "status": "green" },
+        { "id": "D74", "status": "yellow" },
+        { "id": "D75", "status": "green" },
+        { "id": "D82", "status": "green" },
+        { "id": "D83", "status": "green" },
+        { "id": "D84", "status": "gray" },
+        { "id": "D85", "status": "green" },
+        { "id": "D86", "status": "green" }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Building E",
+      "units": [
+        { "id": "E119", "status": "green" },
+        { "id": "E125", "status": "green" },
+        { "id": "E127", "status": "green" }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Building F",
+      "units": [
+        { "id": "F134", "status": "green" },
+        { "id": "F140", "status": "green" },
+        { "id": "F141", "status": "green" },
+        { "id": "F144", "status": "green" },
+        { "id": "F148", "status": "gray" },
+        { "id": "F149", "status": "green" },
+        { "id": "F150", "status": "yellow" }
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Building G",
+      "units": [
+        { "id": "G163", "status": "yellow" },
+        { "id": "G165", "status": "green" },
+        { "id": "G168", "status": "red" },
+        { "id": "G169", "status": "green" },
+        { "id": "G172", "status": "yellow" }
+      ]
+    }
+  ]
+}
