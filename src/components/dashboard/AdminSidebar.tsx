@@ -4,7 +4,8 @@ import {
   Building2, CalendarClock, Share2, Flame, Gift, CalendarRange, Wallet,
   ShieldAlert, TrendingDown, RotateCcw, Sparkles, ChevronRight,
   Terminal, Search, Zap, Activity, PanelLeftClose, PanelLeft,
-  ArrowLeft, Hash, CircleDot, Phone, Bell, UserCheck, Calculator
+  ArrowLeft, Hash, CircleDot, Phone, Bell, UserCheck, Calculator,
+  ClipboardList
 } from 'lucide-react'
 import { AdminTab } from './types'
 import SidebarTicker from './SidebarTicker'
@@ -12,11 +13,12 @@ import SidebarTicker from './SidebarTicker'
 /* ── Nav structure ── */
 
 interface NavItem {
-  id: AdminTab
+  id: AdminTab | string
   label: string
   icon: typeof Users
   shortcut?: string
   badge?: 'leads' | 'active' | 'signed'
+  href?: string
 }
 
 interface NavGroup {
@@ -87,6 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'activity-log', label: 'Activity Log', icon: Activity },
       { id: 'call-logs', label: 'Call Tracking', icon: Phone },
       { id: 'shared-audits', label: 'Site Audits', icon: Share2 },
+      { id: 'unit-audit', label: 'Unit Audit', icon: ClipboardList, href: '/audit-tool' },
       { id: 'partners', label: 'Partners', icon: Building2 },
       { id: 'referrals', label: 'Referral Program', icon: Gift },
     ],
@@ -321,10 +324,34 @@ export default function AdminSidebar({
                     const Icon = item.icon
                     const badgeVal = getBadgeValue(item.badge, leadCount, activeLeadCount, signedCount)
 
+                    if (item.href) {
+                      return (
+                        <a
+                          key={item.id}
+                          href={item.href}
+                          onMouseEnter={(e) => handleItemMouseEnter(item.id, item.label, e)}
+                          onMouseLeave={handleItemMouseLeave}
+                          className={`
+                            admin-nav-item w-full flex items-center gap-2.5 rounded-lg
+                            transition-all duration-200 relative group/item no-underline
+                            ${collapsed ? 'px-0 py-2 justify-center' : 'px-2.5 py-[7px]'}
+                            text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]
+                          `}
+                        >
+                          <Icon size={14} className="shrink-0 opacity-70 group-hover/item:opacity-100 transition-opacity" />
+                          {!collapsed && (
+                            <span className="text-[12px] font-medium font-mono flex-1 text-left truncate">
+                              {item.label}
+                            </span>
+                          )}
+                        </a>
+                      )
+                    }
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => onTabChange(item.id)}
+                        onClick={() => onTabChange(item.id as AdminTab)}
                         onMouseEnter={(e) => handleItemMouseEnter(item.id, item.label, e)}
                         onMouseLeave={handleItemMouseLeave}
                         className={`
