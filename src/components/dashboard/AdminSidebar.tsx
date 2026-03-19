@@ -4,7 +4,7 @@ import {
   Building2, CalendarClock, Share2, Flame, Gift, CalendarRange, Wallet,
   ShieldAlert, TrendingDown, RotateCcw, Sparkles, ChevronRight,
   Terminal, Search, Zap, Activity, PanelLeftClose, PanelLeft,
-  ArrowLeft, Hash, CircleDot, Phone, Bell, UserCheck
+  ArrowLeft, Hash, CircleDot, Phone, Bell, UserCheck, Calculator
 } from 'lucide-react'
 import { AdminTab } from './types'
 import SidebarTicker from './SidebarTicker'
@@ -73,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'insights', label: 'Performance Insights', icon: TrendingUp, shortcut: '4' },
       { id: 'billing', label: 'Billing & Invoices', icon: CreditCard, shortcut: '5' },
+      { id: 'unit-economics', label: 'Unit Economics', icon: Calculator },
       { id: 'upsell', label: 'Upsell Opportunities', icon: TrendingDown },
       { id: 'churn', label: 'Churn Prevention', icon: ShieldAlert },
     ],

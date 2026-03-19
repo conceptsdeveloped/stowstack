@@ -148,6 +148,24 @@ export interface PLData {
 export type BillingSubTab = 'overview' | 'invoices' | 'clients' | 'pricing' | 'referrals' | 'projections' | 'reconciliation' | 'pnl' | 'dunning'
 
 /* ═══════════════════════════════════════════════════════════════════ */
+/*  CONTRACT TERMS                                                     */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+export const CONTRACT_TERMS = [
+  { id: 'monthly' as const, label: 'Monthly', months: 1, discountPct: 0, description: 'No commitment, cancel anytime' },
+  { id: '6mo' as const, label: '6-Month', months: 6, discountPct: 16, description: 'Save 16% with a 6-month commitment' },
+  { id: '12mo' as const, label: '12-Month', months: 12, discountPct: 30, description: 'Save 30% with an annual commitment' },
+] as const
+
+export type ContractTermId = typeof CONTRACT_TERMS[number]['id']
+
+export function getDiscountedFee(baseFee: number, termId: ContractTermId): number {
+  const term = CONTRACT_TERMS.find(t => t.id === termId)
+  if (!term) return baseFee
+  return Math.round(baseFee * (1 - term.discountPct / 100))
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
 /*  PRICING TIERS                                                     */
 /* ═══════════════════════════════════════════════════════════════════ */
 
@@ -157,11 +175,11 @@ export const PRICING_TIERS = [
     name: 'Launch',
     icon: Zap,
     color: 'emerald',
-    monthlyAdMin: 1000,
+    monthlyAdMin: 1500,
     monthlyAdMax: 3000,
-    managementFee: 499,
-    adMarkupPct: 15,
-    features: ['1 facility', '3 landing pages', 'Meta ads', 'GBP management', 'Client portal', 'Monthly reporting', 'Email support'],
+    managementFee: 750,
+    adMarkupPct: 0,
+    features: ['1 facility', '3 landing pages', 'Meta + Google ads', 'Client portal', 'Monthly report', 'Monthly strategy call', 'Email support'],
     referralCredit: 150,
     setupFee: 0,
   },
@@ -172,9 +190,9 @@ export const PRICING_TIERS = [
     color: 'blue',
     monthlyAdMin: 3000,
     monthlyAdMax: 7500,
-    managementFee: 999,
-    adMarkupPct: 12,
-    features: ['Up to 3 facilities', 'Unlimited landing pages', 'Meta + Google', 'A/B testing', 'Video creative', 'Revenue & Occupancy Intelligence', 'Call tracking', 'Email drip sequences', 'Bi-weekly calls'],
+    managementFee: 1500,
+    adMarkupPct: 0,
+    features: ['Up to 3 facilities', 'Unlimited custom landing pages', 'Meta + Google ads', 'Retargeting campaigns', 'A/B testing', 'Video creative', 'Full-funnel attribution', 'CPMI & ROAS tracking', 'Call tracking (3 numbers)', 'Email drip sequences', 'GBP management', 'Bi-weekly calls'],
     referralCredit: 300,
     setupFee: 0,
   },
@@ -183,11 +201,11 @@ export const PRICING_TIERS = [
     name: 'Portfolio',
     icon: Crown,
     color: 'purple',
-    monthlyAdMin: 7500,
+    monthlyAdMin: 5000,
     monthlyAdMax: 25000,
-    managementFee: 1499,
-    adMarkupPct: 10,
-    features: ['Unlimited facilities', 'Everything in Growth', 'Churn prediction & upsell engine', 'Google Ads Lab', 'Partner portal & white-label', 'Dedicated strategist', 'Slack channel', 'Weekly calls', 'Quarterly business review'],
+    managementFee: 2500,
+    adMarkupPct: 0,
+    features: ['Unlimited facilities', 'Everything in Growth', 'Cross-facility budget allocation', 'Churn prediction', 'Upsell engine', 'Move-out remarketing', 'Google Ads Lab', 'Campaign orchestrator', 'Dedicated strategist', 'Slack channel', 'Weekly calls', 'Quarterly business review'],
     referralCredit: 500,
     setupFee: 0,
   },

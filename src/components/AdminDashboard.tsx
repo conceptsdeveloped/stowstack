@@ -42,6 +42,7 @@ import CampaignAlertsView from './dashboard/CampaignAlertsView'
 import ABTestsView from './dashboard/ABTestsView'
 import CampaignOrchestratorView from './dashboard/CampaignOrchestratorView'
 import ConsumerLeadsView from './dashboard/ConsumerLeadsView'
+import UnitEconomicsView from './dashboard/UnitEconomicsView'
 
 /* ── Admin Auth Gate ── */
 
@@ -656,6 +657,10 @@ function AdminDashboardInner({ adminKey, onBack, onLogout }: { adminKey: string;
 
         {activeTab === 'consumer-leads' && (
           <ConsumerLeadsView adminKey={adminKey} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'unit-economics' && (
+          <UnitEconomicsView adminKey={adminKey} darkMode={darkMode} />
         )}
 
         {activeTab === 'pipeline' && (<>
