@@ -2,30 +2,39 @@ import { useState, useEffect, useRef } from 'react'
 import { Loader2, Upload, Globe, Image, Film, FileText, Trash2, ImageOff, Eye } from 'lucide-react'
 import { Facility, Asset, STOCK_CATEGORIES } from './types'
 
-function ImageWithFallback({ src, alt, className, onLoad: externalOnLoad }: { src: string; alt: string; className: string; onLoad?: () => void }) {
+function ImageWithFallback({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative overflow-hidden rounded-lg ${className}`}>
+      {/* Always-present spacer to maintain height */}
+      <div className="absolute inset-0" />
+
+      {/* Loading skeleton */}
       {status === 'loading' && (
-        <div className="absolute inset-0 bg-slate-800 animate-pulse rounded-lg flex items-center justify-center">
-          <Image size={16} className="text-slate-600" />
+        <div className="absolute inset-0 bg-slate-700/60 animate-pulse flex items-center justify-center z-10">
+          <Image size={16} className="text-slate-500" />
         </div>
       )}
-      {status === 'error' ? (
-        <div className="absolute inset-0 bg-slate-800 rounded-lg flex flex-col items-center justify-center gap-1">
-          <ImageOff size={16} className="text-slate-600" />
-          <span className="text-[10px] text-slate-600">Failed to load</span>
+
+      {/* Error state */}
+      {status === 'error' && (
+        <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center gap-1 z-10">
+          <ImageOff size={16} className="text-slate-500" />
+          <span className="text-[10px] text-slate-500">Failed to load</span>
         </div>
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          className={`w-full h-full object-cover rounded-lg transition-opacity duration-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
-          onLoad={() => { setStatus('loaded'); externalOnLoad?.() }}
-          onError={() => setStatus('error')}
-        />
       )}
+
+      {/* Image — always in DOM so onLoad/onError fire, hidden only on error */}
+      <img
+        src={src}
+        alt={alt}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${
+          status === 'loaded' ? 'opacity-100' : status === 'error' ? 'hidden' : 'opacity-0'
+        }`}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+      />
     </div>
   )
 }
