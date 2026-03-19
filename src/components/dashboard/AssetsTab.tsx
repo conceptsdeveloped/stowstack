@@ -1,6 +1,34 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Upload, Globe, Image, Film, FileText, Trash2 } from 'lucide-react'
+import { Loader2, Upload, Globe, Image, Film, FileText, Trash2, ImageOff, Eye } from 'lucide-react'
 import { Facility, Asset, STOCK_CATEGORIES } from './types'
+
+function ImageWithFallback({ src, alt, className, onLoad: externalOnLoad }: { src: string; alt: string; className: string; onLoad?: () => void }) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')
+
+  return (
+    <div className={`relative ${className}`}>
+      {status === 'loading' && (
+        <div className="absolute inset-0 bg-slate-800 animate-pulse rounded-lg flex items-center justify-center">
+          <Image size={16} className="text-slate-600" />
+        </div>
+      )}
+      {status === 'error' ? (
+        <div className="absolute inset-0 bg-slate-800 rounded-lg flex flex-col items-center justify-center gap-1">
+          <ImageOff size={16} className="text-slate-600" />
+          <span className="text-[10px] text-slate-600">Failed to load</span>
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          className={`w-full h-full object-cover rounded-lg transition-opacity duration-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => { setStatus('loaded'); externalOnLoad?.() }}
+          onError={() => setStatus('error')}
+        />
+      )}
+    </div>
+  )
+}
 
 export default function AssetsTab({ facility, adminKey, darkMode }: { facility: Facility; adminKey: string; darkMode: boolean }) {
   const [assets, setAssets] = useState<Asset[]>([])
@@ -230,7 +258,7 @@ export default function AssetsTab({ facility, adminKey, darkMode }: { facility: 
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                   {scrapeResult.images.slice(0, 24).map((img, i) => (
                     <div key={i} className="relative group">
-                      <img src={img.url} alt={img.alt || ''} className="h-20 w-full object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      <ImageWithFallback src={img.url} alt={img.alt || ''} className="h-20 w-full" />
                     </div>
                   ))}
                 </div>
@@ -344,10 +372,10 @@ export default function AssetsTab({ facility, adminKey, darkMode }: { facility: 
                   const alreadyAdded = assets.some(a => a.url === stock.url)
                   return (
                     <div key={stock.id} className="relative group">
-                      <img src={stock.url} alt={stock.alt} className="h-24 w-full object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      <ImageWithFallback src={stock.url} alt={stock.alt} className="h-24 w-full" />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                         {alreadyAdded ? (
-                          <span className="text-xs text-white font-medium">Added</span>
+                          <span className="text-xs text-white font-medium">✓ Added</span>
                         ) : (
                           <button
                             onClick={() => addStockImage(stock)}
@@ -383,12 +411,15 @@ export default function AssetsTab({ facility, adminKey, darkMode }: { facility: 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {photos.map(asset => (
                   <div key={asset.id} className="relative group">
-                    <img src={asset.url} alt="" className="h-32 w-full object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f1f5f9" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">No preview</text></svg>' }} />
+                    <ImageWithFallback src={asset.url} alt="" className="h-32 w-full" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end p-2">
                       <div className="flex gap-1 w-full">
                         <span className={`flex-1 text-xs text-white/80 truncate`}>
                           {asset.source === 'uploaded' ? 'Uploaded' : asset.source === 'website_scrape' ? 'Scraped' : asset.source === 'stock_library' ? 'Stock' : asset.source}
                         </span>
+                        <a href={asset.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-1 bg-white/20 rounded hover:bg-white/30 text-white">
+                          <Eye size={12} />
+                        </a>
                         <button
                           onClick={e => { e.stopPropagation(); deleteAsset(asset.id) }}
                           className="p-1 bg-red-600/80 rounded hover:bg-red-600 text-white"
