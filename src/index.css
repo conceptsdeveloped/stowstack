@@ -146,6 +146,53 @@ body {
   .print\:mb-4 {
     margin-bottom: 1rem !important;
   }
+
+  /* Notice print view */
+  .notice-print-view {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 8.5in;
+    min-height: 11in;
+    z-index: 9999;
+    background: #fff;
+  }
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+  .notice-header {
+    background: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .notice-title-bar {
+    background: #b71c1c !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .notice-action-bar {
+    background: #b71c1c !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .notice-footer {
+    background: #b71c1c !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .notice-legal-box {
+    background: #fdf0f0 !important;
+    border-left: 4px solid #b71c1c !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .notice-accent-bar {
+    background: #b71c1c !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 /* ═══════════════════════════════════════════════

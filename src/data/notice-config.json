@@ -1,0 +1,115 @@
+{
+  "noticeReasons": [
+    {
+      "id": "accountInfoMissing",
+      "label": "Account info missing / unverifiable",
+      "printText": "Account information is missing, incomplete, or cannot be verified for this unit."
+    },
+    {
+      "id": "noRentalAgreement",
+      "label": "No valid rental agreement on file",
+      "printText": "No valid rental agreement is on file for the current occupant of this space."
+    },
+    {
+      "id": "lockChangedUnauthorized",
+      "label": "Lock changed without authorization",
+      "printText": "Lock, lock combination, or access device changed without prior written authorization from management."
+    },
+    {
+      "id": "unauthorizedAccess",
+      "label": "Unauthorized individual(s) accessing unit",
+      "printText": "Unauthorized individual(s) observed accessing, entering, or occupying this unit."
+    },
+    {
+      "id": "prohibitedUse",
+      "label": "Prohibited use of unit",
+      "printText": "Unit is being used for purposes expressly prohibited under the rental agreement (habitation, hazardous materials, unauthorized commercial activity, vehicle storage without written approval, etc.)."
+    },
+    {
+      "id": "rentalPastDue",
+      "label": "Rental payments past due",
+      "printText": "Rental payments are delinquent and no payment arrangement has been established with the facility."
+    },
+    {
+      "id": "unauthorizedModifications",
+      "label": "Unauthorized modifications to unit",
+      "printText": "Unauthorized modifications made to the unit (electrical, structural, access, or otherwise)."
+    },
+    {
+      "id": "insuranceMissing",
+      "label": "Insurance / Tenant Protection Plan missing",
+      "printText": "Tenant Protection Plan / insurance documentation is missing, expired, or non-compliant."
+    },
+    {
+      "id": "other",
+      "label": "Other violation (see details)",
+      "printText": "Other violation — see details below."
+    }
+  ],
+
+  "legalNoticeText": "This notice is being placed on your unit because facility records indicate one or more unresolved account discrepancies, policy violations, or unauthorized conditions associated with this storage space. Continued occupancy or use of this unit without resolution may result in DENIAL OF ACCESS, LIEN PROCEEDINGS, LOCK-OUT, AND/OR REMOVAL OF CONTENTS in accordance with the Michigan Self-Service Storage Facility Act (MCL 570.521 et seq.). You are advised to treat this notice with the utmost urgency. Non-response will be interpreted as abandonment or forfeiture.",
+
+  "requiredActionText": "You must contact the facility office within {days} business days of this notice to resolve the above issue(s). Failure to respond may result in one or more of the following WITHOUT FURTHER NOTICE:",
+
+  "consequences": [
+    "Immediate denial of gate and/or unit access",
+    "Overlock placement or lock-out of the unit at occupant's expense",
+    "Termination of rental agreement, effective immediately",
+    "Lien proceedings and public sale of contents per Michigan law (MCL 570.521 et seq.)",
+    "Issuance of trespass notice and/or referral to law enforcement"
+  ],
+
+  "footerLines": [
+    "THIS IS AN OFFICIAL FACILITY NOTICE AND BECOMES PART OF THE TENANT'S PERMANENT ACCOUNT RECORD.",
+    "Retain a copy for your records. This document does not constitute legal advice. Governed by Michigan law."
+  ],
+
+  "defaultResponseDeadlineDays": 3,
+
+  "officeUseFields": [
+    { "id": "photosTaken", "label": "Photos taken" },
+    { "id": "policeNotified", "label": "Police notified" },
+    { "id": "lockChangedByFacility", "label": "Lock changed by facility" }
+  ],
+
+  "issueToReasonMapping": {
+    "wrong_combo": "lockChangedUnauthorized",
+    "non_davinci_lock": "lockChangedUnauthorized",
+    "no_lock_unsecured": "accountInfoMissing",
+    "needs_auctioned": "rentalPastDue",
+    "belongings_present": "noRentalAgreement",
+    "unauthorized_occupant": "unauthorizedAccess",
+    "debris_trash": "other",
+    "needs_repair": null,
+    "leak": null,
+    "door_latch": null,
+    "pest_rodent": null,
+    "needs_cleaned": null,
+    "company_owned": null,
+    "missing_unit_number": null,
+    "light_out": null,
+    "other": "other"
+  },
+
+  "triggerIssues": [
+    "belongings_present",
+    "unauthorized_occupant",
+    "needs_auctioned",
+    "wrong_combo",
+    "non_davinci_lock",
+    "no_lock_unsecured"
+  ],
+
+  "facilities": {
+    "midway": {
+      "printName": "MIDWAY SELF STORAGE",
+      "printAddress": "24560 Cole Avenue  •  Mattawan, MI",
+      "printPhone": "Phone: (269) 532-5322 ext. 1"
+    },
+    "twopaws": {
+      "printName": "TWO PAWS SELF STORAGE & U-HAUL",
+      "printAddress": "280 County Road 665  •  Paw Paw, MI 49079",
+      "printPhone": "Phone: (269) 532-5322"
+    }
+  }
+}
