@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   ChevronDown, ChevronRight, Check, AlertTriangle, Building2, Printer,
   Download, RotateCcw, ArrowLeft, ArrowRight, ClipboardList, Upload,
@@ -1514,7 +1514,8 @@ function NoticePrintView({ notice, facilityPrint }: {
   notice: UnitNotice
   facilityPrint: { printName: string; printAddress: string; printPhone: string }
 }) {
-  const _checkedReasons = NOTICE_REASONS.filter(r => notice.reasons[r.id])
+  // @ts-ignore used in template below
+  const checkedReasons = NOTICE_REASONS.filter(r => notice.reasons[r.id])
 
   return (
     <div className="notice-print-view hidden" style={{ fontFamily: 'Helvetica, Arial, sans-serif', color: '#000', background: '#fff', width: '8.5in', minHeight: '11in' }}>
@@ -1653,7 +1654,7 @@ function NoticeBuilder({ facilityId, facilityName, prefill, onBack, onSaved }: {
       auditIssues: prefill?.auditIssues,
     }
   })
-  const [_showPrint, _setShowPrint] = useState(false)
+  const [showPrint, setShowPrint] = useState(false)
 
   const facilityPrint = NOTICE_FACILITIES[facilityId] || {
     printName: facilityName.toUpperCase(),
