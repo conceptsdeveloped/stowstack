@@ -3,7 +3,7 @@ import {
   ChevronDown, ChevronRight, Check, AlertTriangle, Building2, Printer,
   Download, RotateCcw, ArrowLeft, ArrowRight, ClipboardList, Upload,
   Loader2, X, Plus, Trash2, Image, ArrowRightLeft, Eye, EyeOff,
-  FileWarning, Calendar
+  FileWarning
 } from 'lucide-react'
 import midwayData from '@/data/midway.json'
 import twopawsData from '@/data/twopaws.json'
@@ -1514,7 +1514,7 @@ function NoticePrintView({ notice, facilityPrint }: {
   notice: UnitNotice
   facilityPrint: { printName: string; printAddress: string; printPhone: string }
 }) {
-  const checkedReasons = NOTICE_REASONS.filter(r => notice.reasons[r.id])
+  const _checkedReasons = NOTICE_REASONS.filter(r => notice.reasons[r.id])
 
   return (
     <div className="notice-print-view hidden" style={{ fontFamily: 'Helvetica, Arial, sans-serif', color: '#000', background: '#fff', width: '8.5in', minHeight: '11in' }}>
@@ -1653,7 +1653,7 @@ function NoticeBuilder({ facilityId, facilityName, prefill, onBack, onSaved }: {
       auditIssues: prefill?.auditIssues,
     }
   })
-  const [showPrint, setShowPrint] = useState(false)
+  const [_showPrint, _setShowPrint] = useState(false)
 
   const facilityPrint = NOTICE_FACILITIES[facilityId] || {
     printName: facilityName.toUpperCase(),
