@@ -2,6 +2,7 @@ import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin } from './_auth.js'
 import { getCreativeContext } from './_creative.js'
+import { put } from '@vercel/blob'
 
 export const config = { maxDuration: 60 }
 
@@ -224,16 +225,38 @@ export default async function handler(req, res) {
       // Generate — tries Nano Banana first, falls back to Flux
       const result = await generateImage(prompt, aspect || template.aspect, keys)
 
-      // Save as asset
+      // Upload to Vercel Blob for permanent URL
+      let permanentUrl = result.imageUrl
+      try {
+        let imageBuffer
+        if (result.imageUrl.startsWith('data:')) {
+          // Base64 data URL (from Gemini)
+          const base64Data = result.imageUrl.split(',')[1]
+          imageBuffer = Buffer.from(base64Data, 'base64')
+        } else {
+          // Hosted URL (from Replicate) — download it
+          const imgRes = await fetch(result.imageUrl)
+          imageBuffer = Buffer.from(await imgRes.arrayBuffer())
+        }
+        const blob = await put(`generated/${facilityId}/${templateId}-${Date.now()}.webp`, imageBuffer, {
+          access: 'public',
+          contentType: 'image/webp',
+        })
+        permanentUrl = blob.url
+      } catch (err) {
+        console.error('Blob upload failed, using original URL:', err.message)
+      }
+
+      // Save as asset with permanent URL
       try {
         await query(
           `INSERT INTO assets (facility_id, type, source, url, metadata) VALUES ($1, 'photo', 'ai_generated', $2, $3)`,
-          [facilityId, result.imageUrl, JSON.stringify({ template: templateId, prompt, predictionId: result.predictionId })]
+          [facilityId, permanentUrl, JSON.stringify({ template: templateId, prompt, predictionId: result.predictionId })]
         )
       } catch {}
 
       return res.status(200).json({
-        imageUrl: result.imageUrl,
+        imageUrl: permanentUrl,
         prompt,
         templateId,
         predictionId: result.predictionId,
