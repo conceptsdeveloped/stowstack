@@ -110,6 +110,11 @@ function createFakeRes(res: ServerResponse) {
       res.writeHead(statusCode, { "Content-Type": "application/json" });
       res.end(JSON.stringify(data));
     },
+    send(body?: any) {
+      Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
+      res.writeHead(statusCode);
+      res.end(body || "");
+    },
     end(body?: string) {
       Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
       res.writeHead(statusCode);

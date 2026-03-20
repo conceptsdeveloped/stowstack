@@ -1,6 +1,7 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, isAdmin } from './_auth.js'
+import { getCreativeSection } from './_creative.js'
 
 export const config = { maxDuration: 60 }
 
@@ -116,10 +117,7 @@ async function generateVideoPrompt(template, facility, customNotes) {
       content: `You are writing a prompt for an AI video generator (Runway ML). The video is b-roll for a storage facility's marketing.
 
 AESTHETIC DIRECTION:
-- Warm, muted, slightly analog feel. Subtle film grain. Intentional negative space.
-- Slow, deliberate camera movement. Every frame should feel like a considered photograph.
-- Quiet confidence — no hard sell energy, no stock footage look.
-- Think premium brand campaign: restrained, tactile, beautiful.
+${getCreativeSection('Video Content Direction').slice(0, 500)}
 
 HARD RULES:
 - No business names, addresses, locations, or brand names
