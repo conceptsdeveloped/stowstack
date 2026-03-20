@@ -5,7 +5,7 @@ import { usePMSData } from '@/hooks/usePMSData'
 import OverviewTab from './OverviewTab'
 import CreativeTab from './CreativeTab'
 import AssetsTab from './AssetsTab'
-import AdPreviewTab from './AdPreviewTab'
+import AdStudio from './AdStudio'
 import LandingPagesTab from './LandingPagesTab'
 import UTMLinksTab from './UTMLinksTab'
 import PublishTab from './PublishTab'
@@ -20,9 +20,8 @@ import OccupancyIntelligence from './OccupancyIntelligence'
 import RevenueLossCalculator from './RevenueLossCalculator'
 import SocialCommandCenter from './SocialCommandCenter'
 import LeadNurtureEngine from './LeadNurtureEngine'
-import ImageGenerator from './ImageGenerator'
 
-type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'image-ai' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'nurture' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-studio' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'nurture' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -93,11 +92,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
           ['occupancy-intel', 'Occupancy Analytics'],
           ['creative', 'Ad Creative Studio'],
           ['assets', 'Media Library'],
-          ['ad-preview', 'Ad Mockup Preview'],
+          ['ad-studio', 'Ad Studio'],
           ['google-ads', 'Google Ads Builder'],
           ['tiktok', 'TikTok Creator'],
           ['video', 'Video Ad Generator'],
-          ['image-ai', 'Image AI'],
           ['landing-pages', 'Landing Page Builder'],
           ['utm-links', 'Campaign Links'],
           ['calls', 'Call Tracking'],
@@ -149,8 +147,8 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
         <AssetsTab facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
-      {subTab === 'ad-preview' && (
-        <AdPreviewTab facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
+      {subTab === 'ad-studio' && (
+        <AdStudio facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
       )}
 
       {subTab === 'landing-pages' && (
@@ -171,10 +169,6 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 
       {subTab === 'video' && (
         <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
-      )}
-
-      {subTab === 'image-ai' && (
-        <ImageGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'calls' && (
