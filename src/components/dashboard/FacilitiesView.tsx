@@ -20,8 +20,9 @@ import OccupancyIntelligence from './OccupancyIntelligence'
 import RevenueLossCalculator from './RevenueLossCalculator'
 import SocialCommandCenter from './SocialCommandCenter'
 import LeadNurtureEngine from './LeadNurtureEngine'
+import ImageGenerator from './ImageGenerator'
 
-type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'nurture' | 'publish'
+type FacilitySubTab = 'overview' | 'pms-data' | 'revenue-loss' | 'revenue-intel' | 'occupancy-intel' | 'creative' | 'assets' | 'ad-preview' | 'google-ads' | 'tiktok' | 'video' | 'image-ai' | 'landing-pages' | 'utm-links' | 'calls' | 'gbp' | 'social' | 'nurture' | 'publish'
 
 function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, onFacilityUpdate }: {
   facility: Facility
@@ -96,6 +97,7 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
           ['google-ads', 'Google Ads Builder'],
           ['tiktok', 'TikTok Creator'],
           ['video', 'Video Ad Generator'],
+          ['image-ai', 'Image AI'],
           ['landing-pages', 'Landing Page Builder'],
           ['utm-links', 'Campaign Links'],
           ['calls', 'Call Tracking'],
@@ -169,6 +171,10 @@ function FacilityDetail({ facility, adminKey, darkMode, onBack, onStatusChange, 
 
       {subTab === 'video' && (
         <VideoGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} onPublish={() => setSubTab('publish')} />
+      )}
+
+      {subTab === 'image-ai' && (
+        <ImageGenerator facility={facility} adminKey={adminKey} darkMode={darkMode} />
       )}
 
       {subTab === 'calls' && (

@@ -68,7 +68,10 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin || ALLOWED_ORIGINS[0])
 
     const buffer = Buffer.from(await videoRes.arrayBuffer())
-    return res.status(200).send(buffer)
+    // Use .end() for compatibility with both Vercel and local dev server
+    res.setHeader('Content-Length', buffer.length)
+    res.writeHead ? res.writeHead(200) : res.status(200)
+    return res.end(buffer)
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch video' })
   }

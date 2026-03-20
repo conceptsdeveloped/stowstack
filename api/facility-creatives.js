@@ -1,6 +1,7 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, isAdmin } from './_auth.js'
+import { getCreativeContext } from './_creative.js'
 
 export const config = { maxDuration: 60 }
 
@@ -411,12 +412,13 @@ function parseJsonResponse(raw) {
   }
 }
 
-async function generateWithClaude(systemPrompt, userMessage, apiKey) {
+async function generateWithClaude(systemPrompt, userMessage, apiKey, platform) {
+  const creativeContext = getCreativeContext(platform || 'meta')
   const client = new Anthropic({ apiKey })
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
-    system: systemPrompt,
+    system: `${systemPrompt}\n\n${creativeContext}`,
     messages: [{ role: 'user', content: userMessage }],
   })
   return parseJsonResponse(message.content[0].text.trim())
@@ -432,7 +434,7 @@ ${context}
 
 Return the JSON object with the "variations" array. Nothing else.`
 
-  return generateWithClaude(SYSTEM_PROMPTS.meta_feed, userMessage, apiKey)
+  return generateWithClaude(SYSTEM_PROMPTS.meta_feed, userMessage, apiKey, 'meta')
 }
 
 async function generateGoogleRSA(facilityId, context, feedback, apiKey) {
@@ -445,7 +447,7 @@ ${context}
 
 Return the JSON object with the "adGroup". Nothing else.`
 
-  return generateWithClaude(SYSTEM_PROMPTS.google_search, userMessage, apiKey)
+  return generateWithClaude(SYSTEM_PROMPTS.google_search, userMessage, apiKey, 'google_search')
 }
 
 async function generateLandingPageCopy(facilityId, context, feedback, apiKey) {
@@ -458,7 +460,7 @@ ${context}
 
 Return the JSON object with the "sections" array, "meta_title", and "meta_description". Nothing else.`
 
-  return generateWithClaude(SYSTEM_PROMPTS.landing_page, userMessage, apiKey)
+  return generateWithClaude(SYSTEM_PROMPTS.landing_page, userMessage, apiKey, 'meta')
 }
 
 async function generateEmailDrip(facilityId, context, feedback, apiKey) {
@@ -471,7 +473,7 @@ ${context}
 
 Return the JSON object with the "sequence" array. Nothing else.`
 
-  return generateWithClaude(SYSTEM_PROMPTS.email_drip, userMessage, apiKey)
+  return generateWithClaude(SYSTEM_PROMPTS.email_drip, userMessage, apiKey, 'meta')
 }
 
 /* ═══════════════════════════════════════════════════════════════

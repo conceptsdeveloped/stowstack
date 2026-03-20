@@ -1,6 +1,7 @@
 import { query } from './_db.js'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin } from './_auth.js'
+import { getCreativeSection } from './_creative.js'
 
 export const config = { maxDuration: 120 }
 
@@ -268,7 +269,7 @@ export default async function handler(req, res) {
       const message = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8192,
-        system: PLAN_SYSTEM_PROMPT,
+        system: `${PLAN_SYSTEM_PROMPT}\n\n--- CREATIVE VOICE & STANDARDS ---\n${getCreativeSection('Voice & Identity').slice(0, 500)}\n\n${getCreativeSection('Ad Theory & Conversion Principles').slice(0, 400)}`,
         messages: [{ role: 'user', content: `Generate a marketing plan for this facility. Think deeply — explain your reasoning, not just your recommendations. Every insight must reference the actual data: their rating, occupancy, location, reviews, unit types. If you can swap in another facility's name and the plan still reads the same, start over. 2-3 target audiences, 3 messaging pillars, 4-week calendar, 3-4 KPIs, 3-5 strategic rationale points. tab_directives FIRST.\n\n${lines.join('\n')}` }],
       })
 
