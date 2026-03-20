@@ -1654,7 +1654,7 @@ function NoticeBuilder({ facilityId, facilityName, prefill, onBack, onSaved }: {
       auditIssues: prefill?.auditIssues,
     }
   })
-  const [showPrint, setShowPrint] = useState(false)
+  const [, setShowPrint] = useState(false)
 
   const facilityPrint = NOTICE_FACILITIES[facilityId] || {
     printName: facilityName.toUpperCase(),
